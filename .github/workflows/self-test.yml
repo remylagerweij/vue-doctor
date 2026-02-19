@@ -17,8 +17,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install and link local package
+        run: |
+          npm ci
+          cd packages/vue-doctor
+          npm run build
+          npm link
+
+
       - name: Run Vue Doctor on itself
         uses: ./
         with:
-          directory: "."
+          directory: "packages/vue-doctor/tests/fixtures/basic-vue"
           verbose: "true"

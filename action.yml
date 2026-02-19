@@ -50,7 +50,12 @@ runs:
         if [ "$INPUT_VERBOSE" = "true" ]; then FLAGS="$FLAGS --verbose"; fi
         if [ -n "$INPUT_PROJECT" ]; then FLAGS="$FLAGS --project $INPUT_PROJECT"; fi
         if [ "$INPUT_REPORT" = "true" ]; then FLAGS="$FLAGS --report"; fi
-        npx -y @remylagerweij/vue-doctor@latest "$INPUT_DIRECTORY" $FLAGS
+        if command -v vue-doctor &> /dev/null; then
+          CMD="vue-doctor"
+        else
+          CMD="npx -y @remylagerweij/vue-doctor@latest"
+        fi
+        $CMD "$INPUT_DIRECTORY" $FLAGS
 
         if [ "$INPUT_REPORT" = "true" ]; then
           echo "report-path=$INPUT_DIRECTORY/vue-doctor-report.html" >> "$GITHUB_OUTPUT"
