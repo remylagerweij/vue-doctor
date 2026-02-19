@@ -1,0 +1,7 @@
+{
+  "name": "clean-vue-fixture",
+  "private": true,
+  "dependencies": {
+    "vue": "^3.5.0"
+  }
+}
