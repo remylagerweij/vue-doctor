@@ -16,7 +16,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/remylagerweij/vue-doctor.git",
+    "url": "git+https://github.com/remylagerweij/vue-doctor.git",
     "directory": "packages/vue-doctor"
   },
   "bin": {
