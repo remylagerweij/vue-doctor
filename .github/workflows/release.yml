@@ -26,6 +26,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Configure npm for provenance
+        run: |
+          npm config set provenance true
+          echo "//registry.npmjs.org/:_authToken=" > ~/.npmrc
 
       - name: Install dependencies
         run: npm ci
