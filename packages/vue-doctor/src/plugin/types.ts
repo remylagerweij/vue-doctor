@@ -13,6 +13,7 @@ export interface RuleVisitors {
 }
 
 export interface Rule {
+  meta?: any;
   create: (context: RuleContext) => RuleVisitors;
 }
 

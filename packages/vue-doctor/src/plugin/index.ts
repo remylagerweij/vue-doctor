@@ -78,6 +78,13 @@ import {
 
 import { serverNoConsoleInHandler } from "./rules/server.js";
 
+import {
+  piniaNoDestructure,
+  piniaNoWatchStore,
+  routerNoStringPush,
+  routerNoAsyncGuardWithoutNext,
+} from "./rules/ecosystem.js";
+
 const plugin: RulePlugin = {
   meta: {
     name: "vue-doctor",
@@ -130,6 +137,12 @@ const plugin: RulePlugin = {
     // Vue-Specific
     "no-async-setup-without-suspense": noAsyncSetupWithoutSuspense,
     "require-emits-declaration": requireEmitsDeclaration,
+
+    // Ecosystem (Pinia & Router)
+    "pinia-no-destructure": piniaNoDestructure,
+    "pinia-no-watch-store": piniaNoWatchStore,
+    "router-no-string-push": routerNoStringPush,
+    "router-no-async-guard-without-next": routerNoAsyncGuardWithoutNext,
 
     // Nuxt
     "nuxt-no-img-element": nuxtNoImgElement,

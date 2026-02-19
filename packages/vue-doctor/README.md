@@ -12,12 +12,13 @@ npx vue-doctor@latest
 
 Vue Doctor runs **three parallel analysis passes** on your codebase:
 
-### 1. Oxlint + Vue Doctor Plugin (42 rules)
+### 1. Oxlint + Vue Doctor Plugin (46 rules)
 Custom ESTree-based rules for Vue.js:
 
 | Category | Rules | Examples |
 |----------|-------|---------|
 | **Reactivity** | 7 | `no-fetch-in-watch`, `no-watch-for-computed`, `prefer-computed` |
+| **Ecosystem** | 4 | `pinia-no-destructure`, `router-no-string-push` |
 | **Architecture** | 2 | `no-giant-component`, `no-nested-component-definition` |
 | **Performance** | 16 | `no-transition-all`, `no-layout-property-animation`, `async-parallel` |
 | **Security** | 2 | `no-secrets-in-client-code`, `no-v-html` |

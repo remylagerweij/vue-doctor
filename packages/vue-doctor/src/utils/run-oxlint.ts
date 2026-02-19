@@ -58,6 +58,11 @@ const RULE_CATEGORY_MAP: Record<string, string> = {
 
   "vue-doctor/client-passive-event-listeners": "Performance",
 
+  "vue-doctor/pinia-no-destructure": "Ecosystem",
+  "vue-doctor/pinia-no-watch-store": "Ecosystem",
+  "vue-doctor/router-no-string-push": "Ecosystem",
+  "vue-doctor/router-no-async-guard-without-next": "Ecosystem",
+
   "vue-doctor/server-no-console-in-handler": "Server",
 
   "vue-doctor/async-parallel": "Performance",
@@ -144,6 +149,15 @@ const RULE_HELP_MAP: Record<string, string> = {
 
   "client-passive-event-listeners":
     "Add `{ passive: true }` as the third argument: `addEventListener('scroll', handler, { passive: true })`",
+
+  "pinia-no-destructure":
+    "Directly destructuring a Pinia store breaks reactivity. Use `storeToRefs` instead.",
+  "pinia-no-watch-store":
+    "Use `<store>.$subscribe()` or watch specific primitive getters instead of deep watching the entire store.",
+  "router-no-string-push":
+    "Pass a route object (e.g. `{ name: 'RouteName' }`) instead of a raw string to router.push/replace.",
+  "router-no-async-guard-without-next":
+    "Ensure your async beforeEach/beforeResolve navigation guard returns a value or calls next().",
 
   "server-no-console-in-handler":
     "Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`",
