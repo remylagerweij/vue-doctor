@@ -11,6 +11,7 @@ export interface DiagnoseOptions {
   lint?: boolean;
   deadCode?: boolean;
   includePaths?: string[];
+  force?: boolean;
 }
 
 export interface DiagnoseResult {
@@ -26,8 +27,8 @@ export const diagnose = async (
   const projectInfo = discoverProject(directory);
   const userConfig = loadConfig(directory);
 
-  if (!projectInfo.vueVersion) {
-    throw new Error("No Vue dependency found in package.json");
+  if (!projectInfo.vueVersion && !options.force) {
+    throw new Error("No Vue dependency found in package.json. Use --force to bypass this check.");
   }
 
   const includePaths = options.includePaths ?? [];

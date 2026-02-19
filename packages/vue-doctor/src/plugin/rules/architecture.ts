@@ -8,19 +8,26 @@ export const noGiantComponent: Rule = {
       if (!node.body?.length) return;
 
       const lastStatement = node.body[node.body.length - 1];
-      const totalLines = lastStatement?.end ?? 0;
+      const totalLines = lastStatement?.loc?.end?.line ?? 0;
 
       if (totalLines > GIANT_COMPONENT_LINE_THRESHOLD) {
         const filename = context.getFilename?.() ?? "";
         const isVueFile = filename.endsWith(".vue");
 
-        if (isVueFile || node.body.some((statement: EsTreeNode) =>
-          statement.type === "ExportDefaultDeclaration" ||
-          (statement.type === "ExpressionStatement" &&
+        // If it's a Vue file, or a JS/TS file that exports a component explicitly using defineComponent
+        const isComponentFile = isVueFile || node.body.some((statement: EsTreeNode) => {
+          if (statement.type === "ExportDefaultDeclaration") {
+            return statement.declaration?.type === "CallExpression" &&
+                   statement.declaration.callee?.type === "Identifier" &&
+                   statement.declaration.callee.name === "defineComponent";
+          }
+          return (statement.type === "ExpressionStatement" &&
             statement.expression?.type === "CallExpression" &&
             statement.expression.callee?.type === "Identifier" &&
-            statement.expression.callee.name === "defineComponent")
-        )) {
+            statement.expression.callee.name === "defineComponent");
+        });
+
+        if (isComponentFile) {
           context.report({
             node,
             message: `Component has ${totalLines}+ lines — consider extracting logic into composables or child components`,

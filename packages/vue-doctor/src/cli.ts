@@ -26,6 +26,7 @@ program
   .option("-y, --yes", "Skip interactive prompts")
   .option("--project <names>", "Workspace project(s) to scan (comma-separated)")
   .option("--offline", "Disable network requests")
+  .option("-f, --force", "Bypass Vue dependency check")
   .action(async (directoryArg: string, options: Record<string, any>) => {
     try {
       const resolvedDirectory = path.resolve(directoryArg);
@@ -48,6 +49,7 @@ program
           json: options.json ?? false,
           report: options.report ?? false,
           githubSummary: options.githubSummary ?? false,
+          force: options.force ?? false,
           includePaths: [],
         };
 

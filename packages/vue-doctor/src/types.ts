@@ -98,6 +98,7 @@ export interface ScanOptions {
   json?: boolean;
   report?: boolean;
   githubSummary?: boolean;
+  force?: boolean;
 }
 
 export interface DiffInfo {

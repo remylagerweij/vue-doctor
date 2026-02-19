@@ -126,8 +126,8 @@ export const scan = async (
   const includePaths = options.includePaths ?? [];
   const isDiffMode = includePaths.length > 0;
 
-  if (!projectInfo.vueVersion) {
-    throw new Error("No Vue dependency found in package.json");
+  if (!projectInfo.vueVersion && !options.force) {
+    throw new Error("No Vue dependency found in package.json. Use --force to bypass this check.");
   }
 
   if (!options.scoreOnly) {

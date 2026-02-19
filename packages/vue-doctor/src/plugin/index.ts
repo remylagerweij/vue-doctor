@@ -24,7 +24,7 @@ import {
   noDeepWatch,
 } from "./rules/performance.js";
 
-import { noSecretsInClientCode } from "./rules/security.js";
+import { noSecretsInClientCode, noEval } from "./rules/security.js";
 
 import {
   noBarrelImport,
@@ -109,6 +109,7 @@ const plugin: RulePlugin = {
 
     // Security
     "no-secrets-in-client-code": noSecretsInClientCode,
+    "no-eval": noEval,
     "no-v-html": noVHtml,
 
     // Bundle Size
