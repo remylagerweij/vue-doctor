@@ -95,6 +95,9 @@ export interface ScanOptions {
   scoreOnly?: boolean;
   offline?: boolean;
   includePaths?: string[];
+  json?: boolean;
+  report?: boolean;
+  githubSummary?: boolean;
 }
 
 export interface DiffInfo {

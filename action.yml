@@ -1,5 +1,5 @@
 name: "Vue Doctor"
-description: "Diagnose performance, security, and correctness issues in your Vue.js app."
+description: "Diagnose performance, security, and correctness issues in your Vue.js app. Get a 0-100 health score with actionable recommendations."
 author: "Remy Lagerweij"
 
 branding:
@@ -19,11 +19,17 @@ inputs:
   node-version:
     description: "Node.js version to use"
     default: "22"
+  report:
+    description: "Generate HTML report"
+    default: "false"
 
 outputs:
   score:
     description: "Health score (0-100)"
     value: ${{ steps.score.outputs.score }}
+  report-path:
+    description: "Path to the generated HTML report"
+    value: ${{ steps.scan.outputs.report-path }}
 
 runs:
   using: "composite"
@@ -32,21 +38,28 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    - shell: bash
+    - id: scan
+      shell: bash
       env:
         INPUT_DIRECTORY: ${{ inputs.directory }}
         INPUT_VERBOSE: ${{ inputs.verbose }}
         INPUT_PROJECT: ${{ inputs.project }}
+        INPUT_REPORT: ${{ inputs.report }}
       run: |
-        FLAGS=""
+        FLAGS="--github-summary"
         if [ "$INPUT_VERBOSE" = "true" ]; then FLAGS="$FLAGS --verbose"; fi
         if [ -n "$INPUT_PROJECT" ]; then FLAGS="$FLAGS --project $INPUT_PROJECT"; fi
-        npx -y vue-doctor@latest "$INPUT_DIRECTORY" $FLAGS
+        if [ "$INPUT_REPORT" = "true" ]; then FLAGS="$FLAGS --report"; fi
+        npx -y @remylagerweij/vue-doctor@latest "$INPUT_DIRECTORY" $FLAGS
+
+        if [ "$INPUT_REPORT" = "true" ]; then
+          echo "report-path=$INPUT_DIRECTORY/vue-doctor-report.html" >> "$GITHUB_OUTPUT"
+        fi
 
     - id: score
       shell: bash
       env:
         INPUT_DIRECTORY: ${{ inputs.directory }}
       run: |
-        SCORE=$(npx -y vue-doctor@latest "$INPUT_DIRECTORY" --score 2>/dev/null || echo "")
+        SCORE=$(npx -y @remylagerweij/vue-doctor@latest "$INPUT_DIRECTORY" --score 2>/dev/null || echo "")
         echo "score=$SCORE" >> "$GITHUB_OUTPUT"

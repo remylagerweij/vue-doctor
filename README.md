@@ -5,7 +5,7 @@
 **Diagnose and fix performance issues in your Vue.js app.**
 
 [![CI](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/@nicepkg/vue-doctor.svg?color=42b883)](https://www.npmjs.com/package/@nicepkg/vue-doctor)
+[![npm version](https://img.shields.io/npm/v/@remylagerweij/vue-doctor.svg?color=42b883)](https://www.npmjs.com/package/@remylagerweij/vue-doctor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
@@ -17,7 +17,7 @@ Get a **0–100 health score** for your Vue.js project with actionable recommend
 ## Quick Start
 
 ```bash
-npx @nicepkg/vue-doctor@latest
+npx @remylagerweij/vue-doctor@latest
 ```
 
 ## What It Checks

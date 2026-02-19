@@ -10,7 +10,7 @@ Use this skill to scan Vue.js and Nuxt projects for issues and get a 0–100 hea
 ## Quick Start
 
 ```bash
-npx @nicepkg/vue-doctor@latest .
+npx @remylagerweij/vue-doctor@latest .
 ```
 
 ## When to Use
@@ -36,7 +36,7 @@ npx @nicepkg/vue-doctor@latest .
 ### Programmatic API
 
 ```typescript
-import { diagnose } from "@nicepkg/vue-doctor/api";
+import { diagnose } from "@remylagerweij/vue-doctor/api";
 
 const result = await diagnose({
   directory: "./my-vue-app",
@@ -51,7 +51,7 @@ const result = await diagnose({
 ### ESLint Plugin
 
 ```javascript
-import vueDoctorPlugin from "@nicepkg/vue-doctor/eslint-plugin";
+import vueDoctorPlugin from "@remylagerweij/vue-doctor/eslint-plugin";
 import vueParser from "vue-eslint-parser";
 
 export default [

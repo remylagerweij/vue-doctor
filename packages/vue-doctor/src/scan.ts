@@ -236,11 +236,48 @@ export const scan = async (
   if (didTemplateLintFail) skippedChecks.push("template lint");
   if (didDeadCodeFail) skippedChecks.push("dead code");
 
+  const elapsedMs = performance.now() - startTime;
+  const elapsed = (elapsedMs / MILLISECONDS_PER_SECOND).toFixed(1);
+
+  const reportData = {
+    score: scoreResult?.score ?? 0,
+    label: scoreResult?.label ?? "Unknown",
+    diagnostics,
+    project: projectInfo,
+    elapsed,
+    skippedChecks,
+    timestamp: new Date().toISOString(),
+  };
+
+  // JSON output mode
+  if (options.json) {
+    const { generateJsonReport } = await import("./utils/report.js");
+    console.log(JSON.stringify(generateJsonReport(reportData), null, 2));
+    return { diagnostics, scoreResult, skippedChecks };
+  }
+
+  // Score-only mode
   if (options.scoreOnly) {
     if (scoreResult) {
       console.log(scoreResult.score);
     }
     return { diagnostics, scoreResult, skippedChecks };
+  }
+
+  // HTML report mode
+  if (options.report) {
+    const { writeHtmlReport } = await import("./utils/report.js");
+    const reportPath = writeHtmlReport(reportData, directory);
+    logger.success(`\n  📊 Report saved to ${reportPath}\n`);
+  }
+
+  // GitHub Actions step summary
+  if (options.githubSummary && process.env.GITHUB_STEP_SUMMARY) {
+    const fs = await import("node:fs");
+    const { generateGithubSummary } = await import("./utils/report.js");
+    const summary = generateGithubSummary(reportData);
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+    logger.success("  📝 Written to GitHub Step Summary");
   }
 
   // Print results
@@ -254,8 +291,6 @@ export const scan = async (
     logger.log(`  ${pc.bold("Score:")} ${colorizeByScore(String(scoreResult.score), scoreResult.score)} — ${scoreLabel}`);
   }
 
-  const elapsedMs = performance.now() - startTime;
-  const elapsed = (elapsedMs / MILLISECONDS_PER_SECOND).toFixed(1);
   logger.log(`  ${pc.dim(`Completed in ${elapsed}s`)}`);
 
   logger.break();
