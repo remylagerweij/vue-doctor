@@ -149,3 +149,34 @@ export const noPermanentWillChange: Rule = {
     },
   }),
 };
+
+export const noDeepWatch: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (
+        node.callee?.type !== "Identifier" ||
+        node.callee.name !== "watch"
+      ) return;
+
+      // The options object is the 3rd argument: watch(source, callback, options)
+      const options = node.arguments?.[2];
+      if (options?.type !== "ObjectExpression") return;
+
+      const deepProp = options.properties?.find(
+        (prop: EsTreeNode) =>
+          prop.type === "Property" &&
+          prop.key?.type === "Identifier" &&
+          prop.key.name === "deep" &&
+          prop.value?.type === "Literal" &&
+          prop.value.value === true,
+      );
+
+      if (deepProp) {
+        context.report({
+          node,
+          message: "watch() with { deep: true } traverses the entire object tree on every change — watch specific properties or use watchEffect()",
+        });
+      }
+    },
+  }),
+};

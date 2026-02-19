@@ -13,9 +13,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=vue-doctor",
-    "build": "npm run build --workspace=vue-doctor",
-    "test": "npm run test --workspace=vue-doctor",
+    "dev": "npm run dev --workspace=@nicepkg/vue-doctor",
+    "build": "npm run build --workspace=@nicepkg/vue-doctor",
+    "test": "npm run test --workspace=@nicepkg/vue-doctor",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "changeset": "changeset",

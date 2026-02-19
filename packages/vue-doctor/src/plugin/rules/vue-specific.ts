@@ -104,3 +104,20 @@ export const noDirectDomManipulation: Rule = {
     },
   }),
 };
+
+export const requireEmitsDeclaration: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (node.callee?.type !== "MemberExpression") return;
+
+      const property = node.callee.property;
+      if (property?.type !== "Identifier" || property.name !== "$emit") return;
+
+      // If we see $emit being called, it likely means emits aren't declared with defineEmits()
+      context.report({
+        node,
+        message: "$emit() without defineEmits() — declare emits with defineEmits() for better documentation and type checking",
+      });
+    },
+  }),
+};

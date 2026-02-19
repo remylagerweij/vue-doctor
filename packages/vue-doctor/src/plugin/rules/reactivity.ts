@@ -180,3 +180,78 @@ export const noMissingAwaitNextTick: Rule = {
     },
   }),
 };
+
+export const noReactiveDestructure: Rule = {
+  create: (context: RuleContext) => ({
+    VariableDeclarator(node: EsTreeNode) {
+      if (node.id?.type !== "ObjectPattern" && node.id?.type !== "ArrayPattern") return;
+      if (node.init?.type !== "CallExpression") return;
+
+      const callee = node.init.callee;
+      if (
+        callee?.type === "Identifier" &&
+        (callee.name === "reactive" || callee.name === "toRefs")
+      ) {
+        // toRefs is fine to destructure, only flag reactive
+        if (callee.name === "reactive") {
+          context.report({
+            node,
+            message: "Destructuring reactive() loses reactivity — use toRefs() or access properties directly",
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const noMutationInComputed: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (!isSpecificCall(node, "computed")) return;
+
+      const callback = node.arguments?.[0];
+      if (!callback) return;
+
+      const body =
+        callback.type === "ArrowFunctionExpression" || callback.type === "FunctionExpression"
+          ? callback.body
+          : null;
+
+      if (!body) return;
+
+      const checkForMutations = (astNode: EsTreeNode): boolean => {
+        let hasMutation = false;
+        walkAst(astNode, (child) => {
+          // Check for .value = assignments
+          if (
+            child.type === "AssignmentExpression" &&
+            child.left?.type === "MemberExpression" &&
+            child.left.property?.type === "Identifier" &&
+            child.left.property.name === "value"
+          ) {
+            hasMutation = true;
+          }
+          // Check for reactive mutation methods
+          if (
+            child.type === "CallExpression" &&
+            child.callee?.type === "MemberExpression" &&
+            child.callee.property?.type === "Identifier"
+          ) {
+            const method = child.callee.property.name;
+            if (["push", "pop", "shift", "unshift", "splice", "sort", "reverse"].includes(method)) {
+              hasMutation = true;
+            }
+          }
+        });
+        return hasMutation;
+      };
+
+      if (checkForMutations(body)) {
+        context.report({
+          node,
+          message: "Side effect in computed() — computed properties should be pure. Move mutations to a method or watch",
+        });
+      }
+    },
+  }),
+};

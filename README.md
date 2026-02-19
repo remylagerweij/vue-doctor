@@ -5,7 +5,7 @@
 **Diagnose and fix performance issues in your Vue.js app.**
 
 [![CI](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/vue-doctor.svg?color=42b883)](https://www.npmjs.com/package/vue-doctor)
+[![npm version](https://img.shields.io/npm/v/@nicepkg/vue-doctor.svg?color=42b883)](https://www.npmjs.com/package/@nicepkg/vue-doctor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
@@ -17,7 +17,7 @@ Get a **0–100 health score** for your Vue.js project with actionable recommend
 ## Quick Start
 
 ```bash
-npx vue-doctor@latest
+npx @nicepkg/vue-doctor@latest
 ```
 
 ## What It Checks
@@ -33,11 +33,11 @@ npx vue-doctor@latest
 <table>
 <tr><td><b>🔄 Reactivity</b></td><td>no-fetch-in-watch, no-watch-for-computed, prefer-computed, no-ref-from-prop, no-reactive-replace, no-cascading-mutations, no-missing-await-nextTick</td></tr>
 <tr><td><b>🏗️ Architecture</b></td><td>no-giant-component, no-nested-component-definition</td></tr>
-<tr><td><b>⚡ Performance</b></td><td>no-transition-all, no-layout-property-animation, no-global-css-variable-animation, no-large-animated-blur, no-scale-from-zero, no-permanent-will-change, passive-event-listeners, async-parallel, js-combine-iterations, js-tosorted-immutable, js-hoist-regexp, js-min-max-loop, js-set-map-lookups, js-batch-dom-css, js-index-maps, js-cache-storage, js-early-exit</td></tr>
+<tr><td><b>⚡ Performance</b></td><td>no-transition-all, no-layout-property-animation, no-global-css-variable-animation, no-large-animated-blur, no-scale-from-zero, no-permanent-will-change, no-deep-watch, passive-event-listeners, async-parallel, js-combine-iterations, js-tosorted-immutable, js-hoist-regexp, js-min-max-loop, js-set-map-lookups, js-batch-dom-css, js-index-maps, js-cache-storage, js-early-exit</td></tr>
 <tr><td><b>🔒 Security</b></td><td>no-secrets-in-client-code, no-v-html</td></tr>
 <tr><td><b>📦 Bundle Size</b></td><td>no-full-lodash-import, no-moment, prefer-dynamic-import, no-barrel-import, no-undeferred-third-party</td></tr>
-<tr><td><b>✅ Correctness</b></td><td>no-array-index-as-key, no-prevent-default, no-direct-dom-manipulation, prefer-defineProps-destructure</td></tr>
-<tr><td><b>💚 Nuxt</b></td><td>nuxt-no-img-element, nuxt-no-a-element, nuxt-no-head-import, nuxt-no-client-fetch-for-server-data, nuxt-async-client-component</td></tr>
+<tr><td><b>✅ Correctness</b></td><td>no-array-index-as-key, no-prevent-default, no-direct-dom-manipulation, prefer-defineProps-destructure, no-this-in-setup, require-defineprops-types</td></tr>
+<tr><td><b>💚 Nuxt</b></td><td>nuxt-no-img-element, nuxt-no-a-element, nuxt-no-head-import, nuxt-no-client-fetch-for-server-data, nuxt-async-client-component, nuxt-no-window-in-ssr, nuxt-require-seo-meta, nuxt-no-process-env-in-client, nuxt-require-server-route-error-handling</td></tr>
 <tr><td><b>🖥️ Server</b></td><td>server-no-console-in-handler</td></tr>
 </table>
 

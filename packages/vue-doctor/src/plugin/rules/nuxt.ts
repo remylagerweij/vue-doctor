@@ -122,3 +122,107 @@ export const nuxtAsyncClientComponent: Rule = {
     },
   }),
 };
+
+const SSR_UNSAFE_GLOBALS = new Set(["window", "document", "navigator", "localStorage", "sessionStorage"]);
+
+export const nuxtNoWindowInSsr: Rule = {
+  create: (context: RuleContext) => ({
+    MemberExpression(node: EsTreeNode) {
+      if (
+        node.object?.type === "Identifier" &&
+        SSR_UNSAFE_GLOBALS.has(node.object.name)
+      ) {
+        context.report({
+          node,
+          message: `${node.object.name} is not available during SSR — guard with \`if (import.meta.client)\` or use \`onMounted()\``,
+        });
+      }
+    },
+  }),
+};
+
+export const nuxtRequireSeoMeta: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (
+        node.callee?.type === "Identifier" &&
+        node.callee.name === "useHead"
+      ) {
+        const arg = node.arguments?.[0];
+        if (arg?.type !== "ObjectExpression") return;
+
+        const hasMeta = arg.properties?.some(
+          (prop: EsTreeNode) =>
+            prop.type === "Property" &&
+            prop.key?.type === "Identifier" &&
+            prop.key.name === "meta",
+        );
+
+        if (hasMeta) {
+          context.report({
+            node,
+            message: "useHead() with meta tags — prefer useSeoMeta() for type-safe SEO meta management",
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const nuxtNoProcessEnvInClient: Rule = {
+  create: (context: RuleContext) => ({
+    MemberExpression(node: EsTreeNode) {
+      if (
+        node.object?.type === "MemberExpression" &&
+        node.object.object?.type === "Identifier" &&
+        node.object.object.name === "process" &&
+        node.object.property?.type === "Identifier" &&
+        node.object.property.name === "env"
+      ) {
+        context.report({
+          node,
+          message: "process.env in Nuxt — use useRuntimeConfig() for type-safe environment variable access",
+        });
+      }
+    },
+  }),
+};
+
+export const nuxtRequireServerRouteErrorHandling: Rule = {
+  create: (context: RuleContext) => ({
+    ExportDefaultDeclaration(node: EsTreeNode) {
+      const filename = context.getFilename?.() ?? "";
+      if (!filename.includes("server/") && !filename.includes("server\\")) return;
+
+      const decl = node.declaration;
+      if (!decl) return;
+
+      // Check for defineEventHandler
+      if (
+        decl.type === "CallExpression" &&
+        decl.callee?.type === "Identifier" &&
+        decl.callee.name === "defineEventHandler"
+      ) {
+        const handler = decl.arguments?.[0];
+        if (!handler) return;
+
+        const body =
+          handler.type === "ArrowFunctionExpression" || handler.type === "FunctionExpression"
+            ? handler.body
+            : null;
+
+        if (body?.type === "BlockStatement") {
+          const hasTryCatch = body.body?.some(
+            (s: EsTreeNode) => s.type === "TryStatement",
+          );
+          if (!hasTryCatch) {
+            context.report({
+              node,
+              message: "Server route handler without try/catch — wrap in try/catch to handle errors gracefully",
+            });
+          }
+        }
+      }
+    },
+  }),
+};
