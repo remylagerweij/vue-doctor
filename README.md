@@ -14,6 +14,13 @@
 
 Get a **0–100 health score** for your Vue.js project with actionable recommendations. Vue Doctor runs three parallel analysis passes — custom oxlint rules, eslint-plugin-vue template checks, and dead code detection — to catch performance, security, and correctness issues.
 
+
+## Documentation
+
+- **[📖 All Rules Explained](./RULES.md)** — Detailed guide with "Bad" vs "Good" code examples.
+- **[🤝 Contributing Guide](./CONTRIBUTING.md)** — How to set up the project and add new rules.
+- **[👮 Code of Conduct](./CODE_OF_CONDUCT.md)**
+
 ## Quick Start
 
 ```bash

@@ -1,0 +1,36 @@
+name: Feature Request
+description: Suggest an idea for this project
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature!
+  - type: textarea
+    id: description
+    attributes:
+      label: Summary
+      description: A clear and concise description of the feature you want.
+      placeholder: I want a rule that checks for ...
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why is this feature useful? Who would benefit from it?
+      placeholder: This would prevent bugs when using library X...
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Code (if applicable)
+      description: Show "Bad" vs "Good" code if suggesting a new rule.
+      placeholder: |
+        Bad:
+        const x = ...
+
+        Good:
+        const x = ...
