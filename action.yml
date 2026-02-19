@@ -1,5 +1,5 @@
 name: "Vue Doctor"
-description: "Diagnose performance, security, and correctness issues in your Vue.js app. Get a 0-100 health score with actionable recommendations."
+description: "Diagnose performance, security, and correctness issues in your Vue.js app."
 author: "Remy Lagerweij"
 
 branding:
