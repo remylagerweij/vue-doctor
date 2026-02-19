@@ -6,6 +6,10 @@ const NUXT_RULES: Record<string, string> = {
   "vue-doctor/nuxt-no-head-import": "warn",
   "vue-doctor/nuxt-no-client-fetch-for-server-data": "warn",
   "vue-doctor/nuxt-async-client-component": "error",
+  "vue-doctor/nuxt-no-window-in-ssr": "error",
+  "vue-doctor/nuxt-require-seo-meta": "warn",
+  "vue-doctor/nuxt-no-process-env-in-client": "error",
+  "vue-doctor/nuxt-require-server-route-error-handling": "error",
 };
 
 const SERVER_RULES: Record<string, string> = {
@@ -41,6 +45,8 @@ export const createOxlintConfig = ({
     "vue-doctor/prefer-computed": "warn",
     "vue-doctor/no-reactive-replace": "error",
     "vue-doctor/no-missing-await-nextTick": "warn",
+    "vue-doctor/no-reactive-destructure": "warn",
+    "vue-doctor/no-mutation-in-computed": "error",
 
     // Architecture
     "vue-doctor/no-giant-component": "warn",
@@ -53,6 +59,7 @@ export const createOxlintConfig = ({
     "vue-doctor/no-large-animated-blur": "warn",
     "vue-doctor/no-scale-from-zero": "warn",
     "vue-doctor/no-permanent-will-change": "warn",
+    "vue-doctor/no-deep-watch": "warn",
 
     // Security
     "vue-doctor/no-secrets-in-client-code": "error",
@@ -70,6 +77,12 @@ export const createOxlintConfig = ({
     "vue-doctor/no-prevent-default": "warn",
     "vue-doctor/no-direct-dom-manipulation": "warn",
     "vue-doctor/prefer-defineProps-destructure": "warn",
+    "vue-doctor/no-this-in-setup": "error",
+    "vue-doctor/require-defineprops-types": "warn",
+
+    // Vue-Specific
+    "vue-doctor/no-async-setup-without-suspense": "error",
+    "vue-doctor/require-emits-declaration": "warn",
 
     // Client
     "vue-doctor/client-passive-event-listeners": "warn",

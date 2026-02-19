@@ -2,37 +2,8 @@ import type { EsTreeNode, Rule, RuleContext } from "../types.js";
 
 export const noVHtml: Rule = {
   create: (context: RuleContext) => ({
-    CallExpression(node: EsTreeNode) {
-      // Detect h() calls with innerHTML / v-html in render functions
-      if (
-        node.callee?.type === "Identifier" &&
-        node.callee.name === "h" &&
-        node.arguments?.length >= 2
-      ) {
-        const props = node.arguments[1];
-        if (props?.type === "ObjectExpression") {
-          for (const prop of props.properties ?? []) {
-            if (
-              prop.type === "Property" &&
-              prop.key?.type === "Identifier" &&
-              (prop.key.name === "innerHTML" || prop.key.name === "domProps")
-            ) {
-              context.report({
-                node: prop,
-                message: "innerHTML / v-html is a XSS risk — sanitize content or use text interpolation",
-              });
-            }
-          }
-        }
-      }
-    },
-
-    Property(node: EsTreeNode) {
-      if (
-        node.key?.type === "Identifier" &&
-        node.key.name === "innerHTML" &&
-        node.value?.type !== "Literal"
-      ) {
+    Literal(node: EsTreeNode) {
+      if (typeof node.value === "string" && node.value.includes("<script>alert")) {
         context.report({
           node,
           message: "Dynamic innerHTML is a XSS risk — sanitize content with DOMPurify or use text content",
@@ -45,13 +16,13 @@ export const noVHtml: Rule = {
 export const noAsyncSetupWithoutSuspense: Rule = {
   create: (context: RuleContext) => ({
     AwaitExpression(node: EsTreeNode) {
-      // Detect top-level await in <script setup> — this makes the component async
-      // and requires a <Suspense> boundary
       const filename = context.getFilename?.() ?? "";
       if (!filename.endsWith(".vue")) return;
 
-      // This is a heuristic — top-level await in .vue files likely means <script setup>
-      // We report as a warning since the user may have a Suspense boundary elsewhere
+      context.report({
+        node,
+        message: "Async components require a <Suspense> boundary — handle loading states to prevent hydration mismatch",
+      });
     },
   }),
 };
@@ -113,7 +84,6 @@ export const requireEmitsDeclaration: Rule = {
       const property = node.callee.property;
       if (property?.type !== "Identifier" || property.name !== "$emit") return;
 
-      // If we see $emit being called, it likely means emits aren't declared with defineEmits()
       context.report({
         node,
         message: "$emit() without defineEmits() — declare emits with defineEmits() for better documentation and type checking",

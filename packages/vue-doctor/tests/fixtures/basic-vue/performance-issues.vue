@@ -1,32 +1,37 @@
 <script setup lang="ts">
-// Performance issues fixture
+// no-giant-component (triggered by simply having script content)
 
-// no-transition-all
-const style1 = { transition: "all 200ms ease" };
+// no-global-css-variable-animation
+const style = document.body.style;
+style.setProperty("--theme-color", "red");
 
-// no-layout-property-animation
-const style2 = { transition: "width 200ms ease" };
-
-// no-permanent-will-change
-const style3 = { willChange: "transform" };
-
-// no-scale-from-zero
-const style4 = { scale: 0 };
-
-// no-large-animated-blur
-const style5 = { filter: "blur(25px)" };
-
-// async-parallel
-const fetchData = async () => {
-  const res1 = await fetch("/api/a");
-  const res2 = await fetch("/api/b");
-  const res3 = await fetch("/api/c");
+// no-transition-all, no-scale-from-zero, no-large-animated-blur, no-permanent-will-change
+// putting them in script so oxlint parses them as JS Properties
+const badStyles = {
+  transition: "all 0.3s ease",
+  transform: "scale(0)",
+  filter: "blur(20px)",
+  willChange: "transform"
 };
 
-// client-passive-event-listeners
-document.addEventListener("scroll", () => {});
-</script>
+// no-layout-property-animation
+const layoutStyle = {
+  transition: "margin-left 0.3s"
+}
 
-<template>
-  <div :style="style1">Performance Issues</div>
-</template>
+// client-passive-event-listeners
+window.addEventListener("scroll", () => {
+  // nuxt-no-window-in-ssr (using window)
+});
+
+import { watch } from "vue";
+const obj = { nested: true };
+// no-deep-watch
+watch(obj, () => {}, { deep: true });
+
+async function load() {
+  // async-parallel
+  const a = await fetch('/api/a');
+  const b = await fetch('/api/b');
+}
+</script>

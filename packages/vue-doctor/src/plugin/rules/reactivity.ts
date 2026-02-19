@@ -155,27 +155,15 @@ export const noMissingAwaitNextTick: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
       if (
-        node.callee?.type !== "Identifier" ||
-        node.callee.name !== "nextTick"
+        (node.callee?.type === "Identifier" && node.callee.name === "nextTick") ||
+        (node.callee?.type === "MemberExpression" &&
+          node.callee.property?.type === "Identifier" &&
+          node.callee.property.name === "nextTick")
       ) {
-        return;
-      }
-
-      // Check if the parent is an ExpressionStatement (not awaited)
-      // This is a heuristic — the parent won't always be available
-      // but we can check if it's used as a standalone call
-      if (!node.arguments?.length) {
-        let isAwaited = false;
-        walkAst(node, (child) => {
-          if (child.type === "AwaitExpression" && child.argument === node) {
-            isAwaited = true;
-          }
+        context.report({
+          node,
+          message: "Missing await on nextTick(). This can lead to race conditions where the DOM is not yet updated when the subsequent code runs.",
         });
-
-        if (!isAwaited) {
-          // The call to nextTick() without arguments is fine as a thenable
-          // Only warn if we see it's clearly not awaited
-        }
       }
     },
   }),

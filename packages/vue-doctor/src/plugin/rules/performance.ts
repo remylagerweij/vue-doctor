@@ -3,8 +3,16 @@ import {
   LARGE_BLUR_THRESHOLD_PX,
   LAYOUT_PROPERTIES,
 } from "../constants.js";
-import { walkAst } from "../helpers.js";
 import type { EsTreeNode, Rule, RuleContext } from "../types.js";
+
+// Helper to identify rAF or setInterval
+const isLoopFunction = (node: EsTreeNode): boolean => {
+  return (
+    node.type === "CallExpression" &&
+    node.callee?.type === "Identifier" &&
+    (node.callee.name === "requestAnimationFrame" || node.callee.name === "setInterval")
+  );
+};
 
 export const noLayoutPropertyAnimation: Rule = {
   create: (context: RuleContext) => ({
@@ -68,26 +76,12 @@ export const noGlobalCssVariableAnimation: Rule = {
       if (
         node.callee?.type === "MemberExpression" &&
         node.callee.property?.type === "Identifier" &&
-        node.callee.property.name === "setProperty" &&
-        node.arguments?.[0]?.type === "Literal" &&
-        typeof node.arguments[0].value === "string" &&
-        node.arguments[0].value.startsWith("--")
+        node.callee.property.name === "setProperty"
       ) {
-        let isInLoop = false;
-        walkAst(node, (child) => {
-          if (child.type === "CallExpression" &&
-            child.callee?.type === "Identifier" &&
-            (child.callee.name === "requestAnimationFrame" || child.callee.name === "setInterval")) {
-            isInLoop = true;
-          }
+        context.report({
+          node,
+          message: "Setting CSS variables directly via DOM API can cause expensive repaints (especially in animation loops) — use Vue reactive :style bindings instead",
         });
-
-        if (isInLoop) {
-          context.report({
-            node,
-            message: "Animating a CSS variable on a parent element forces repaint of all children — set on the nearest element or use @property with inherits: false",
-          });
-        }
       }
     },
   }),

@@ -1,45 +1,48 @@
 <script setup lang="ts">
-import { ref, watch, watchEffect } from "vue";
+import { ref, watch, watchEffect, reactive, computed, nextTick } from "vue";
 
 const props = defineProps<{ modelValue: string }>();
 
-// no-ref-from-prop: bad — creates a copy
+// no-ref-from-prop
 const localValue = ref(props.modelValue);
 
-// no-watch-for-computed: bad — should be computed
+// no-watch-for-computed
 const derivedValue = ref("");
-watch(
-  () => localValue.value,
-  (newVal) => {
-    derivedValue.value = newVal.toUpperCase();
-  }
-);
+watch(() => localValue.value, (newVal) => { derivedValue.value = newVal; });
 
-// prefer-computed: bad — watchEffect that only sets a ref
+// prefer-computed
 const doubled = ref(0);
 const count = ref(1);
-watchEffect(() => {
-  doubled.value = count.value * 2;
-});
+watchEffect(() => { doubled.value = count.value * 2; });
 
-// no-cascading-mutations: bad — too many mutations in watch
+// no-cascading-mutations
 const a = ref(0);
 const b = ref(0);
 const c = ref(0);
 const d = ref(0);
 watch(() => count.value, () => {
-  a.value = count.value + 1;
-  b.value = count.value + 2;
-  c.value = count.value + 3;
-  d.value = count.value + 4;
+  a.value = 1; b.value = 2; c.value = 3; d.value = 4;
 });
 
-// no-fetch-in-watch: bad — fetch in watch
-watch(() => count.value, async () => {
-  await fetch("/api/data");
-});
+// no-fetch-in-watch
+watch(() => count.value, async () => { await fetch("/api"); });
+
+// no-reactive-destructure
+const { x } = reactive({ x: 1 });
+
+// no-mutation-in-computed
+const val = ref(0);
+const double = computed(() => { val.value++; return val.value * 2; });
+
+// no-reactive-replace
+let r = reactive({ a: 1 });
+r = reactive({ a: 2 });
+
+// no-missing-await-nextTick
+nextTick();
+
 </script>
 
 <template>
-  <div>{{ derivedValue }}</div>
+  <div>Test</div>
 </template>

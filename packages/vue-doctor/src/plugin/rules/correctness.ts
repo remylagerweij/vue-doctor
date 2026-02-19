@@ -24,9 +24,13 @@ export const noArrayIndexAsKey: Rule = {
             indexParam?.type === "Identifier" &&
             INDEX_PARAMETER_NAMES.has(indexParam.name)
           ) {
-            // HACK: Simplified — checks if the index param name is used in a computed property
-            // that could be used as a :key binding. In Vue templates the :key binding is in the template,
-            // but in render functions it appears in JSX/h() calls.
+            const indexName = indexParam.name;
+            // Simplified check: If we map with an index, we likely use it.
+            // A more robust check would verify usage as 'key', but for now this catches the pattern.
+            context.report({
+               node: indexParam,
+               message: `Avoid using array index "${indexName}" as key — use unique IDs for stable rendering`,
+            });
           }
         }
       }
