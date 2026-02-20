@@ -1,5 +1,11 @@
 # @remylagerweij/vue-doctor
 
+## 1.1.2
+
+### Patch Changes
+
+- 73c1594: Add hint to CLI output when run without --verbose or --json flags to show users how to get detailed diagnostics.
+
 ## 1.1.1
 
 ### Patch Changes
