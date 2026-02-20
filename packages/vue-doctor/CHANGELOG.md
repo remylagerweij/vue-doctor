@@ -1,5 +1,11 @@
 # @remylagerweij/vue-doctor
 
+## 1.1.1
+
+### Patch Changes
+
+- 9dfd21a: Add Antigravity rules, skills, and workflows configuration
+
 ## 1.1.0
 
 ### Minor Changes
