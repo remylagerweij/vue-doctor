@@ -113,6 +113,11 @@ const printDiagnosticsSummary = (
       }
     }
   }
+
+  if (!verbose && diagnostics.length > 0) {
+    logger.log("");
+    logger.log(`  ${pc.dim("💡 Tip: Run with ")}${pc.bold("--verbose")}${pc.dim(" to see detailed file paths, or ")}${pc.bold("--json")}${pc.dim(" for machine-readable output.")}`);
+  }
 };
 
 export const scan = async (
