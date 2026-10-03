@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "extends": {
+      "description": "Presets applied before `rules`, in order.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "vue-doctor/recommended",
+          "vue-doctor/strict",
+          "vue-doctor/security"
+        ]
+      }
+    },
+    "rules": {
+      "description": "Per-rule severity, e.g. { \"vue-doctor/performance/no-deep-watch\": \"off\" }. Keys are rule IDs (`vue-doctor/<category>/<rule>`, `vue/<rule>`, `knip/<type>`) or groups (`vue-doctor/security/*`). The 1.x forms `no-deep-watch` and `vue-doctor/no-deep-watch` still work but are deprecated.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "off",
+              "warn",
+              "warning",
+              "error"
+            ],
+            "description": "\"off\" disables the rule; \"warn\" is an alias of \"warning\"."
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "warn",
+                  "warning",
+                  "error"
+                ],
+                "description": "\"off\" disables the rule; \"warn\" is an alias of \"warning\"."
+              }
+            ],
+            "items": false,
+            "minItems": 1,
+            "maxItems": 1
+          },
+          {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "warn",
+                  "warning",
+                  "error"
+                ],
+                "description": "\"off\" disables the rule; \"warn\" is an alias of \"warning\"."
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        ]
+      }
+    },
+    "ignore": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "description": "Glob patterns of files whose findings are dropped.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "description": "Rule IDs (or groups like \"vue-doctor/security/*\") whose findings are dropped.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Findings to drop entirely. Prefer `rules` for severity changes."
+    },
+    "gate": {
+      "type": "object",
+      "properties": {
+        "failOn": {
+          "type": "string",
+          "enum": [
+            "none",
+            "error",
+            "warning"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "new",
+            "all"
+          ]
+        },
+        "minScore": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strict": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Defaults for --fail-on, --gate, --min-score and --strict. CLI flags win."
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Query OSV.dev for vulnerable dependencies (network).",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Dependency vulnerability audit. Off by default; never runs with --offline."
+    },
+    "baseline": {
+      "description": "Path to a baseline file, relative to the project root.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pr": {
+      "type": "object",
+      "properties": {
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "annotations",
+              "findings",
+              "none"
+            ]
+          }
+        },
+        "grouping": {
+          "type": "string",
+          "enum": [
+            "finding",
+            "rule-per-file",
+            "rule"
+          ]
+        },
+        "maxComments": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "agentPrompt": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Pull request feedback used by `vue-doctor ci report`."
+    },
+    "lint": {
+      "description": "Run lint checks (oxlint + template checks). Default: true.",
+      "type": "boolean"
+    },
+    "deadCode": {
+      "description": "Run dead code checks (knip). Default: true.",
+      "type": "boolean"
+    },
+    "verbose": {
+      "description": "Show file details per rule. Default: false.",
+      "type": "boolean"
+    },
+    "cache": {
+      "description": "Reuse findings for unchanged files (node_modules/.cache/vue-doctor). Default: true.",
+      "type": "boolean"
+    },
+    "diff": {
+      "description": "Only scan changed files: true for auto-detection, or a base branch name.",
+      "type": [
+        "boolean",
+        "string"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "description": "Vue Doctor configuration",
+  "$id": "https://remylagerweij.github.io/vue-doctor/schema/vue-doctor.schema.json",
+  "title": "Vue Doctor configuration"
+}

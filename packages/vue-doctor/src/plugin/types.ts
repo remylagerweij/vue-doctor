@@ -5,6 +5,9 @@ export interface ReportDescriptor {
 
 export interface RuleContext {
   report: (descriptor: ReportDescriptor) => void;
+  /** Path of the linted file (ESLint 9+ / oxlint). */
+  filename?: string;
+  /** @deprecated Removed in ESLint 10; only read when `filename` is undefined. */
   getFilename?: () => string;
 }
 

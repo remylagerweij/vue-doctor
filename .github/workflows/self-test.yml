@@ -1,0 +1,91 @@
+name: Self-Test Action
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-action:
+    name: Test composite action on fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run action on clean fixture (should pass with score 100)
+        id: clean_scan
+        uses: ./
+        with:
+          directory: packages/vue-doctor/tests/fixtures/clean-vue
+          fail-on: error
+          gate: all
+          feedback: none
+
+      - name: Assert clean fixture results
+        run: |
+          echo "Score: ${{ steps.clean_scan.outputs.score }}"
+          echo "Errors: ${{ steps.clean_scan.outputs.errors }}"
+          if [ "${{ steps.clean_scan.outputs.score }}" != "100" ]; then
+            echo "Expected score 100 for clean fixture, got ${{ steps.clean_scan.outputs.score }}"
+            exit 1
+          fi
+          if [ "${{ steps.clean_scan.outputs.errors }}" != "0" ]; then
+            echo "Expected 0 errors for clean fixture, got ${{ steps.clean_scan.outputs.errors }}"
+            exit 1
+          fi
+
+      - name: Run action on basic fixture with fail-on none
+        id: basic_scan
+        uses: ./
+        with:
+          directory: packages/vue-doctor/tests/fixtures/basic-vue
+          fail-on: none
+          gate: all
+          feedback: none
+
+      - name: Assert basic fixture findings detected
+        run: |
+          echo "Score: ${{ steps.basic_scan.outputs.score }}"
+          if [ -z "${{ steps.basic_scan.outputs.score }}" ]; then
+            echo "Expected score output to be non-empty"
+            exit 1
+          fi
+
+      - name: Test gate failure on basic fixture
+        id: failing_gate
+        continue-on-error: true
+        uses: ./
+        with:
+          directory: packages/vue-doctor/tests/fixtures/basic-vue
+          min-score: 100
+          fail-on: error
+          gate: all
+          feedback: none
+
+      - name: Assert gate failure breached exit code
+        run: |
+          if [ "${{ steps.failing_gate.outcome }}" != "failure" ]; then
+            echo "Expected step to fail gate, but outcome was ${{ steps.failing_gate.outcome }}"
+            exit 1
+          fi

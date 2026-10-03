@@ -7,7 +7,7 @@ const FIXTURES_DIRECTORY = path.resolve(import.meta.dirname, "fixtures");
 const BASIC_VUE_DIRECTORY = path.join(FIXTURES_DIRECTORY, "basic-vue");
 
 const findDiagnosticsByRule = (diagnostics: Diagnostic[], rule: string): Diagnostic[] =>
-  diagnostics.filter((diagnostic) => diagnostic.rule === rule);
+  diagnostics.filter((diagnostic) => diagnostic.rule.split("/").pop() === rule);
 
 interface RuleTestCase {
   fixture: string;
@@ -53,15 +53,15 @@ describe("runOxlint", () => {
   describeRules(
     "Reactivity Rules",
     {
-      "no-fetch-in-watch": { fixture: "reactivity-issues.vue", severity: "error" },
+      "no-fetch-in-watch": { fixture: "reactivity-issues.vue", severity: "warning" },
       "no-cascading-mutations": { fixture: "reactivity-issues.vue" },
-      "no-watch-for-computed": { fixture: "reactivity-issues.vue", severity: "error" },
+      "no-watch-for-computed": { fixture: "reactivity-issues.vue", severity: "warning" },
       "no-ref-from-prop": { fixture: "reactivity-issues.vue" },
       "prefer-computed": { fixture: "reactivity-issues.vue" },
       "no-reactive-replace": { fixture: "reactivity-issues.vue" },
       "no-missing-await-nextTick": { fixture: "reactivity-issues.vue" },
       "no-reactive-destructure": { fixture: "reactivity-issues.vue" },
-      "no-mutation-in-computed": { fixture: "reactivity-issues.vue", severity: "error" },
+      "no-mutation-in-computed": { fixture: "reactivity-issues.vue", severity: "warning" },
     },
     () => basicVueDiagnostics,
   );
@@ -78,7 +78,7 @@ describe("runOxlint", () => {
   describeRules(
     "Performance Rules",
     {
-      "no-layout-property-animation": { fixture: "performance-issues.vue", severity: "error" },
+      "no-layout-property-animation": { fixture: "performance-issues.vue", severity: "warning" },
       "no-transition-all": { fixture: "performance-issues.vue" },
       "no-global-css-variable-animation": { fixture: "performance-issues.vue" },
       "no-large-animated-blur": { fixture: "performance-issues.vue" },
@@ -92,8 +92,8 @@ describe("runOxlint", () => {
   describeRules(
     "Security Rules",
     {
-      "no-secrets-in-client-code": { fixture: "security-issues.vue", severity: "error" },
-      "no-v-html": { fixture: "security-issues.vue" },
+      "no-secret-named-literal": { fixture: "security-issues.vue", severity: "warning" },
+      "no-unsafe-html-sink": { fixture: "security-issues.vue" },
     },
     () => basicVueDiagnostics,
   );
@@ -140,7 +140,7 @@ describe("runOxlint", () => {
       "nuxt-no-head-import": { fixture: "nuxt-issues.vue" },
       "nuxt-no-client-fetch-for-server-data": { fixture: "nuxt-issues.vue" },
       // "nuxt-async-client-component": { fixture: "nuxt-issues.vue" }, // defaults check requires structure
-      "nuxt-no-window-in-ssr": { fixture: "nuxt-issues.vue", severity: "error" },
+      "nuxt-no-window-in-ssr": { fixture: "nuxt-issues.vue", severity: "warning" },
       "nuxt-require-seo-meta": { fixture: "nuxt-issues.vue" },
       "nuxt-no-process-env-in-client": { fixture: "nuxt-issues.vue" },
       // "nuxt-require-server-route-error-handling": { fixture: "nuxt-issues.vue" },

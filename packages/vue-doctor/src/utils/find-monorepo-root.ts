@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readPackageJson } from "./read-package-json.js";
 
 export const isMonorepoRoot = (directory: string): boolean => {
   const packageJsonPath = path.join(directory, "package.json");
@@ -9,8 +10,7 @@ export const isMonorepoRoot = (directory: string): boolean => {
   if (fs.existsSync(pnpmWorkspacePath)) return true;
 
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-    return Boolean(packageJson.workspaces);
+    return Boolean(readPackageJson(packageJsonPath).workspaces);
   } catch {
     return false;
   }

@@ -1,4 +1,7 @@
 node_modules
 dist
+docs/.vitepress/cache
 *.tsbuildinfo
 .DS_Store
+coverage
+.claude

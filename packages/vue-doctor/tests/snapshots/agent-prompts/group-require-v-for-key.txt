@@ -1,0 +1,20 @@
+You are fixing Vue Doctor findings in this repository.
+Rule: vue/require-v-for-key (Correctness, error)
+Findings: 13 in 13 files
+Problem: Elements in iteration expect to have 'v-bind:key' directives.
+Locations:
+- src/components/Item01.vue:13
+- src/components/Item02.vue:12
+- src/components/Item03.vue:11
+- src/components/Item04.vue:10
+- src/components/Item05.vue:9
+- src/components/Item06.vue:8
+- src/components/Item07.vue:7
+- src/components/Item08.vue:6
+- src/components/Item09.vue:5
+- src/components/Item10.vue:4
+- and 3 more (the verify command lists them all)
+Guidance: Add a unique, stable `:key` to the element that has `v-for` (an id from the data, not the index).
+Docs: https://remylagerweij.github.io/vue-doctor/rules/x
+Constraints: Change only what is needed to fix it, keep the behaviour otherwise identical, do not suppress or disable the rule, do not add dependencies, and update a test only if one already covers this code.
+Verify: run `npx @remylagerweij/vue-doctor . --diff --format json` and confirm vue/require-v-for-key is no longer reported.

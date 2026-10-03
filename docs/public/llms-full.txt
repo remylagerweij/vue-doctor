@@ -1,0 +1,961 @@
+# Vue Doctor
+
+> Vue Doctor is a diagnostic tool and linter for Vue.js and Nuxt applications. It performs static analysis (oxlint), template checks (eslint-plugin-vue), dead code detection (Knip), and dependency audits (OSV.dev) to produce a 0–100 health score with actionable recommendations.
+
+## Quick Start
+- Scan changed files: `npx @remylagerweij/vue-doctor@latest . --scope changed --format json`
+- Full scan: `npx @remylagerweij/vue-doctor@latest .`
+- Get health score: `npx @remylagerweij/vue-doctor@latest . --score`
+- List rules: `npx @remylagerweij/vue-doctor@latest rules`
+- Explain a rule: `npx @remylagerweij/vue-doctor@latest explain <ruleId>`
+- Automatic codemods: `npx @remylagerweij/vue-doctor@latest . --fix`
+- Stdio MCP server: `npx @remylagerweij/vue-doctor@latest mcp`
+
+## Documentation
+- Full Documentation: https://remylagerweij.github.io/vue-doctor/
+- Rules Catalog: https://remylagerweij.github.io/vue-doctor/rules/
+- CLI Reference: https://remylagerweij.github.io/vue-doctor/reference/cli
+- Config Reference: https://remylagerweij.github.io/vue-doctor/reference/config
+- Full Text for LLMs: https://remylagerweij.github.io/vue-doctor/llms-full.txt
+
+
+---
+
+# All Rules (104 registered, 104 on by default)
+
+## vue-doctor/architecture/no-giant-component
+- Category: Architecture
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Extract logical sections into focused components or composables
+- Agent Guidance: Split the component by responsibility. Extract self-contained template sections into child components and stateful logic into composables; keep behaviour and props/emits of the public component unchanged.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/architecture/no-giant-component
+
+## vue-doctor/architecture/no-nested-component-definition
+- Category: Architecture
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Move to a separate .vue file or to a composable
+- Agent Guidance: A component defined inside another component is recreated on every render and loses state. Move it to its own `.vue` file or to module scope and import it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/architecture/no-nested-component-definition
+
+## vue-doctor/bundle-size/no-barrel-import
+- Category: Bundle Size
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Import from the direct path: `import { Button } from './components/Button'` instead of `./components`
+- Agent Guidance: Import from the module that defines the symbol, for example `./components/Button`, instead of the folder `index` barrel, so unused exports can be tree-shaken.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-barrel-import
+
+## vue-doctor/bundle-size/no-full-lodash-import
+- Category: Bundle Size
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Import the specific function: `import debounce from 'lodash/debounce'` — saves ~70kb
+- Agent Guidance: Import the single function (`import debounce from 'lodash/debounce'`) or switch to `lodash-es`/native code instead of importing the full library.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-full-lodash-import
+
+## vue-doctor/bundle-size/no-moment
+- Category: Bundle Size
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Replace with `import { format } from 'date-fns'` (tree-shakeable) or `import dayjs from 'dayjs'` (2kb)
+- Agent Guidance: Replace Moment.js with `date-fns` or `dayjs` (or `Intl`/`Temporal` where possible) and update the call sites accordingly.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-moment
+
+## vue-doctor/bundle-size/no-undeferred-third-party
+- Category: Bundle Size
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `useHead` with `defer: true` or add the `defer` attribute to third-party scripts
+- Agent Guidance: Add `defer: true` (or `async: true`) to every script entry with a `src` passed to `useHead({ script: [...] })` so third-party scripts do not block rendering.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-undeferred-third-party
+
+## vue-doctor/bundle-size/prefer-dynamic-import
+- Category: Bundle Size
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `defineAsyncComponent(() => import('./HeavyComponent.vue'))` for heavy components
+- Agent Guidance: Load heavy libraries or components lazily: `defineAsyncComponent(() => import('./Heavy.vue'))` for components, `await import('lib')` where the code is first needed.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/prefer-dynamic-import
+
+## vue-doctor/correctness/no-array-index-as-key
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use a stable unique identifier: `:key="item.id"` — index keys break on reorder/filter
+- Agent Guidance: Use a stable unique id from the data, such as `:key="item.id"`, instead of the loop index; index keys break state on reorder, insert and filter.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-array-index-as-key
+
+## vue-doctor/correctness/no-async-setup-without-suspense
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Wrap the async component in `<Suspense>` with a fallback, or move the awaited work into `onMounted()` or a composable
+- Agent Guidance: A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-async-setup-without-suspense
+
+## vue-doctor/correctness/no-direct-dom-manipulation
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use template refs: `const el = ref<HTMLElement>()` with `ref="el"` instead of `document.querySelector()`
+- Agent Guidance: Use a template ref (`const el = ref<HTMLElement | null>(null)` with `ref="el"`) and access `el.value` after mount instead of `document.querySelector`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-direct-dom-manipulation
+
+## vue-doctor/correctness/no-prevent-default
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use Vue's `.prevent` modifier: `@submit.prevent` instead of calling `event.preventDefault()`
+- Agent Guidance: Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers that always call `preventDefault()` on their own event argument are flagged; conditional calls and listeners registered with addEventListener are left alone.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-prevent-default
+
+## vue-doctor/correctness/no-this-in-setup
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Use refs, props and composables instead of `this` in `<script setup>`
+- Agent Guidance: `this` does not exist in `<script setup>` or inside `setup()`. Use the refs, props and composables returned/declared in the setup scope instead.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-this-in-setup
+
+## vue-doctor/correctness/prefer-defineProps-destructure
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Destructure props for reactive access: `const { prop1, prop2 } = defineProps<Props>()`
+- Agent Guidance: Use reactive props destructure: `const { a, b = 1 } = defineProps<Props>()`, which stays reactive in Vue 3.5+. Check the project's Vue version first.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/prefer-defineProps-destructure
+
+## vue-doctor/correctness/require-defineprops-types
+- Category: Correctness
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Declare props with a type argument: `defineProps<{ title: string }>()`
+- Agent Guidance: Declare props with a type argument, for example `defineProps<{ title: string; count?: number }>()`, instead of an untyped call or a string array.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/require-defineprops-types
+
+## vue-doctor/correctness/require-emits-declaration
+- Category: Correctness
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Declare events with `const emit = defineEmits<{ change: [value: string] }>()` and call `emit('change', value)` instead of `$emit`
+- Agent Guidance: Declare events with `const emit = defineEmits<{ change: [value: string] }>()` and call `emit('change', value)` instead of `$emit`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/require-emits-declaration
+
+## vue-doctor/ecosystem/pinia-no-destructure
+- Category: Ecosystem
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Directly destructuring a Pinia store breaks reactivity. Use `storeToRefs` instead.
+- Agent Guidance: Do not destructure a Pinia store directly. Use `const { count } = storeToRefs(store)` for state and getters, and call actions on the store object.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/ecosystem/pinia-no-destructure
+
+## vue-doctor/ecosystem/pinia-no-watch-store
+- Category: Ecosystem
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Use `<store>.$subscribe()` or watch specific primitive getters instead of deep watching the entire store.
+- Agent Guidance: Do not watch an entire store object. Watch a specific field with `watch(() => store.field, ...)`, or react to changes with `store.$subscribe()`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/ecosystem/pinia-no-watch-store
+
+## vue-doctor/ecosystem/router-no-async-guard-without-next
+- Category: Ecosystem
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: An async beforeEach/beforeResolve guard that declares `next` must call it, otherwise navigation never resolves. Prefer returning a value and dropping `next`.
+- Agent Guidance: In an async `beforeEach`/`beforeResolve` guard, either remove the `next` parameter and return `true`, `false` or a route location, or make sure `next()` is called exactly once on every code path.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/ecosystem/router-no-async-guard-without-next
+
+## vue-doctor/ecosystem/router-no-string-push
+- Category: Ecosystem
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Pass a route object (e.g. `{ name: 'user', params: { id } }`) instead of a path built with string interpolation to router.push/replace.
+- Agent Guidance: Replace a path assembled with a template literal or `+` in `router.push`/`replace` by a route location object, such as `{ name: 'user', params: { id } }`, so params are encoded. Static paths like `'/login'` are fine.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/ecosystem/router-no-string-push
+
+## vue-doctor/nuxt/no-secret-in-public-runtime-config
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Keep secrets in the top level of `runtimeConfig` (server only); `runtimeConfig.public` and `app.config` are sent to every browser
+- Agent Guidance: Move the value out of `runtimeConfig.public` (or `app.config`) to the top level of `runtimeConfig`, which is only available on the server, and read it there with `useRuntimeConfig(event)`. Never expose it to client code. If a real secret was ever configured here, rotate it, because it has already been shipped to browsers. Names that are public by design (publishable or anon keys) are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/no-secret-in-public-runtime-config
+
+## vue-doctor/nuxt/nuxt-async-client-component
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Avoid async setup in client components. Use `useFetch()` or `useAsyncData()` instead
+- Agent Guidance: Avoid `await` in the setup of a client-only component. Fetch with `useAsyncData()`/`useFetch()` or load in `onMounted` with a loading state.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-async-client-component
+
+## vue-doctor/nuxt/nuxt-no-a-element
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `<NuxtLink>` — enables client-side navigation and prefetching
+- Agent Guidance: Replace internal `<a href>` links with `<NuxtLink to="...">`; keep plain `<a>` only for external URLs.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-a-element
+
+## vue-doctor/nuxt/nuxt-no-client-fetch-for-server-data
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `useFetch()` or `useAsyncData()` in Nuxt — data is fetched on the server and avoids client round-trip
+- Agent Guidance: Fetch page data with `useFetch()` or `useAsyncData()` so it is loaded during SSR and not duplicated on the client; do not call `fetch`/`axios` in `onMounted` for initial data.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-client-fetch-for-server-data
+
+## vue-doctor/nuxt/nuxt-no-head-import
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `useHead()` composable or `definePageMeta()` instead of importing head utilities
+- Agent Guidance: Remove the import from `@vueuse/head` or `@unhead/vue`; Nuxt auto-imports `useHead()` and `useSeoMeta()`, so call them without an import.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-head-import
+
+## vue-doctor/nuxt/nuxt-no-img-element
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `<NuxtImg>` from `@nuxt/image` — provides automatic optimization, lazy loading, and responsive images
+- Agent Guidance: Replace `<img>` with `<NuxtImg>` (or `<NuxtPicture>`) from `@nuxt/image`; keep the same `src`, `alt`, width and height.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-img-element
+
+## vue-doctor/nuxt/nuxt-no-process-env-in-client
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `useRuntimeConfig()`; expose client values through `runtimeConfig.public` in nuxt.config
+- Agent Guidance: Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`, and do not use `process.env` in app code.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-process-env-in-client
+
+## vue-doctor/nuxt/nuxt-no-window-in-ssr
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Guard browser globals with `if (import.meta.client)` or access them inside `onMounted()`
+- Agent Guidance: Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-window-in-ssr
+
+## vue-doctor/nuxt/nuxt-require-seo-meta
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `useSeoMeta({ title, description })` instead of passing `meta` tags to `useHead()`
+- Agent Guidance: Replace `useHead({ meta: [...] })` with `useSeoMeta({ title, description, ogTitle, ... })` for type-safe SEO tags.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-seo-meta
+
+## vue-doctor/nuxt/nuxt-require-server-route-error-handling
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure
+- Agent Guidance: Wrap the body of `defineEventHandler` in try/catch and rethrow failures with `createError({ statusCode, statusMessage })` so clients get a proper error response.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-server-route-error-handling
+
+## vue-doctor/nuxt/security-headers
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Configure security headers and avoid insecure defaults in `nuxt.config.ts` (e.g. disable devtools in production, protect client sourcemaps)
+- Agent Guidance: In `nuxt.config.ts`, ensure devtools are disabled in production (`devtools: { enabled: false }` or omitted), client sourcemaps are restricted or omitted (`sourcemap: { client: false }`), and consider adding a security headers module like `nuxt-security` to configure Content-Security-Policy (CSP), HSTS, and X-Content-Type-Options headers.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/security-headers
+
+## vue-doctor/performance/async-parallel
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `const [a, b] = await Promise.all([fetchA(), fetchB()])` to run independent operations concurrently
+- Agent Guidance: Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/async-parallel
+
+## vue-doctor/performance/client-passive-event-listeners
+- Category: Performance
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Add `{ passive: true }` as the third argument: `addEventListener('scroll', handler, { passive: true })`
+- Agent Guidance: Pass `{ passive: true }` as the third argument of `addEventListener` for scroll, touch and wheel events, unless the handler must call `preventDefault()`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/client-passive-event-listeners
+
+## vue-doctor/performance/js-batch-dom-css
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Batch style changes with `el.style.cssText` or `el.classList.add()` to avoid multiple reflows
+- Agent Guidance: Batch consecutive `el.style.x = ...` writes into one `el.style.cssText`/`Object.assign(el.style, {...})` or toggle a CSS class, so the browser lays out once.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-batch-dom-css
+
+## vue-doctor/performance/js-cache-storage
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Cache `localStorage.getItem()` result in a variable to avoid redundant reads
+- Agent Guidance: Read `localStorage`/`sessionStorage` once into a local variable and reuse it; storage access is synchronous and slow.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-cache-storage
+
+## vue-doctor/performance/js-combine-iterations
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Combine chained `.map().filter()` into a single `.reduce()` or `for...of` loop
+- Agent Guidance: Fuse chained `.map().filter()` calls into one pass with `for...of` or `.reduce()` so the array is iterated once. Preserve the order of side effects.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-combine-iterations
+
+## vue-doctor/performance/js-early-exit
+- Category: Performance
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Use early returns to flatten deeply nested conditions for better readability
+- Agent Guidance: Flatten deeply nested conditionals with guard clauses: return early for the failing cases and keep the main path unindented. Do not change behaviour.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-early-exit
+
+## vue-doctor/performance/js-hoist-regexp
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration
+- Agent Guidance: Move the `new RegExp(...)` with a constant pattern out of the loop or function into a module-level constant so it is compiled once.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-hoist-regexp
+
+## vue-doctor/performance/js-index-maps
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Build a `Map` indexed by the search key before the loop for O(1) lookups
+- Agent Guidance: Build a `Map` keyed by the lookup field once before the loop and use `map.get(key)` instead of calling `find`/`filter` for each item.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-index-maps
+
+## vue-doctor/performance/js-min-max-loop
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `Math.min(...array)` or `Math.max(...array)` — O(n) instead of O(n log n) with sort
+- Agent Guidance: Do not sort a whole array just to read the smallest or largest item. Use `Math.min(...values)`/`Math.max(...values)` or a single reduce pass.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-min-max-loop
+
+## vue-doctor/performance/js-set-map-lookups
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Convert the array to a `Set` before the loop for O(1) lookups instead of O(n)
+- Agent Guidance: Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-set-map-lookups
+
+## vue-doctor/performance/js-tosorted-immutable
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `array.toSorted()` (ES2023) instead of `[...array].sort()` for cleaner immutable sorting
+- Agent Guidance: Replace `[...array].sort(compare)` with `array.toSorted(compare)`; check that the project's target supports ES2023 first.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable
+
+## vue-doctor/performance/no-deep-watch
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`
+- Agent Guidance: Replace `{ deep: true }` with a watch on the specific properties you need, such as `watch(() => state.user.name, ...)`, or use `watchEffect` which tracks only what it reads.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-deep-watch
+
+## vue-doctor/performance/no-global-css-variable-animation
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Set the variable on the nearest element instead of a parent, or use `@property` with `inherits: false`
+- Agent Guidance: Do not animate a CSS variable on `:root`/`body`; every dependent element restyles each frame. Set the variable on the nearest element that uses it, or register it with `@property` and `inherits: false`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-global-css-variable-animation
+
+## vue-doctor/performance/no-large-animated-blur
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Keep blur radius under 10px, or apply blur to a smaller element
+- Agent Guidance: Reduce the animated blur radius to 10px or less, or apply the blur to a smaller element. Large animated blurs are expensive on the GPU.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-large-animated-blur
+
+## vue-doctor/performance/no-layout-property-animation
+- Category: Performance
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `transform: translateX()` or `scale()` instead — they run on the compositor and skip layout/paint
+- Agent Guidance: Animate compositor-friendly properties only. Replace animated width/height/top/left/margin with `transform: translate()/scale()` and `opacity`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-layout-property-animation
+
+## vue-doctor/performance/no-permanent-will-change
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Add will-change on animation start and remove on end. Permanent promotion wastes GPU memory
+- Agent Guidance: Remove the static `will-change`. Apply it just before the animation starts (for example on hover or via a class added in JS) and remove it when the animation ends.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-permanent-will-change
+
+## vue-doctor/performance/no-scale-from-zero
+- Category: Performance
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `initial={{ scale: 0.95, opacity: 0 }}` — elements should deflate like a balloon, not vanish into a point
+- Agent Guidance: Start scale animations from a value close to 1 such as 0.95 combined with opacity, instead of 0, so the element does not collapse to a point.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-scale-from-zero
+
+## vue-doctor/performance/no-transition-all
+- Category: Performance
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: List specific properties: `transition: "opacity 200ms, transform 200ms"` — or in Tailwind use `transition-colors`, `transition-opacity`, or `transition-transform`
+- Agent Guidance: Replace `transition: all` with an explicit property list, for example `transition: opacity 200ms, transform 200ms`, naming only the properties that actually change.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-transition-all
+
+## vue-doctor/reactivity/no-cascading-mutations
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Combine related state into a single reactive object or use a composable to manage state transitions
+- Agent Guidance: Several state mutations in one watcher usually mean the state is split wrongly. Group the related refs into one reactive object or move the transition into a composable function, then update it in a single place.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-cascading-mutations
+
+## vue-doctor/reactivity/no-fetch-in-watch
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `useFetch()` (Nuxt) or `useQuery()` from @tanstack/vue-query instead of watch + fetch
+- Agent Guidance: Do not fetch inside a watcher. Move the request into `useFetch`/`useAsyncData` (Nuxt) or a query composable such as `useQuery` whose key is the reactive source, so the framework handles caching, cancellation and SSR.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-fetch-in-watch
+
+## vue-doctor/reactivity/no-missing-await-nextTick
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Add `await` before `nextTick()` or use `nextTick().then()` to ensure DOM updates are applied
+- Agent Guidance: `nextTick()` returns a promise. Add `await` in an async function, or chain `.then()`, before code that reads the updated DOM.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-missing-await-nextTick
+
+## vue-doctor/reactivity/no-mutation-in-computed
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Keep computed getters pure — move mutations into a method, a `watch` callback or an event handler
+- Agent Guidance: A computed getter must be pure. Move assignments to `.value` and array mutations such as push/sort into a method, event handler or `watch`; if sorting, copy first with `[...list].sort()` or `toSorted()`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-mutation-in-computed
+
+## vue-doctor/reactivity/no-reactive-destructure
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `toRefs(state)` before destructuring to keep reactivity, or access properties directly: `state.count`
+- Agent Guidance: Destructuring a `reactive()` object copies plain values and drops reactivity. Wrap it with `toRefs(state)` before destructuring, or read `state.prop` directly.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-reactive-destructure
+
+## vue-doctor/reactivity/no-reactive-replace
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `Object.assign(state, newState)` instead of replacing the reactive object reference
+- Agent Guidance: Reassigning a `reactive()` variable breaks every existing reference to it. Mutate it in place with `Object.assign(state, next)`, or switch to a `ref` and assign `.value`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-reactive-replace
+
+## vue-doctor/reactivity/no-ref-from-prop
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Remove the ref and derive inline: `const value = computed(() => transform(props.propName))`
+- Agent Guidance: Do not copy a prop into a `ref()`; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop
+
+## vue-doctor/reactivity/no-watch-for-computed
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Replace the watcher with a computed property: `const value = computed(() => transform(source))`
+- Agent Guidance: The watcher only derives a value from its source. Delete the watcher and the ref it writes, and declare `const value = computed(() => ...)` using the same source.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed
+
+## vue-doctor/reactivity/prefer-computed
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use `const value = computed(() => expression)` instead of a watcher that only sets a ref
+- Agent Guidance: Replace the watcher that only assigns a ref with a `computed` that returns the same expression. Remove the now unused ref and its initial value.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/prefer-computed
+
+## vue-doctor/security/llm-prompt-injection
+- Category: Security
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Do not concatenate untrusted user input directly into system prompts or instructions (prompt injection risk)
+- Agent Guidance: Keep system prompts and developer instructions fixed or parameterized via distinct message roles (`{ role: 'user', content: userInput }` rather than interpolating into `{ role: 'system' }`). Always configure output length boundaries (`max_tokens` / `maxTokens`) and input validation for AI/LLM endpoints.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/llm-prompt-injection
+
+## vue-doctor/security/no-dynamic-code
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Do not turn strings into code: pass a function to `setTimeout`, replace `new Function` with a lookup table, and use SFC templates or render functions instead of runtime-compiled templates
+- Agent Guidance: Remove code built from strings (`eval` itself is reported by `no-eval`). Replace `new Function(...)` with a function map or a safe expression parser; pass a function, not a string, to `setTimeout`/`setInterval` (`setTimeout(() => run(), 100)`); replace runtime template compilation (`compile(template)` from `vue`, `Vue.compile`, a non-literal `template:` option) with single-file components or render functions. A template that is a fixed string literal is not reported. Never compile a template that contains user input: that is client-side template injection (XSS).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-dynamic-code
+
+## vue-doctor/security/no-eval
+- Category: Security
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Replace `eval()` with a safe alternative: `JSON.parse()` for data, or a lookup table of functions for dynamic behaviour
+- Agent Guidance: Remove `eval()`. Use `JSON.parse` for data, a lookup table or function map for dynamic dispatch, and never build code from strings.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-eval
+
+## vue-doctor/security/no-hardcoded-secret
+- Category: Security
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Revoke the key and load it from a server-side environment variable (`process.env.X` in `server/`). Only public keys (`VITE_*` / `NUXT_PUBLIC_*`) belong in client code
+- Agent Guidance: Remove the hardcoded credential from the source and treat it as leaked: it must be revoked and rotated, since it is already in git history and in the shipped bundle. Read the new key on the server from `process.env` (or Nuxt `runtimeConfig` outside `public`) and call the provider from a server route; never write the credential value into code, comments, commits or your reply.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-hardcoded-secret
+
+## vue-doctor/security/no-injection
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Pass values as query parameters (`?` / `$1`) or a tagged `sql` template, and run commands with `execFile`/`spawn` and an argument array, never through a shell string
+- Agent Guidance: SQL: do not build the statement with a template literal or `+` around request data. Use placeholders and pass the values separately (`db.query('SELECT * FROM users WHERE id = $1', [id])`, `pool.execute('... WHERE id = ?', [id])`), the tagged template of your client (Prisma `$queryRaw`\`...\``, Drizzle `sql\`...\``, `postgres` sql\`...\``), or the query builder. Identifiers (table or column names) cannot be bound: pick them from a fixed allowlist. Commands: replace `exec(\`cmd ${x}\`)` / `execSync` with `execFile('cmd', [x])` or `spawn('cmd', [x])` and do not set `shell: true`; validate the argument (allowlist or strict schema) as well. If the interpolated value is a constant or an allowlisted identifier, say so in a comment and suppress this finding with `vue-doctor-disable-next-line`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-injection
+
+## vue-doctor/security/no-javascript-url
+- Category: Security
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Replace the `javascript:` URL with a `<button @click>` handler, or a real URL
+- Agent Guidance: Remove `javascript:` URLs. For a placeholder link (`href="javascript:void(0)"`) use `<button type="button" @click="...">` (or `<a href="#" @click.prevent="...">`); for navigation use a real URL or `<RouterLink :to>`. Never build a URL from a `javascript:` prefix plus a variable. Comparisons such as `url.startsWith("javascript:")` are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-javascript-url
+
+## vue-doctor/security/no-llm-sdk-in-client
+- Category: Security
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Call the LLM provider from a server route (Nuxt `server/api/*` or your backend) and keep its API key in a non-public environment variable or `runtimeConfig`
+- Agent Guidance: Code that runs in the browser must not call an LLM provider directly: the API key it needs ships to every visitor, who can then spend your quota. Move the provider SDK (`openai`, `@anthropic-ai/sdk`, `@google/generative-ai`, `@ai-sdk/<provider>`, ...) or the request to `api.openai.com` / `api.anthropic.com` / ... into a server route (Nuxt `server/api/chat.post.ts`, or a backend), read the key there from `process.env` or the non-public part of `runtimeConfig`, and have the client call that route (`$fetch('/api/chat')`, or `useChat` from `@ai-sdk/vue`). Remove `dangerouslyAllowBrowser: true`. If a key was already shipped, revoke and rotate it. Type-only imports (`import type`) are fine.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-llm-sdk-in-client
+
+## vue-doctor/security/no-open-redirect
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Redirect only to relative paths or allow-listed hosts: check `value.startsWith('/') && !value.startsWith('//')`, or parse it with `new URL(value, origin)` and compare the origin
+- Agent Guidance: Never pass a query parameter, body field or route param straight to `sendRedirect(event, x)`, `navigateTo(x, { external: true })` or a `Location` header: an attacker links to your site with `?next=https://evil.example` and uses your domain for phishing. Accept only a relative path (`next.startsWith('/') && !next.startsWith('//')`) or parse it with `new URL(next, requestOrigin)` and require `url.origin === requestOrigin` (or the host on an allowlist), and fall back to `/` otherwise. A redirect to a fixed path with the value only in the query string (`/login?next=${next}`) is fine. A validator call (`isSafeRedirect(x)`) or a prefix/origin check on the value before the call silences the finding.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-open-redirect
+
+## vue-doctor/security/no-prototype-pollution
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Prevent prototype pollution: do not assign user-controlled keys without checking for `__proto__`/`constructor`, and avoid deep-merging untrusted input into existing objects
+- Agent Guidance: When assigning to dynamic object properties (`obj[key] = value`) with user-controlled keys, ensure `key !== '__proto__' && key !== 'constructor' && key !== 'prototype'`, or use `Object.create(null)` / `Map` for arbitrary key-value storage. When merging untrusted input, avoid merging into shared or existing prototype-bearing objects.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-prototype-pollution
+
+## vue-doctor/security/no-secret-in-public-env
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Variables with a `VITE_` / `NUXT_PUBLIC_` prefix are inlined into the browser bundle; keep secrets in server-only variables
+- Agent Guidance: Do not read a secret through a public variable (`import.meta.env.VITE_*`, `process.env.NUXT_PUBLIC_*`, `useRuntimeConfig().public.*`): its value is shipped to every visitor. Rename it without the public prefix, read it only on the server (a `server/` route or a backend), and call that from the client. Rotate the secret, since it has already been exposed. Publishable and anon keys are fine in public variables.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-secret-in-public-env
+
+## vue-doctor/security/no-secret-named-literal
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Load the value from an environment variable instead of committing it. Only `VITE_*` / `NUXT_PUBLIC_*` values are meant for the client
+- Agent Guidance: Check whether the literal is a real credential. If it is, remove it from the source, revoke and rotate it, and read it from `process.env` on the server (or `runtimeConfig` outside `public` in Nuxt). If it is a public identifier or a test value, rename the variable so it is not secret-like, or suppress the finding with a reason. Never write the credential value into code, comments, commits or your reply.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-secret-named-literal
+
+## vue-doctor/security/no-ssrf
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Never fetch a URL taken from the request as is: parse it with `new URL()` and compare the host with an allowlist, or build the URL from a fixed base and a validated path
+- Agent Guidance: A `$fetch`/`ofetch`/`fetch`/`axios`/`proxyRequest` URL that starts with a value from `getQuery`, `readBody`, `getRouterParam`, `getHeader` or `event.context.params` lets an attacker make the server call internal services (cloud metadata at 169.254.169.254, localhost admin ports). Fix it by (1) keeping the host fixed and only interpolating a validated path segment (`$fetch(`${config.apiBase}/users/${id}`)` with `id` validated by `getValidatedRouterParams`), or (2) parsing the value with `new URL(value)` and requiring `url.protocol === 'https:'` and `allowedHosts.includes(url.hostname)` before the request; never an `includes`/`startsWith` check on the raw string, and block private IP ranges when the allowlist cannot be fixed. A validator call (`assertAllowedUrl(x)`, `schema.parse(x)`) or an allowlist/comparison check on the value before the call silences the finding.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-ssrf
+
+## vue-doctor/security/no-token-in-web-storage
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Keep tokens out of localStorage/sessionStorage: use an httpOnly, Secure, SameSite cookie set by the server, or keep the token in memory
+- Agent Guidance: Do not persist access/refresh tokens, JWTs or session ids in `localStorage`/`sessionStorage` (including `useLocalStorage`, `useStorage` and Pinia `persist`). Have the server set the session as an `httpOnly; Secure; SameSite=Lax` cookie and send requests with `credentials: "include"`; if a token must be handled in the browser, keep it in memory (a Pinia store without `persist`, or a module variable) and use short-lived tokens. In Pinia persistence, exclude credentials with `persist: { pick: ["theme"] }`. CSRF tokens are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-token-in-web-storage
+
+## vue-doctor/security/no-unsafe-html-sink
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Sanitize the HTML with DOMPurify (`el.innerHTML = DOMPurify.sanitize(html)`), or render text with `{{ }}` / `textContent`
+- Agent Guidance: Do not assign unsanitised strings to `innerHTML`/`outerHTML`, `insertAdjacentHTML`, `document.write` or `h(tag, { innerHTML })`. Prefer text: `el.textContent = value`, or `{{ value }}` in templates. If HTML is really required, sanitize it right at the sink, for example `el.innerHTML = DOMPurify.sanitize(html)`, so the sanitizer call is visible next to the sink. Literal strings and values passed through a sanitizer call are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-unsafe-html-sink
+
+## vue-doctor/security/no-user-controlled-url
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Validate the URL before navigating: parse it with `new URL(value, location.origin)` and allow only `http:`/`https:` on your own origin
+- Agent Guidance: Never assign a route query/param, `location.hash`/`location.search` or `window.name` value straight to `location.href`, `location.assign/replace`, `window.open`, an `<a>`'s `href`, or `src`/`action`. Parse it first: `const url = new URL(value, location.origin)` and accept it only when `url.origin === location.origin` (or the host is on an allowlist) and `url.protocol` is `http:` or `https:`; otherwise fall back to `/`. For in-app navigation pass a path to `router.push`. A sanitizer or validator call (`sanitizeUrl(x)`, `isSafeUrl(x)`) next to the sink silences the finding.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-user-controlled-url
+
+## vue-doctor/security/postmessage-origin-check
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Check `event.origin` against an allowlist before using `event.data`, and pass an explicit target origin to `postMessage`
+- Agent Guidance: In every `message` listener, verify the sender first: `if (event.origin !== "https://trusted.example") return;` (compare against an exact origin or an allowlist, never `includes`/`startsWith`) before reading `event.data`; checking `event.source === iframe.contentWindow` also counts. When sending, pass the receiver's exact origin as the second argument of `postMessage`, never `"*"` for tokens, sessions or personal data.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/postmessage-origin-check
+
+## vue-doctor/server/auth-missing
+- Category: Server
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Ensure sensitive, admin, or mutating server routes verify authentication or authorization
+- Agent Guidance: Admin routes (`server/api/admin/**`) and mutating endpoints (`.post`, `.put`, `.delete`, `.patch`) should enforce an authentication check (e.g. `await requireUserSession(event)`, `await getServerSession(event)`, or custom middleware setting `event.context.auth`). If the endpoint is intentionally public (such as `login.post.ts` or `register.post.ts`), suppress this advisory with `// vue-doctor-disable-next-line`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/auth-missing
+
+## vue-doctor/server/csrf-on-mutating-routes
+- Category: Server
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Protect state-changing (mutating) API endpoints against Cross-Site Request Forgery (CSRF)
+- Agent Guidance: Mutating endpoints (`.post`, `.put`, `.patch`, `.delete`) that authenticate via cookies are vulnerable to CSRF if requests from third-party sites are accepted. Verify the `Origin` / `Referer` header matches your site origin, use a CSRF token (or `nuxt-csurf` / `nuxt-security`), or ensure session cookies use `SameSite: Strict` or `Lax`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/csrf-on-mutating-routes
+
+## vue-doctor/server/require-input-validation
+- Category: Server
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Validate request input with `getValidatedQuery`/`readValidatedBody`/`getValidatedRouterParams` and a schema (zod, valibot), or run `schema.parse()` on it before use
+- Agent Guidance: Replace `getQuery(event)` with `getValidatedQuery(event, schema.parse)`, `readBody(event)` with `readValidatedBody(event, schema.parse)` and `getRouterParam(event, 'id')` with `getValidatedRouterParams(event, schema.parse)` (zod, valibot or arktype schema; a TypeScript generic like `readBody<Foo>(event)` is not validation, it only asserts a type). Or keep the raw read and pass the result through `schema.parse(...)` / `safeParse` before using it, throwing `createError({ statusCode: 400 })` on failure. A single header read for authentication or forwarding can be compared against the expected value instead.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/require-input-validation
+
+## vue-doctor/server/secure-cookie-flags
+- Category: Server
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Set `httpOnly: true`, `secure: true`, and `sameSite: 'lax'` (or `'strict'`) on sensitive authentication/session cookies
+- Agent Guidance: When setting sensitive cookies with `setCookie(event, name, value, options)` in Nuxt server handlers, always set `httpOnly: true` (prevents XSS theft), `secure: true` (or `process.env.NODE_ENV === 'production'`) and `sameSite: 'lax'` or `'strict'` (prevents CSRF). For client-readable non-sensitive cookies (e.g. UI theme preference), this rule will not trigger if the name does not match auth/session keywords.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/secure-cookie-flags
+
+## vue-doctor/server/server-no-console-in-handler
+- Category: Server
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`
+- Agent Guidance: Replace `console.log/info/warn` in server handlers with a structured logger such as `consola` or `pino`; keep the message and add context as fields.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/server-no-console-in-handler
+
+## vue-doctor/nuxt/no-sensitive-public-file
+- Category: Nuxt
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Everything in `public/` (and Nuxt's `static/`) is deployed and downloadable by anyone: move secrets, dumps, keys and logs out of it and delete source maps and backups from the folder
+- Agent Guidance: Move the flagged file out of `public/` (or `static/`): secrets and keys belong in the server environment or a secret store, never in the web root; delete backups, logs, dumps and OS files (add them to .gitignore). For `.env`, private keys and database dumps, treat the contents as leaked if the site was ever deployed with the file: tell the user to rotate them, and do not print their content. For source maps, build with `sourcemap: false` for production (or upload them to the error tracker and do not copy them to the web root).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/no-sensitive-public-file
+
+## vue-doctor/security/no-committed-env
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Do not commit `.env` files with secrets: untrack the file, add it to .gitignore, rotate the secrets and commit a `.env.example` without values
+- Agent Guidance: Run `git rm --cached <file>` to stop tracking the file (keep it on disk), add `.env` and `.env.*` (with `!.env.example`) to .gitignore, and commit a `.env.example` that lists the variable names without values. Treat every secret in the file as leaked, since it stays in git history: rotate it, and tell the user that history cleaning (git filter-repo) is their decision. Never print the values.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-committed-env
+
+## vue-doctor/security/no-secret-in-public-env-file
+- Category: Security
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: `VITE_*`, `NUXT_PUBLIC_*` and `PUBLIC_*` variables are inlined into the browser bundle; rename secrets without the public prefix and read them on the server
+- Agent Guidance: In the `.env*` file, rename the variable so it no longer starts with `VITE_`, `VUE_APP_`, `NUXT_PUBLIC_` or `PUBLIC_`, and read it only on the server (for Nuxt, a top-level `runtimeConfig` key filled from `NUXT_<NAME>`). Update every place that reads the old name. Rotate the secret, since public variables end up in the shipped JavaScript. Do not print or copy the value. Publishable and anon keys can stay public.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/no-secret-in-public-env-file
+
+## vue-doctor/supply-chain/lockfile-integrity
+- Category: Supply Chain
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Commit exactly one lockfile that belongs to your package manager and make sure every package in it is resolved from your registry
+- Agent Guidance: Missing lockfile: run the project's install command (`npm install`, `pnpm install` or `yarn install`) and commit the generated lockfile. Several lockfiles: keep the one of the package manager the project uses (check the `packageManager` field and the CI install step), delete the others and untrack them. Packages from another host: find out why they are there (a private mirror should be listed in `.npmrc`; otherwise reinstall from the default registry) and regenerate the lockfile; do not edit URLs in the lockfile by hand and do not rewrite hosts to make the finding disappear.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/lockfile-integrity
+
+## vue-doctor/supply-chain/no-dependency-install-scripts
+- Category: Supply Chain
+- Default Severity: warning
+- Confidence: low
+- Fixable: No
+- Help: Review dependencies that run code at install time; install with --ignore-scripts and allow-list the ones that need it (pnpm `onlyBuiltDependencies`)
+- Agent Guidance: Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then restrict install scripts: in pnpm add it to `onlyBuiltDependencies` and nothing else; with npm use `--ignore-scripts` in CI and rebuild only what is needed (`npm rebuild <pkg>`). Report the list to the user rather than silently changing install behaviour.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/no-dependency-install-scripts
+
+## vue-doctor/supply-chain/no-remote-dependency-spec
+- Category: Supply Chain
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Depend on a version published to the registry; if you need a fork, publish it (scoped) or pin the git dependency to a full commit hash
+- Agent Guidance: For each flagged dependency in package.json, replace the git/tarball/http spec with a version range from the registry when the package is published there. If it is an unpublished fork, either publish it under a scope or pin the git spec to a full 40-character commit hash (`github:user/repo#<sha>`). Never switch an `http://` URL to a different host; use `https://` or the registry. Re-run the install command so the lockfile follows.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/no-remote-dependency-spec
+
+## vue-doctor/supply-chain/vulnerable-dependency
+- Category: Supply Chain
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Upgrade the dependency to a fixed version (see the advisory), or replace it; run your package manager's update, then re-run the audit
+- Agent Guidance: Upgrade the named package to the fixed version in the message using the project's package manager (npm/pnpm/yarn/bun update or install name@version), and regenerate the lockfile through the package manager, never by editing it by hand. For a transitive dependency, upgrade the direct dependency that pulls it in, or add an `overrides`/`resolutions` entry only when no newer parent exists. Run the tests afterwards. If no fixed version exists, say so instead of silencing the finding.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/vulnerable-dependency
+
+## vue/require-v-for-key
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Add a unique `:key` attribute to every `v-for` iteration element
+- Agent Guidance: Add a unique, stable `:key` to the element that has `v-for` (an id from the data, not the index).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-require-v-for-key
+
+## vue/no-use-v-if-with-v-for
+- Category: Performance
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Move `v-if` to a wrapper element or use `computed` to filter the list
+- Agent Guidance: Do not put `v-if` and `v-for` on the same element. Filter the list in a `computed` and iterate the result, or move `v-if` to a wrapping `<template>`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/vue-no-use-v-if-with-v-for
+
+## vue/no-template-shadow
+- Category: Correctness
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Rename the variable to avoid shadowing a component property
+- Agent Guidance: Rename the `v-for`/slot variable so it no longer shadows a prop, data or setup binding of the same name.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-no-template-shadow
+
+## vue/valid-v-slot
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Use `v-slot` only on `<template>` elements or component direct children
+- Agent Guidance: Use `v-slot` (or `#`) only on `<template>` or on a component's direct slot, with a valid name and at most one default slot.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-valid-v-slot
+
+## vue/require-explicit-emits
+- Category: Correctness
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Define emits with `defineEmits()` for better documentation and type checking
+- Agent Guidance: Declare every emitted event in `defineEmits()` (or the `emits` option) and use those names when emitting.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-require-explicit-emits
+
+## vue/component-name-in-template-casing
+- Category: Architecture
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use PascalCase for component names in templates: `<MyComponent>`
+- Agent Guidance: Write component tags in PascalCase, for example `<MyComponent />`, instead of kebab-case or lowercase.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/architecture/vue-component-name-in-template-casing
+
+## vue/no-unused-vars
+- Category: Dead Code
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Remove the unused variable or prefix with `_` to indicate intentional
+- Agent Guidance: Remove the unused `v-for`/slot-scope variable, or prefix it with an underscore if the position is required.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/dead-code/vue-no-unused-vars
+
+## vue/no-mutating-props
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Never modify a prop directly — emit an event to the parent instead
+- Agent Guidance: Never assign to a prop or mutate it in the template. Emit an event so the parent updates the value, or copy the prop into local state.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/vue-no-mutating-props
+
+## vue/no-computed-properties-in-data
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Move the reference into `computed` or `setup()` instead of `data()`
+- Agent Guidance: Do not reference computed properties from `data()`; they are not ready yet. Derive the value inside a `computed` or `setup()` instead.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/vue-no-computed-properties-in-data
+
+## vue/no-side-effects-in-computed-properties
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Computed properties must be pure — move side effects to `watch` or methods
+- Agent Guidance: Make the computed pure: move mutations and assignments to methods, watchers or event handlers.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/vue-no-side-effects-in-computed-properties
+
+## vue/no-async-in-computed-properties
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `watchEffect` or an async composable instead of async computed
+- Agent Guidance: Computed properties cannot be async. Use `watch`/`watchEffect` with a ref, or an async composable, and expose the result.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/vue-no-async-in-computed-properties
+
+## vue/return-in-computed-property
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Every computed property must return a value
+- Agent Guidance: Return a value on every code path of the computed getter.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-return-in-computed-property
+
+## vue/no-ref-as-operand
+- Category: Reactivity
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Use `.value` to access the ref value in expressions
+- Agent Guidance: Access a ref's value through `.value` in script code (not in the template, where refs unwrap automatically).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/vue-no-ref-as-operand
+
+## vue/valid-v-bind
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Fix the `v-bind` / `:` directive syntax
+- Agent Guidance: Fix the `v-bind`/`:` syntax: it needs an argument or object, a non-empty value, and valid modifiers.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-valid-v-bind
+
+## vue/valid-v-on
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Fix the `v-on` / `@` directive syntax
+- Agent Guidance: Fix the `v-on`/`@` syntax: it needs an event name and a valid handler expression or method.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-valid-v-on
+
+## vue/valid-v-model
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Fix the `v-model` directive — it must bind to a writable expression
+- Agent Guidance: Bind `v-model` to a writable variable or property; do not use it on a v-for alias, literal or computed expression.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-valid-v-model
+
+## vue/no-dupe-keys
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Remove the duplicate key — properties and computed names must be unique
+- Agent Guidance: Rename or remove the duplicate; props, data, computed and methods must not share names.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-no-dupe-keys
+
+## vue/no-duplicate-attributes
+- Category: Correctness
+- Default Severity: error
+- Confidence: high
+- Fixable: No
+- Help: Remove the duplicate attribute from the template tag
+- Agent Guidance: Remove the repeated attribute from the element; merge `class`/`style` values if both are needed.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/vue-no-duplicate-attributes
+
+## vue/no-template-target-blank
+- Category: Security
+- Default Severity: warning
+- Confidence: high
+- Fixable: No
+- Help: Add `rel="noopener noreferrer"` to links that use `target="_blank"`
+- Agent Guidance: Add `rel="noopener noreferrer"` to every link with `target="_blank"`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/security/vue-no-template-target-blank
+

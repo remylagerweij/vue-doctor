@@ -36,7 +36,7 @@ function submit(e: Event) {
 const items = [1, 2, 3];
 // no-array-index-as-key
 items.map((item, index) => {
-  return {};
+  return { key: index };
 });
 </script>
 

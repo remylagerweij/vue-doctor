@@ -58,7 +58,7 @@ const FRAMEWORK_DISPLAY_NAMES: Record<Framework, string> = {
 export const formatFrameworkName = (framework: Framework): string =>
   FRAMEWORK_DISPLAY_NAMES[framework];
 
-const countSourceFiles = (rootDirectory: string): number => {
+const countSourceFiles = (rootDirectory: string, excludedDirectories: string[] = []): number => {
   const result = spawnSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: rootDirectory,
     encoding: "utf-8",
@@ -69,9 +69,17 @@ const countSourceFiles = (rootDirectory: string): number => {
     return 0;
   }
 
+  const excludedPrefixes = excludedDirectories.map(
+    (directory) => `${path.relative(rootDirectory, directory).split(path.sep).join("/")}/`,
+  );
   return result.stdout
     .split("\n")
-    .filter((filePath) => filePath.length > 0 && SOURCE_FILE_PATTERN.test(filePath)).length;
+    .filter(
+      (filePath) =>
+        filePath.length > 0 &&
+        SOURCE_FILE_PATTERN.test(filePath) &&
+        !excludedPrefixes.some((prefix) => filePath.startsWith(prefix)),
+    ).length;
 };
 
 const collectAllDependencies = (packageJson: PackageJson): Record<string, string> => ({
@@ -182,7 +190,7 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
     );
 };
 
-const hasVueDependency = (packageJson: PackageJson): boolean => {
+export const hasVueDependency = (packageJson: PackageJson): boolean => {
   const allDependencies = collectAllDependencies(packageJson);
   return Object.keys(allDependencies).some(
     (packageName) => packageName === "vue" || packageName === "nuxt" || packageName.includes("vue"),
@@ -255,30 +263,62 @@ export const discoverVueSubprojects = (rootDirectory: string): WorkspacePackage[
   return packages;
 };
 
-export const listWorkspacePackages = (rootDirectory: string): WorkspacePackage[] => {
+/**
+ * Every workspace directory (a directory with a package.json matching the workspace patterns) of a
+ * monorepo root, Vue or not, in pattern order. Empty when `rootDirectory` declares no workspaces.
+ */
+export const listWorkspaceDirectories = (rootDirectory: string): string[] => {
   const packageJsonPath = path.join(rootDirectory, "package.json");
   if (!fs.existsSync(packageJsonPath)) return [];
 
   const packageJson = readPackageJson(packageJsonPath);
-  const patterns = getWorkspacePatterns(rootDirectory, packageJson);
-  if (patterns.length === 0) return [];
+  const directories = new Set<string>();
+  for (const pattern of getWorkspacePatterns(rootDirectory, packageJson)) {
+    for (const workspaceDirectory of resolveWorkspaceDirectories(rootDirectory, pattern)) {
+      directories.add(path.resolve(workspaceDirectory));
+    }
+  }
+  return [...directories];
+};
 
+export const listWorkspacePackages = (rootDirectory: string): WorkspacePackage[] => {
   const packages: WorkspacePackage[] = [];
 
-  for (const pattern of patterns) {
-    const directories = resolveWorkspaceDirectories(rootDirectory, pattern);
-    for (const workspaceDirectory of directories) {
-      const workspacePackageJson = readPackageJson(path.join(workspaceDirectory, "package.json"));
+  for (const workspaceDirectory of listWorkspaceDirectories(rootDirectory)) {
+    const workspacePackageJson = readPackageJson(path.join(workspaceDirectory, "package.json"));
+    if (!hasVueDependency(workspacePackageJson)) continue;
 
-      if (!hasVueDependency(workspacePackageJson)) continue;
-
-      const name = workspacePackageJson.name ?? path.basename(workspaceDirectory);
-      packages.push({ name, directory: workspaceDirectory });
-    }
+    const name = workspacePackageJson.name ?? path.basename(workspaceDirectory);
+    packages.push({ name, directory: workspaceDirectory });
   }
 
   return packages;
 };
+
+/**
+ * The monorepo root itself as a project, when its own package.json depends on Vue or Nuxt (the
+ * same detection as for workspaces), e.g. a Nuxt app at the root with only `docs` as a workspace.
+ */
+export const getRootPackage = (rootDirectory: string): WorkspacePackage | null => {
+  const packageJsonPath = path.join(rootDirectory, "package.json");
+  if (!fs.existsSync(packageJsonPath)) return null;
+
+  const packageJson = readPackageJson(packageJsonPath);
+  if (!hasVueDependency(packageJson)) return null;
+  return { name: packageJson.name ?? path.basename(rootDirectory), directory: rootDirectory };
+};
+
+/**
+ * Directories of the workspace projects (Vue workspaces) nested in a monorepo root; empty for any
+ * other directory. They are scanned as projects of their own, so the root project's analysis must
+ * leave their files alone. Workspaces without Vue are not projects: their files stay with the root.
+ */
+export const listNestedWorkspaceDirectories = (directory: string): string[] =>
+  isMonorepoRoot(directory)
+    ? listWorkspacePackages(directory)
+        .map((workspace) => workspace.directory)
+        .filter((workspace) => workspace !== path.resolve(directory))
+    : [];
 
 export const discoverProject = (directory: string): ProjectInfo => {
   const packageJsonPath = path.join(directory, "package.json");
@@ -316,7 +356,7 @@ export const discoverProject = (directory: string): ProjectInfo => {
 
   const projectName = packageJson.name ?? path.basename(directory);
   const hasTypeScript = fs.existsSync(path.join(directory, "tsconfig.json"));
-  const sourceFileCount = countSourceFiles(directory);
+  const sourceFileCount = countSourceFiles(directory, listNestedWorkspaceDirectories(directory));
 
   return {
     rootDirectory: directory,

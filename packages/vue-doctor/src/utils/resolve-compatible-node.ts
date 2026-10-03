@@ -1,86 +1,18 @@
-import { execSync, spawnSync } from "node:child_process";
-import { OXLINT_NODE_REQUIREMENT, OXLINT_RECOMMENDED_NODE_MAJOR } from "../constants.js";
+const NODE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
-interface NodeResolution {
-  binaryPath: string;
-  version: string;
-  isCurrentNode: boolean;
-}
-
-const satisfiesVersionRange = (version: string): boolean => {
-  const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+// Mirrors the `engines.node` range in package.json: ^22.12.0 || >=24.0.0
+export const isSupportedNodeVersion = (version: string): boolean => {
+  const match = NODE_VERSION_PATTERN.exec(version.trim());
   if (!match) return false;
 
-  const major = parseInt(match[1], 10);
-  const minor = parseInt(match[2], 10);
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
 
-  if (major === 20 && minor >= 19) return true;
-  if (major >= 22 && minor >= 12) return true;
-  if (major >= 23) return true;
-
-  return false;
+  if (major === 22) return minor >= 12;
+  return major >= 24;
 };
 
-const getCurrentNodeVersion = (): string => process.version;
-
-export const resolveNodeForOxlint = (): NodeResolution | null => {
-  const currentVersion = getCurrentNodeVersion();
-  if (satisfiesVersionRange(currentVersion)) {
-    return {
-      binaryPath: process.execPath,
-      version: currentVersion,
-      isCurrentNode: true,
-    };
-  }
-
-  if (!isNvmInstalled()) return null;
-
-  const nvmDir = process.env.NVM_DIR ?? `${process.env.HOME}/.nvm`;
-  const versionsDir = `${nvmDir}/versions/node`;
-
-  try {
-    const result = spawnSync("ls", [versionsDir], { encoding: "utf-8" });
-    if (result.status !== 0) return null;
-
-    const versions = result.stdout
-      .split("\n")
-      .filter((version) => version.startsWith("v") && satisfiesVersionRange(version))
-      .sort()
-      .reverse();
-
-    if (versions.length === 0) return null;
-
-    const bestVersion = versions[0];
-    const binaryPath = `${versionsDir}/${bestVersion}/bin/node`;
-
-    return {
-      binaryPath,
-      version: bestVersion,
-      isCurrentNode: false,
-    };
-  } catch {
-    return null;
-  }
-};
-
-export const isNvmInstalled = (): boolean => {
-  const nvmDir = process.env.NVM_DIR ?? `${process.env.HOME}/.nvm`;
-  try {
-    const result = spawnSync("ls", [nvmDir], { encoding: "utf-8" });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-};
-
-export const installNodeViaNvm = (): boolean => {
-  try {
-    execSync(
-      `bash -c "source $NVM_DIR/nvm.sh && nvm install ${OXLINT_RECOMMENDED_NODE_MAJOR}"`,
-      { stdio: "inherit" },
-    );
-    return true;
-  } catch {
-    return false;
-  }
-};
+// Returns the Node binary oxlint should run with, or null when the current
+// runtime is unsupported. Vue Doctor never searches for or installs other Node versions.
+export const resolveNodeForOxlint = (): string | null =>
+  isSupportedNodeVersion(process.version) ? process.execPath : null;

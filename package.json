@@ -10,28 +10,37 @@
     "url": "https://github.com/remylagerweij/vue-doctor.git"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "docs"
   ],
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
   "scripts": {
     "dev": "npm run dev --workspace=@remylagerweij/vue-doctor",
     "build": "npm run build --workspace=@remylagerweij/vue-doctor",
     "test": "npm run test --workspace=@remylagerweij/vue-doctor",
+    "init": "node packages/vue-doctor/dist/cli.js init",
+    "rules:generate": "npm run rules:generate --workspace=@remylagerweij/vue-doctor",
+    "snapshot:update": "npm run snapshot:update --workspace=@remylagerweij/vue-doctor",
+    "docs:gen": "npm run docs:gen --workspace=@remylagerweij/vue-doctor",
+    "docs:dev": "npm run docs:dev --workspace=@vue-doctor/docs",
+    "docs:build": "npm run docs:build --workspace=@vue-doctor/docs",
+    "docs:preview": "npm run docs:preview --workspace=@vue-doctor/docs",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "knip": "knip",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "npm run build && changeset publish"
-  },
-  "dependencies": {
-    "commander": "^14.0.3",
-    "knip": "^5.83.1",
-    "picocolors": "^1.1.1"
+    "release": "npm run build && changeset publish",
+    "typecheck": "npm run typecheck --workspace=@remylagerweij/vue-doctor"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
-    "oxlint": "^1.47.0",
-    "tsdown": "^0.20.3",
-    "typescript": "^5.7.0",
-    "vitest": "^4.0.18"
+    "@changesets/cli": "^3.0.3",
+    "@types/node": "^24.0.0",
+    "knip": "^6.39.0",
+    "oxlint": "1.86.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   }
 }

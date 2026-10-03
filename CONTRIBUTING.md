@@ -45,44 +45,49 @@ The codebase is a monorepo using npm workspaces. The main package is located in 
 
 Adding a new rule is a great way to contribute! Here is a step-by-step guide:
 
-1.  **Identify the Category**: Decide which category your rule belongs to (e.g., `reactivity`, `performance`, `security`, etc.).
+Every rule is one file that carries its own metadata (category, severity, help text, guidance for AI agents). The rule registry, the oxlint config, category and help lookups are all derived from those files.
 
-2.  **Create the Rule implementation**:
-    -   Open `packages/vue-doctor/src/plugin/rules/<category>.ts`.
-    -   Export a new `Rule` object.
-    -   Implement the `create` function which returns an object with visitor methods for AST nodes.
+1.  **Create the rule file**: `packages/vue-doctor/src/plugin/rules/<category-slug>/<rule-id>.ts`, where `<category-slug>` is the kebab-case display category (`reactivity`, `performance`, `security`, `bundle-size`, `correctness`, ...) and the file name equals the rule id. Export the rule with `defineRule`:
 
-    *Example:*
     ```typescript
-    export const myNewRule: Rule = {
+    import { defineRule } from "../../define-rule.js";
+    import type { EsTreeNode, RuleContext } from "../../types.js";
+
+    export default defineRule({
+      meta: {
+        id: "no-forbidden-function",
+        category: "Correctness", // must be one of RULE_CATEGORIES
+        defaultSeverity: "warning", // "error" | "warning" | "off"
+        confidence: "medium",
+        frameworks: ["vue", "nuxt"], // ["nuxt"] for rules that only run on Nuxt projects
+        fixable: false,
+        since: "2.0.0",
+        help: "Short remediation shown next to the finding",
+        agentGuidance: "One to three sentences telling an AI agent how to fix it correctly",
+      },
       create: (context: RuleContext) => ({
         CallExpression(node: EsTreeNode) {
           if (node.callee.name === "forbiddenFunction") {
-            context.report({
-              node,
-              message: "Avoid using forbiddenFunction()!",
-            });
+            context.report({ node, message: "Avoid using forbiddenFunction()!" });
           }
         },
       }),
-    };
+    });
     ```
 
-3.  **Register the Rule**:
-    -   Open `packages/vue-doctor/src/plugin/index.ts`.
-    -   Import your new rule.
-    -   Add it to the `rules` object with a descriptive name (kebab-case).
+    Code shared by several rules of a category goes in `rules/<category-slug>/helpers.ts` or `plugin/helpers.ts`.
 
-4.  **Add Configuration**:
-    -   Open `packages/vue-doctor/src/oxlint-config.ts`.
-    -   Add your new rule name to the appropriate category array.
+2.  **Regenerate the rule barrel**: run `npm run rules:generate` in `packages/vue-doctor`. oxlint loads the plugin from one bundle, so rules must be statically imported; this script rewrites `src/plugin/rules/index.ts` (the list of all rule files). `tests/registry.test.ts` fails when the barrel is out of date. Nothing else needs editing: the plugin rule map, oxlint config, category and help lookups all come from the registry (`src/plugin/registry.ts`). Also run `npm run rules:table` to refresh `docs/rules/table.md` (`tests/rules-table.test.ts` fails when it is stale).
 
-5.  **Add Tests**:
-    -   Create a new test file in `packages/vue-doctor/tests/` or add to an existing one.
-    -   Use the `runOxlint` function to run your rule against a snippet of code and assert the diagnostics.
+    **False-positive benchmark:** before promoting a rule to `"error"`, check it against real apps with `npm run benchmark -- --compare` (see [`benchmarks/README.md`](benchmarks/README.md)).
 
-6.  **Verify**:
-    -   Run `npm run test` to ensure your new rule works as expected and doesn't break anything else.
+    **Severity policy:** `defaultSeverity: "error"` is only allowed for Security rules with `confidence: "high"` and Correctness rules that reliably indicate a bug; everything else must be `"warning"`. `tests/registry.test.ts` enforces this.
+
+3.  **Add Tests**: add a test in `packages/vue-doctor/tests/rules/` (see `ecosystem.test.ts` for an ESLint `RuleTester` example that imports the rule's default export), or extend a fixture used by `tests/run-oxlint.test.ts`. If the rule fires on `tests/fixtures/basic-vue`, update `tests/snapshots/basic-vue-rule-counts.json`.
+
+4.  **Template rules** (eslint-plugin-vue): add an entry to `src/plugin/template-rules.ts`; they have metadata only.
+
+5.  **Verify**: run `npm run test` to ensure your new rule works as expected and doesn't break anything else.
 
 ## Pull Request Process
 

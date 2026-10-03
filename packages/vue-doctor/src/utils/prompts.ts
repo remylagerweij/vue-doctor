@@ -1,25 +1,40 @@
-import promptsLib from "prompts";
+import { EXIT_CODES } from "../core/gate.js";
+import { logger } from "./logger.js";
 
-let selectBannerText: string | null = null;
-let selectBannerIndex = -1;
+export interface MultiselectChoice {
+  label: string;
+  value: string;
+}
 
-export const setSelectBanner = (text: string, index: number): void => {
-  selectBannerText = text;
-  selectBannerIndex = index;
+/**
+ * Cancelling a prompt (Ctrl+C / Esc) means the scan did not run: report it as a usage error,
+ * not success. `@clack/prompts` signals cancellation with a symbol instead of exiting itself.
+ */
+export const exitOnCancel = <T>(answer: T, isCancel: (value: unknown) => boolean): Exclude<T, symbol> => {
+  if (isCancel(answer)) {
+    logger.dim("Cancelled.");
+    process.exit(EXIT_CODES.usageError);
+  }
+  return answer as Exclude<T, symbol>;
 };
 
-export const clearSelectBanner = (): void => {
-  selectBannerText = null;
-  selectBannerIndex = -1;
-};
-
-export const prompts = async <T extends string>(
-  question: promptsLib.PromptObject<T>,
-): Promise<promptsLib.Answers<T>> => {
-  const result = await promptsLib(question, {
-    onCancel: () => {
-      process.exit(0);
-    },
+/**
+ * Interactive multiselect with every choice preselected. The prompt is drawn on stderr so
+ * stdout stays reserved for the report. `@clack/prompts` is loaded lazily: runs that never
+ * prompt (the common case, and every `-y`/CI run) do not pay for it.
+ */
+export const promptMultiselect = async (
+  message: string,
+  choices: MultiselectChoice[],
+): Promise<string[]> => {
+  const { multiselect, isCancel } = await import("@clack/prompts");
+  const answer = await multiselect<string>({
+    message,
+    options: choices,
+    initialValues: choices.map((choice) => choice.value),
+    required: false,
+    output: process.stderr,
+    withGuide: false,
   });
-  return result;
+  return exitOnCancel(answer, isCancel);
 };

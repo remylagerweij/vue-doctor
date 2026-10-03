@@ -1,4 +1,8 @@
-export const SOURCE_FILE_PATTERN = /\.(vue|tsx?|jsx?|mjs|cjs)$/;
+// Single source of truth for documentation links. Moving the docs to a custom domain only needs
+// this constant (plus redirects); the docs site reads DOCS_BASE for its path prefix.
+export const DOCS_BASE_URL = "https://remylagerweij.github.io/vue-doctor";
+
+export const SOURCE_FILE_PATTERN =/\.(vue|tsx?|jsx?|mjs|cjs)$/;
 
 export const VUE_FILE_PATTERN = /\.(vue|tsx?|jsx?)$/;
 
@@ -18,8 +22,6 @@ export const SUMMARY_BOX_HORIZONTAL_PADDING_CHARS = 1;
 
 export const SUMMARY_BOX_OUTER_INDENT_CHARS = 2;
 
-export const FETCH_TIMEOUT_MS = 10_000;
-
 export const GIT_LS_FILES_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 
 // HACK: Windows CreateProcessW limits total command-line length to 32,767 chars.
@@ -32,8 +34,15 @@ export const ERROR_RULE_PENALTY = 1.5;
 
 export const WARNING_RULE_PENALTY = 0.75;
 
-export const MAX_KNIP_RETRIES = 5;
+/** Version of the score formula (documented in docs/guide/scoring.md); bump it when scores change. */
+export const SCORE_VERSION = 2;
 
-export const OXLINT_NODE_REQUIREMENT = "^20.19.0 || >=22.12.0";
+/** The overall score never exceeds this while a high-confidence security error is present. */
+export const SECURITY_ERROR_SCORE_CAP = 50;
 
-export const OXLINT_RECOMMENDED_NODE_MAJOR = 24;
+/** The overall score never exceeds this while a critical secret finding (error severity) is present. */
+export const CRITICAL_SECRET_SCORE_CAP = 30;
+
+export const VERSION = process.env.VERSION ?? "2.0.0";
+
+export const OXLINT_NODE_REQUIREMENT = "^22.12.0 || >=24.0.0";

@@ -1,0 +1,52 @@
+name: Benchmark
+
+# Weekly false-positive benchmark on pinned public Nuxt/Vite apps (see benchmarks/README.md).
+# Read-only: results are uploaded as an artifact and summarised in the job summary; nothing is committed.
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC
+  workflow_dispatch:
+    inputs:
+      dead-code:
+        description: "Also run dead-code analysis (installs each benchmark repo's dependencies; slow)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Run benchmark
+        env:
+          BENCHMARK_DIR: ${{ runner.temp }}/vue-doctor-benchmark
+          DEAD_CODE: ${{ inputs.dead-code && '--dead-code' || '' }}
+        # DEAD_CODE is empty or a constant flag, never user text; word splitting is intended.
+        run: npm run benchmark --workspace=@remylagerweij/vue-doctor -- --compare --summary --output "$GITHUB_WORKSPACE/benchmark-results.json" $DEAD_CODE
+
+      - name: Upload results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          if-no-files-found: error
+          retention-days: 90

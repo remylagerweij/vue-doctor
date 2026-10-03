@@ -23,6 +23,14 @@ export default defineComponent({
     // nuxt-no-window-in-ssr
     if (window.innerWidth > 500) {}
 
+    // guarded browser access must not be reported
+    if (import.meta.client) {
+      window.scrollTo(0, 0);
+    }
+    onMounted(() => {
+      document.title = "mounted";
+    });
+
     // nuxt-require-seo-meta
     useHead({
       meta: [{ name: "description", content: "bad" }]

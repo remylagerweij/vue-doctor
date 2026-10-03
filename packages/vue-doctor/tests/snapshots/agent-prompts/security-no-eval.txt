@@ -1,0 +1,12 @@
+You are fixing a Vue Doctor finding in this repository.
+Rule: vue-doctor/security/no-eval (Security, error, CWE-95)
+File: src/utils/run.ts:7-9
+Problem: eval() executes arbitrary code
+Guidance: Remove `eval()`. Use `JSON.parse` for data, a lookup table or function map for dynamic dispatch, and never build code from strings.
+Code:
+  6 | const run = (code: string) => {
+> 7 |   return eval(code);
+  8 | };
+Docs: https://remylagerweij.github.io/vue-doctor/rules/x
+Constraints: Change only what is needed to fix it, keep the behaviour otherwise identical, do not suppress or disable the rule, do not add dependencies, and update a test only if one already covers this code.
+Verify: run `npx @remylagerweij/vue-doctor . --diff --format json` and confirm vue-doctor/security/no-eval is no longer reported for this location.

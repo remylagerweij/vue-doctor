@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Run from the repository root: `npm run knip`.
+  "workspaces": {
+    ".": {},
+    "packages/vue-doctor": {
+      // cli.ts, index.ts and plugin/index.ts are the tsdown entries (derived from tsdown.config.ts);
+      // tests, rule cases and the Node preload hooks used by tests are listed explicitly.
+      "entry": [
+        "tests/**/*.test.ts",
+        "tests/support/*.mjs",
+        "src/plugin/rules/**/*.cases.ts",
+        "src/plugin/*.cases.ts",
+        "scripts/**/*.{mjs,ts}"
+      ],
+      "project": ["src/**/*.ts", "tests/**/*.{ts,mjs}", "scripts/**/*.{mjs,ts}"],
+      // Fixtures are the projects the tests scan, not part of this package (their files, config
+      // files and imports are deliberately unused or unresolvable).
+      "ignore": ["tests/fixtures/**"],
+      // Exports consumed only inside their own file (types of public shapes) are not dead code.
+      "ignoreExportsUsedInFile": true
+    },
+    "docs": {}
+  }
+}

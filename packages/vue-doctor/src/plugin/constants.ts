@@ -1,7 +1,5 @@
 export const GIANT_COMPONENT_LINE_THRESHOLD = 300;
 export const CASCADING_MUTATION_THRESHOLD = 3;
-export const RELATED_REF_THRESHOLD = 5;
-export const SECRET_MIN_LENGTH_CHARS = 8;
 export const SEQUENTIAL_AWAIT_THRESHOLD = 3;
 
 export const LAYOUT_PROPERTIES = new Set([
@@ -43,8 +41,6 @@ export const HEAVY_LIBRARIES = new Set([
 ]);
 
 export const WATCH_FUNCTIONS = new Set(["watch", "watchEffect", "watchPostEffect", "watchSyncEffect"]);
-export const REACTIVE_APIS = new Set(["ref", "reactive", "computed", "shallowRef", "shallowReactive", "toRef", "toRefs"]);
-export const COMPOSABLE_PATTERN = /^use[A-Z]/;
 
 export const FETCH_CALLEE_NAMES = new Set(["fetch"]);
 export const FETCH_MEMBER_OBJECTS = new Set(["axios", "ky", "got"]);
@@ -71,81 +67,6 @@ export const LOOP_TYPES = [
   "WhileStatement",
   "DoWhileStatement",
 ];
-
-export const SECRET_PATTERNS = [
-  /^sk_live_/,
-  /^sk_test_/,
-  /^AKIA[0-9A-Z]{16}$/,
-  /^ghp_[a-zA-Z0-9]{36}$/,
-  /^gho_[a-zA-Z0-9]{36}$/,
-  /^github_pat_/,
-  /^glpat-/,
-  /^xox[bporas]-/,
-  /^sk-[a-zA-Z0-9]{32,}$/,
-];
-
-export const SECRET_VARIABLE_PATTERN = /(?:api_?key|secret|token|password|credential|auth)/i;
-
-export const SECRET_FALSE_POSITIVE_SUFFIXES = new Set([
-  "modal",
-  "label",
-  "text",
-  "title",
-  "name",
-  "id",
-  "key",
-  "url",
-  "path",
-  "route",
-  "page",
-  "param",
-  "field",
-  "column",
-  "header",
-  "placeholder",
-  "description",
-  "type",
-  "icon",
-  "class",
-  "style",
-  "variant",
-  "event",
-  "action",
-  "status",
-  "state",
-  "mode",
-  "flag",
-  "option",
-  "config",
-  "message",
-  "error",
-  "display",
-  "view",
-  "component",
-  "element",
-  "container",
-  "wrapper",
-  "button",
-  "link",
-  "input",
-  "select",
-  "dialog",
-  "menu",
-  "form",
-  "step",
-  "index",
-  "count",
-  "length",
-  "role",
-  "scope",
-  "context",
-  "provider",
-  "ref",
-  "handler",
-  "query",
-  "schema",
-  "constant",
-]);
 
 export const UPPERCASE_PATTERN = /^[A-Z]/;
 

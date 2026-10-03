@@ -1,0 +1,14 @@
+{
+  "id": "GHSA-c2qf-rxjj-qqgw",
+  "summary": "semver vulnerable to Regular Expression Denial of Service",
+  "aliases": ["CVE-2022-25883"],
+  "modified": "2024-05-01T00:00:00Z",
+  "database_specific": { "severity": "MODERATE", "github_reviewed": true },
+  "affected": [
+    {
+      "package": { "name": "semver", "ecosystem": "npm" },
+      "ranges": [{ "type": "SEMVER", "events": [{ "introduced": "7.0.0" }, { "fixed": "7.5.2" }] }]
+    }
+  ],
+  "severity": [{ "type": "CVSS_V4", "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N" }]
+}

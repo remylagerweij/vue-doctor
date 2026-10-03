@@ -2,177 +2,185 @@
 
 # 🩺 Vue Doctor
 
-**Diagnose and fix performance issues in your Vue.js app.**
+**Production-grade diagnostics, performance optimization, and security guardrails for Vue.js and Nuxt applications.**
 
 [![CI](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/remylagerweij/vue-doctor/actions/workflows/ci.yml)
+[![Self-Test](https://github.com/remylagerweij/vue-doctor/actions/workflows/self-test.yml/badge.svg)](https://github.com/remylagerweij/vue-doctor/actions/workflows/self-test.yml)
 [![npm version](https://img.shields.io/npm/v/@remylagerweij/vue-doctor.svg?color=42b883)](https://www.npmjs.com/package/@remylagerweij/vue-doctor)
+[![Documentation](https://img.shields.io/badge/docs-vitepress-42b883)](https://remylagerweij.github.io/vue-doctor/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
 ---
 
-Get a **0–100 health score** for your Vue.js project with actionable recommendations. Vue Doctor runs three parallel analysis passes — custom oxlint rules, eslint-plugin-vue template checks, and dead code detection — to catch performance, security, and correctness issues.
+Vue Doctor computes an actionable **0–100 health score** for your Vue and Nuxt codebases. It combines sub-second AST analysis via custom Oxlint rules, template validation via `eslint-plugin-vue`, dead code detection via Knip, and dependency vulnerability audits via OSV.dev.
 
+---
 
-## Documentation
+## ⚡ Quick Start
 
-- **[📖 All Rules Explained](./RULES.md)** — Detailed guide with "Bad" vs "Good" code examples.
-- **[🤝 Contributing Guide](./CONTRIBUTING.md)** — How to set up the project and add new rules.
-- **[👮 Code of Conduct](./CODE_OF_CONDUCT.md)**
-
-## Quick Start
+Scan your project in seconds without installing anything:
 
 ```bash
-npx @remylagerweij/vue-doctor@latest
+npx @remylagerweij/vue-doctor@latest .
 ```
 
-## What It Checks
-
-| Pass | Engine | Rules |
-|------|--------|-------|
-| **Custom Lint** | Oxlint + Vue Doctor plugin | 42 rules (reactivity, architecture, CSS perf, security, bundle size, Nuxt, JS perf) |
-| **Template Lint** | eslint-plugin-vue | 19 rules (v-for-key, no-mutating-props, no-v-html, etc.) |
-| **Dead Code** | Knip | Unused files, exports, types, dependencies |
-
-### Rule Categories
-
-<table>
-<tr><td><b>🔄 Reactivity</b></td><td>no-fetch-in-watch, no-watch-for-computed, prefer-computed, no-ref-from-prop, no-reactive-replace, no-cascading-mutations, no-missing-await-nextTick</td></tr>
-<tr><td><b>🏗️ Architecture</b></td><td>no-giant-component, no-nested-component-definition</td></tr>
-<tr><td><b>⚡ Performance</b></td><td>no-transition-all, no-layout-property-animation, no-global-css-variable-animation, no-large-animated-blur, no-scale-from-zero, no-permanent-will-change, no-deep-watch, passive-event-listeners, async-parallel, js-combine-iterations, js-tosorted-immutable, js-hoist-regexp, js-min-max-loop, js-set-map-lookups, js-batch-dom-css, js-index-maps, js-cache-storage, js-early-exit</td></tr>
-<tr><td><b>🔒 Security</b></td><td>no-secrets-in-client-code, no-v-html</td></tr>
-<tr><td><b>📦 Bundle Size</b></td><td>no-full-lodash-import, no-moment, prefer-dynamic-import, no-barrel-import, no-undeferred-third-party</td></tr>
-<tr><td><b>✅ Correctness</b></td><td>no-array-index-as-key, no-prevent-default, no-direct-dom-manipulation, prefer-defineProps-destructure, no-this-in-setup, require-defineprops-types</td></tr>
-<tr><td><b>💚 Nuxt</b></td><td>nuxt-no-img-element, nuxt-no-a-element, nuxt-no-head-import, nuxt-no-client-fetch-for-server-data, nuxt-async-client-component, nuxt-no-window-in-ssr, nuxt-require-seo-meta, nuxt-no-process-env-in-client, nuxt-require-server-route-error-handling</td></tr>
-<tr><td><b>🖥️ Server</b></td><td>server-no-console-in-handler</td></tr>
-</table>
-
-## Usage
+Scan only files modified in your git branch:
 
 ```bash
-# Scan current directory
-vue-doctor
-
-# Scan a specific project
-vue-doctor --project ./my-vue-app
-
-# Score only (CI mode)
-vue-doctor --score
-
-# Verbose — show file locations per rule
-vue-doctor --verbose
-
-# Skip passes
-vue-doctor --no-dead-code
-vue-doctor --no-lint
-
-# Diff mode — only scan changed files
-vue-doctor --diff main
+npx @remylagerweij/vue-doctor@latest . --scope changed --format json
 ```
 
-## GitHub Action
+Print just the numeric health score:
 
-Use Vue Doctor in your CI pipeline:
+```bash
+npx @remylagerweij/vue-doctor@latest . --score
+```
+
+---
+
+## 🚀 Key Features
+
+- **Blazing Fast:** Sub-second scans powered by Oxlint and native caching (`node_modules/.cache/vue-doctor`).
+- **Comprehensive Quality Gates:** 85 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 104 registered rules.
+- **Deep Security Guardrails:** Detects hardcoded secrets, unsafe HTML sinks (`v-html`), SSRF, command & SQL injection, prototype pollution, and LLM prompt injection risks.
+- **Automated Codemods:** Deterministic `--fix` automatically repairs lodash imports, in-place array mutation, missing `v-for` keys, and `rel="noopener noreferrer"`.
+- **First-Class AI Agent Support:** Built-in stdio Model Context Protocol (MCP) server (`vue-doctor mcp`) and one-command agent playbook installer (`vue-doctor agents install`).
+- **GitHub Actions Integration:** Full PR feedback system with sticky summary comments, review comments with AI remediation prompts, check annotations, and score delta tracking.
+
+---
+
+## 🤖 AI Coding Agents & MCP
+
+Install Vue Doctor instructions for all detected agents (Claude Code, Cursor, Copilot, Windsurf, Antigravity, AGENTS.md):
+
+```bash
+npx @remylagerweij/vue-doctor@latest agents install
+```
+
+Start the built-in MCP server for Claude Code or Cursor:
+
+```bash
+npx @remylagerweij/vue-doctor@latest mcp
+```
+
+Look up detailed remediation advice and agent guidance for any rule:
+
+```bash
+npx @remylagerweij/vue-doctor@latest explain vue-doctor/security/no-unsafe-html-sink
+```
+
+---
+
+## 🛠️ GitHub Actions CI
+
+Set up automated CI and PR review comments with one command:
+
+```bash
+npx @remylagerweij/vue-doctor@latest ci install
+```
+
+Example `.github/workflows/vue-doctor.yml`:
 
 ```yaml
-- name: Vue Doctor
-  uses: remylagerweij/vue-doctor@v1
-  with:
-    directory: "."
-    verbose: "true"
+name: Vue Doctor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  statuses: write
+
+jobs:
+  vue-doctor:
+    name: Vue Doctor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: remylagerweij/vue-doctor@v2
+        with:
+          fail-on: error
+          gate: new
+          feedback: summary,findings
+          grouping: rule-per-file
+          agent-prompt: true
 ```
 
-The action outputs the health score:
+---
 
-```yaml
-- name: Vue Doctor
-  id: doctor
-  uses: remylagerweij/vue-doctor@v1
+## ⚙️ Configuration
 
-- name: Check score
-  run: echo "Score: ${{ steps.doctor.outputs.score }}"
+Configure Vue Doctor using `vue-doctor.config.ts`:
+
+```typescript
+import { defineConfig } from "@remylagerweij/vue-doctor";
+
+export default defineConfig({
+  gate: {
+    failOn: "error", // "none" | "error" | "warning"
+    scope: "new",    // "new" (only new findings fail gate) | "all"
+    minScore: 80,
+  },
+  lint: true,
+  deadCode: true,
+  rules: {
+    "vue-doctor/security/no-unsafe-html-sink": "error",
+    "vue-doctor/bundle-size/no-moment": "warn",
+    "vue-doctor/architecture/no-giant-component": "off",
+  },
+  ignore: {
+    paths: ["legacy/**", "dist/**", "coverage/**"],
+  },
+  baseline: "vue-doctor-baseline.json",
+});
 ```
 
-## Configuration
+---
 
-Create `vue-doctor.config.json`:
+## 💻 Programmatic API
 
-```json
-{
-  "ignore": {
-    "rules": ["no-giant-component"],
-    "paths": ["legacy/**"]
-  }
-}
-```
+```typescript
+import { diagnose } from "@remylagerweij/vue-doctor/api";
 
-Or in `package.json`:
-
-```json
-{
-  "vueDoctor": {
-    "ignore": {
-      "rules": ["no-prevent-default"]
-    }
-  }
-}
-```
-
-## Programmatic API
-
-```ts
-import { diagnose } from "vue-doctor/api";
-
-const result = await diagnose({
-  directory: "./my-vue-app",
+const result = await diagnose("./my-vue-app", {
   lint: true,
   deadCode: true,
 });
 
-console.log(result.scoreResult?.score); // 0–100
+console.log(`Health Score: ${result.score}/100`);
+console.log(`Total Findings: ${result.diagnostics.length}`);
 ```
 
-## Framework Support
+---
 
-| Framework | Auto-detected | Extra rules |
-|-----------|--------------|-------------|
-| Vue 3 | ✅ | Composition API, `<script setup>` |
-| Nuxt 3 | ✅ | 5 Nuxt-specific rules |
-| Vite | ✅ | — |
-| Quasar | ✅ | — |
-| Vue CLI | ✅ | — |
+## 📚 Documentation Links
 
-Monorepo workspaces (npm, pnpm, yarn) are supported.
+- **[Documentation Site](https://remylagerweij.github.io/vue-doctor/)**
+- **[Rules Catalog](https://remylagerweij.github.io/vue-doctor/rules/)**
+- **[CI & PR Feedback Guide](https://remylagerweij.github.io/vue-doctor/guide/ci)**
+- **[AI Agents Playbook](https://remylagerweij.github.io/vue-doctor/guide/agents)**
+- **[MCP Server Guide](https://remylagerweij.github.io/vue-doctor/guide/mcp)**
+- **[CLI Reference](https://remylagerweij.github.io/vue-doctor/reference/cli)**
+- **[Configuration Reference](https://remylagerweij.github.io/vue-doctor/reference/config)**
+- **[LLM Full Text Reference](https://remylagerweij.github.io/vue-doctor/llms-full.txt)**
 
-## Project Structure
+---
 
-```
-vue-doctor/
-├── action.yml                     # GitHub Action (Marketplace)
-├── .github/workflows/
-│   ├── ci.yml                     # Build + Test
-│   ├── release.yml                # Changeset → npm publish
-│   └── self-test.yml              # Action smoke test
-└── packages/vue-doctor/
-    ├── src/
-    │   ├── cli.ts                 # CLI entry point
-    │   ├── scan.ts                # Scan engine (3 parallel passes)
-    │   ├── plugin/                # Oxlint plugin (42 rules)
-    │   └── utils/                 # Discovery, scoring, runners
-    └── tests/                     # 38 tests
-```
+## 🤝 Credits & Acknowledgements
 
-## Contributing
+- Created and maintained by [Remy Lagerweij](https://github.com/remylagerweij).
+- Inspired by [react-doctor](https://github.com/millionco/react-doctor) by [Million](https://github.com/millionco).
 
-```bash
-git clone https://github.com/remylagerweij/vue-doctor.git
-cd vue-doctor
-npm install
-npm run build
-npm run test
-```
+## 📄 License
 
-## License
-
-[MIT](LICENSE) — Originally inspired by [react-doctor](https://github.com/nicepkg/react-doctor) by Million.
+[MIT](LICENSE)

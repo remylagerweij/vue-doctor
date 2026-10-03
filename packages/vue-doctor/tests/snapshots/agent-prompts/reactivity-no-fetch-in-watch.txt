@@ -1,0 +1,8 @@
+You are fixing a Vue Doctor finding in this repository.
+Rule: vue-doctor/reactivity/no-fetch-in-watch (Reactivity, warning)
+File: src/composables/useSearch.ts:21
+Problem: fetch() inside a watcher can race; cancel stale requests
+Guidance: Do not fetch inside a watcher. Move the request into `useFetch`/`useAsyncData` (Nuxt) or a query composable such as `useQuery` whose key is the reactive source, so the framework handles caching, cancellation and SSR.
+Docs: https://remylagerweij.github.io/vue-doctor/rules/x
+Constraints: Change only what is needed to fix it, keep the behaviour otherwise identical, do not suppress or disable the rule, do not add dependencies, and update a test only if one already covers this code.
+Verify: run `npx @remylagerweij/vue-doctor apps/web --diff --format json` and confirm vue-doctor/reactivity/no-fetch-in-watch is no longer reported for this location.

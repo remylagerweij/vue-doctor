@@ -3,5 +3,10 @@
   "private": true,
   "dependencies": {
     "vue": "^3.5.0"
+  },
+  "knip": {
+    "entry": [
+      "App.vue"
+    ]
   }
 }

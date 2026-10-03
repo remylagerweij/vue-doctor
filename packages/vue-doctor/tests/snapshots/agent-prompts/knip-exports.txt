@@ -1,0 +1,8 @@
+You are fixing a Vue Doctor finding in this repository.
+Rule: knip/exports (Unused export, warning)
+File: src/utils/format.ts
+Problem: Unused export: formatDate
+Guidance: Remove the `export` keyword if the symbol is only used inside its own file, or delete the symbol when nothing uses it. Keep the export when it is part of the package's public API or used implicitly by the framework.
+Docs: https://remylagerweij.github.io/vue-doctor/rules/dead-code/knip-exports
+Constraints: Change only what is needed to fix it, keep the behaviour otherwise identical, do not suppress or disable the rule, do not add dependencies, and update a test only if one already covers this code.
+Verify: run `npx @remylagerweij/vue-doctor . --format json` and confirm knip/exports is no longer reported for this location.

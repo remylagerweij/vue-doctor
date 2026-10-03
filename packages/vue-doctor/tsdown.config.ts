@@ -1,41 +1,45 @@
 import fs from "node:fs";
-import { defineConfig } from "tsdown";
+import { defineConfig, type UserConfig } from "tsdown";
 
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
   version: string;
 };
 
+const base: UserConfig = {
+  // dist/ is cleaned by the prebuild script; parallel configs must not clean each other.
+  clean: false,
+  target: "node22",
+  platform: "node",
+  fixedExtension: false,
+  deps: { neverBundle: ["oxlint", "knip", "knip/session"] },
+  env: {
+    NODE_ENV: "production",
+    VERSION: process.env.VERSION ?? packageJson.version,
+  },
+};
+
 export default defineConfig([
   {
-    entry: {
-      cli: "./src/cli.ts",
-    },
-    external: ["oxlint", "knip", "knip/session"],
+    ...base,
+    entry: { cli: "./src/cli.ts" },
     dts: true,
-    target: "node18",
-    platform: "node",
-    env: {
-      VERSION: process.env.VERSION ?? packageJson.version,
-    },
-    fixedExtension: false,
     banner: "#!/usr/bin/env node",
   },
   {
-    entry: {
-      index: "./src/index.ts",
-    },
-    external: ["oxlint", "knip", "knip/session"],
+    ...base,
+    entry: { index: "./src/index.ts" },
     dts: true,
-    target: "node18",
-    platform: "node",
-    fixedExtension: false,
   },
   {
-    entry: {
-      "vue-doctor-plugin": "./src/plugin/index.ts",
-    },
-    target: "node18",
-    platform: "node",
-    fixedExtension: false,
+    ...base,
+    entry: { "vue-doctor-plugin": "./src/plugin/index.ts" },
+    // Published as the "./eslint-plugin" export.
+    dts: true,
+  },
+  {
+    ...base,
+    entry: { "knip-worker": "./src/utils/knip-worker.ts" },
+    // Internal child-process entry: no type declarations.
+    dts: false,
   },
 ]);

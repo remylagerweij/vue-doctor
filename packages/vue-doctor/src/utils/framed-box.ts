@@ -3,6 +3,7 @@ import {
   SUMMARY_BOX_HORIZONTAL_PADDING_CHARS,
   SUMMARY_BOX_OUTER_INDENT_CHARS,
 } from "../constants.js";
+import { logger } from "./logger.js";
 
 export interface FramedLine {
   plainText: string;
@@ -17,7 +18,7 @@ export const createFramedLine = (plainText: string, renderedText?: string): Fram
 const computeMaxWidth = (lines: FramedLine[]): number =>
   Math.max(...lines.map((line) => line.plainText.length));
 
-export const renderFramedBoxString = (lines: FramedLine[]): string => {
+const renderFramedBoxString = (lines: FramedLine[]): string => {
   const maxWidth = computeMaxWidth(lines);
   const innerWidth = maxWidth + SUMMARY_BOX_HORIZONTAL_PADDING_CHARS * 2;
   const outerIndent = " ".repeat(SUMMARY_BOX_OUTER_INDENT_CHARS);
@@ -38,5 +39,5 @@ export const renderFramedBoxString = (lines: FramedLine[]): string => {
 };
 
 export const printFramedBox = (lines: FramedLine[]): void => {
-  console.log(renderFramedBoxString(lines));
+  logger.log(renderFramedBoxString(lines));
 };

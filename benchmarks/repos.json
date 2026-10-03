@@ -1,0 +1,25 @@
+{
+  "repos": [
+    {
+      "id": "nuxt-com",
+      "description": "nuxt.com website (Nuxt 4, Nuxt UI, Nuxt Content)",
+      "url": "https://github.com/nuxt/nuxt.com.git",
+      "sha": "9d0df13aad05a9f6770322a8e2ec6e13a1c19177",
+      "license": "MIT"
+    },
+    {
+      "id": "elk",
+      "description": "Elk, a Mastodon web client (Nuxt 3, large app)",
+      "url": "https://github.com/elk-zone/elk.git",
+      "sha": "8a90074fca9f316a0c71f7249b1a31f21829a987",
+      "license": "MIT"
+    },
+    {
+      "id": "vitepress",
+      "description": "VitePress (Vite + Vue 3 client and default theme)",
+      "url": "https://github.com/vuejs/vitepress.git",
+      "sha": "56fa6c9df102de34089fec773281b18530768bd3",
+      "license": "MIT"
+    }
+  ]
+}

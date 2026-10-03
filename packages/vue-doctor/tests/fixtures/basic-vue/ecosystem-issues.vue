@@ -26,8 +26,8 @@ authStore.$subscribe(() => { // GOOD
 const router = useRouter()
 
 const navigateBad = () => {
-  router.push('/dashboard') // BAD: raw string used
-  router.replace(`/user/${user.value.id}`) // BAD: template literal used
+  router.push('/dashboard') // GOOD: static path
+  router.replace(`/user/${user.value.id}`) // BAD: path built by interpolation
 }
 
 const navigateGood = () => {
@@ -36,11 +36,11 @@ const navigateGood = () => {
 }
 
 // 4. router-no-async-guard-without-next
-router.beforeEach(async (to, from) => {
+router.beforeEach(async (to, from, next) => {
   const isAuth = await checkAuth()
   if (!isAuth) {
     console.log('redirecting')
-    // BAD: missing return statement for standard flow
+    // BAD: declares next but never calls it, navigation hangs
   }
 })
 

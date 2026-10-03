@@ -1,167 +1,185 @@
-import { spawn } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { ERROR_PREVIEW_LENGTH_CHARS } from "../constants.js";
+import type { ESLint, Linter } from "eslint";
+import { CUSTOM_TEMPLATE_PLUGIN_NAME, CUSTOM_TEMPLATE_RULES } from "../plugin/custom-template-rules.js";
+import {
+  PLUGIN_NAME,
+  createCustomTemplateRuleConfig,
+  createTemplateRuleConfig,
+  getRuleMeta,
+  toDiagnosticRule,
+} from "../plugin/registry.js";
 import type { Diagnostic } from "../types.js";
 
-interface EslintMessage {
-  ruleId: string | null;
-  severity: 1 | 2;
-  message: string;
-  line: number;
-  column: number;
-}
+// Directory-form patterns so ESLint prunes these trees instead of walking them.
+const ALWAYS_IGNORED_PATTERNS = [
+  "**/node_modules/",
+  "**/dist/",
+  "**/.nuxt/",
+  "**/.output/",
+  "**/coverage/",
+];
 
-interface EslintResult {
-  filePath: string;
-  messages: EslintMessage[];
-}
-
-const TEMPLATE_RULES: Record<string, [number, string]> = {
-  "vue/require-v-for-key": [2, "Correctness"],
-  "vue/no-use-v-if-with-v-for": [2, "Performance"],
-  "vue/no-template-shadow": [1, "Correctness"],
-  "vue/valid-v-slot": [2, "Correctness"],
-  "vue/no-v-html": [1, "Security"],
-  "vue/require-explicit-emits": [1, "Correctness"],
-  "vue/component-name-in-template-casing": [1, "Architecture"],
-  "vue/no-unused-vars": [1, "Dead Code"],
-  "vue/no-mutating-props": [2, "Reactivity"],
-  "vue/no-computed-properties-in-data": [2, "Reactivity"],
-  "vue/no-side-effects-in-computed-properties": [2, "Reactivity"],
-  "vue/no-async-in-computed-properties": [2, "Reactivity"],
-  "vue/return-in-computed-property": [2, "Correctness"],
-  "vue/no-ref-as-operand": [2, "Reactivity"],
-  "vue/valid-v-bind": [2, "Correctness"],
-  "vue/valid-v-on": [2, "Correctness"],
-  "vue/valid-v-model": [2, "Correctness"],
-  "vue/no-dupe-keys": [2, "Correctness"],
-  "vue/no-duplicate-attributes": [2, "Correctness"],
-};
-
-const RULE_HELP_MAP: Record<string, string> = {
-  "vue/require-v-for-key": "Add a unique `:key` attribute to every `v-for` iteration element",
-  "vue/no-use-v-if-with-v-for": "Move `v-if` to a wrapper element or use `computed` to filter the list",
-  "vue/no-template-shadow": "Rename the variable to avoid shadowing a component property",
-  "vue/valid-v-slot": "Use `v-slot` only on `<template>` elements or component direct children",
-  "vue/no-v-html": "Sanitize content with DOMPurify or use text interpolation `{{ }}`",
-  "vue/require-explicit-emits": "Define emits with `defineEmits()` for better documentation and type checking",
-  "vue/component-name-in-template-casing": "Use PascalCase for component names in templates: `<MyComponent>`",
-  "vue/no-unused-vars": "Remove the unused variable or prefix with `_` to indicate intentional",
-  "vue/no-mutating-props": "Never modify a prop directly — emit an event to the parent instead",
-  "vue/no-computed-properties-in-data": "Move the reference into `computed` or `setup()` instead of `data()`",
-  "vue/no-side-effects-in-computed-properties": "Computed properties must be pure — move side effects to `watch` or methods",
-  "vue/no-async-in-computed-properties": "Use `watchEffect` or an async composable instead of async computed",
-  "vue/return-in-computed-property": "Every computed property must return a value",
-  "vue/no-ref-as-operand": "Use `.value` to access the ref value in expressions",
-  "vue/valid-v-bind": "Fix the `v-bind` / `:` directive syntax",
-  "vue/valid-v-on": "Fix the `v-on` / `@` directive syntax",
-  "vue/valid-v-model": "Fix the `v-model` directive — it must bind to a writable expression",
-  "vue/no-dupe-keys": "Remove the duplicate key — properties and computed names must be unique",
-  "vue/no-duplicate-attributes": "Remove the duplicate attribute from the template tag",
-};
-
-const buildEslintConfig = (): object => {
-  const rules: Record<string, any> = {};
-  for (const [ruleName, [severity]] of Object.entries(TEMPLATE_RULES)) {
-    rules[ruleName] = severity === 2 ? "error" : "warn";
+/**
+ * Best-effort translation of the project's root `.gitignore` into ESLint `ignores` patterns.
+ * Negations and escaped patterns are skipped; nested `.gitignore` files are not read.
+ */
+const readGitignorePatterns = (rootDirectory: string): string[] => {
+  let content: string;
+  try {
+    content = fs.readFileSync(path.join(rootDirectory, ".gitignore"), "utf-8");
+  } catch {
+    return [];
   }
 
-  return {
-    parser: "vue-eslint-parser",
-    plugins: ["vue"],
-    rules,
-    env: {
-      browser: true,
-      es2021: true,
-    },
-  };
+  const patterns: string[] = [];
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith("!") || line.includes("\\")) continue;
+
+    const isDirectoryOnly = line.endsWith("/");
+    const body = line.replace(/\/+$/, "");
+    if (!body) continue;
+
+    // A slash at the start or in the middle anchors the pattern to the .gitignore's directory.
+    const base = body.includes("/") ? body.replace(/^\//, "") : `**/${body}`;
+    patterns.push(`${base}/`);
+    if (!isDirectoryOnly) patterns.push(base);
+  }
+  return patterns;
 };
 
-const getCategoryForRule = (ruleId: string): string =>
-  TEMPLATE_RULES[ruleId]?.[1] ?? "Template";
+const toProjectRelativePath = (rootDirectory: string, filePath: string): string =>
+  path.relative(rootDirectory, filePath).split(path.sep).join("/");
 
+const resolveFilesToLint = (rootDirectory: string, includePaths: string[]): string[] =>
+  includePaths
+    .filter((filePath) => filePath.endsWith(".vue"))
+    .map((filePath) => path.resolve(rootDirectory, filePath))
+    .filter((absolutePath) => {
+      const relativePath = path.relative(rootDirectory, absolutePath);
+      return (
+        !relativePath.startsWith("..") &&
+        !path.isAbsolute(relativePath) &&
+        fs.existsSync(absolutePath)
+      );
+    });
+
+/**
+ * Runs eslint-plugin-vue's template rules in-process with a flat config built on our own bundled
+ * ESLint, plugin and parser. The scanned project's ESLint install and config are never loaded.
+ * Throws when ESLint itself fails so the caller can report the analyzer as skipped.
+ */
 export const runEslintVue = async (
   rootDirectory: string,
   includePaths?: string[],
 ): Promise<Diagnostic[]> => {
-  const configPath = path.join(os.tmpdir(), `vue-doctor-eslintrc-${process.pid}.json`);
+  let patterns: string[];
+  if (includePaths) {
+    patterns = resolveFilesToLint(rootDirectory, includePaths);
+    if (patterns.length === 0) return [];
+  } else {
+    patterns = ["**/*.vue"];
+  }
 
-  try {
-    const config = buildEslintConfig();
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  // Lazy-loaded: ESLint and its plugin are heavy and unused when template checks are off.
+  const [{ ESLint: EslintClass }, { default: pluginVue }] = await Promise.all([
+    import("eslint"),
+    import("eslint-plugin-vue"),
+  ]);
 
-    const args = [
-      "npx",
-      "eslint",
-      "--no-eslintrc",
-      "--config", configPath,
-      "--format", "json",
-      "--ext", ".vue",
-      "--no-error-on-unmatched-pattern",
-    ];
-
-    if (includePaths && includePaths.length > 0) {
-      args.push(...includePaths.filter((f) => f.endsWith(".vue")));
-    } else {
-      args.push(".");
-    }
-
-    const stdout = await new Promise<string>((resolve, reject) => {
-      const child = spawn(args[0], args.slice(1), {
-        cwd: rootDirectory,
-        shell: true,
-      });
-
-      const stdoutBuffers: Buffer[] = [];
-      const stderrBuffers: Buffer[] = [];
-
-      child.stdout.on("data", (buffer: Buffer) => stdoutBuffers.push(buffer));
-      child.stderr.on("data", (buffer: Buffer) => stderrBuffers.push(buffer));
-
-      child.on("error", (error) => reject(new Error(`eslint failed: ${error.message}`)));
-      child.on("close", () => {
-        const output = Buffer.concat(stdoutBuffers).toString("utf-8").trim();
-        resolve(output);
-      });
+  const createEslint = (skipScriptParsing: boolean): ESLint =>
+    new EslintClass({
+      cwd: rootDirectory,
+      // Never load the project's eslint.config.* — only the config below applies.
+      overrideConfigFile: true,
+      // eslint-disable comments must not hide Vue Doctor findings (use vue-doctor-disable).
+      allowInlineConfig: false,
+      overrideConfig: [
+        { ignores: [...ALWAYS_IGNORED_PATTERNS, ...readGitignorePatterns(rootDirectory)] },
+        ...(pluginVue.configs["flat/base"] as Linter.Config[]),
+        {
+          files: ["**/*.vue"],
+          languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            // `false` makes vue-eslint-parser skip <script>, keeping template rules working
+            // for languages the default parser cannot read (e.g. lang="ts").
+            ...(skipScriptParsing ? { parserOptions: { parser: false } } : {}),
+          },
+          linterOptions: { reportUnusedDisableDirectives: "off" },
+          // Vue Doctor's own template rules (e.g. `v-html`), next to eslint-plugin-vue's.
+          plugins: { [CUSTOM_TEMPLATE_PLUGIN_NAME]: { rules: CUSTOM_TEMPLATE_RULES } },
+          rules: {
+            ...createTemplateRuleConfig(),
+            ...createCustomTemplateRuleConfig(),
+            // eslint-plugin-vue applies <!-- eslint-disable --> template comments through this rule,
+            // independently of allowInlineConfig. Off, so only vue-doctor-disable suppresses.
+            "vue/comment-directive": "off",
+          },
+        },
+      ],
+      errorOnUnmatchedPattern: false,
+      warnIgnored: false,
+      cache: false,
+      fix: false,
     });
 
-    if (!stdout) return [];
+  const hasFatalMessage = (result: ESLint.LintResult): boolean =>
+    result.messages.some((message) => message.fatal);
 
-    let results: EslintResult[];
-    try {
-      results = JSON.parse(stdout) as EslintResult[];
-    } catch {
-      return [];
+  let results: ESLint.LintResult[];
+  try {
+    results = await createEslint(false).lintFiles(patterns);
+
+    // <script lang="ts"> cannot be read by the default parser, which would drop every template
+    // finding in that file. Retry those files with script parsing disabled.
+    const unparsableFiles = results.filter(hasFatalMessage).map((result) => result.filePath);
+    if (unparsableFiles.length > 0) {
+      const retried = await createEslint(true).lintFiles(unparsableFiles);
+      const retriedByPath = new Map(retried.map((result) => [result.filePath, result]));
+      results = results.map((result) => retriedByPath.get(result.filePath) ?? result);
     }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`eslint-plugin-vue failed: ${reason}`);
+  }
 
-    const diagnostics: Diagnostic[] = [];
+  // Individual unparsable files are skipped below; failing on every file means the run is broken.
+  const fatalResults = results.filter(hasFatalMessage);
+  if (results.length > 0 && fatalResults.length === results.length) {
+    const firstFatal = fatalResults[0].messages.find((message) => message.fatal);
+    throw new Error(`eslint-plugin-vue could not parse any file: ${firstFatal?.message ?? "unknown error"}`);
+  }
 
-    for (const result of results) {
-      const relativePath = path.relative(rootDirectory, result.filePath);
+  const diagnostics: Diagnostic[] = [];
+  for (const result of results) {
+    const relativePath = toProjectRelativePath(rootDirectory, result.filePath);
 
-      for (const msg of result.messages) {
-        if (!msg.ruleId) continue;
+    for (const message of result.messages) {
+      if (message.fatal || !message.ruleId) continue;
+      // Own template rules (`vue-doctor/<rule>`) are reported like oxlint findings of the same rule.
+      const ownRuleName = message.ruleId.startsWith(`${CUSTOM_TEMPLATE_PLUGIN_NAME}/`)
+        ? message.ruleId.slice(CUSTOM_TEMPLATE_PLUGIN_NAME.length + 1)
+        : undefined;
+      const meta = ownRuleName
+        ? getRuleMeta(PLUGIN_NAME, ownRuleName)
+        : getRuleMeta("eslint-plugin-vue", message.ruleId);
+      if (!meta) continue;
 
-        diagnostics.push({
-          filePath: relativePath,
-          plugin: "eslint-plugin-vue",
-          rule: msg.ruleId,
-          severity: msg.severity === 2 ? "error" : "warning",
-          message: msg.message,
-          help: RULE_HELP_MAP[msg.ruleId] ?? "",
-          line: msg.line,
-          column: msg.column,
-          category: getCategoryForRule(msg.ruleId),
-        });
-      }
-    }
-
-    return diagnostics;
-  } finally {
-    if (fs.existsSync(configPath)) {
-      fs.unlinkSync(configPath);
+      diagnostics.push({
+        filePath: relativePath,
+        plugin: ownRuleName ? PLUGIN_NAME : "eslint-plugin-vue",
+        rule: ownRuleName ? toDiagnosticRule(meta) : message.ruleId,
+        severity: message.severity === 2 ? "error" : "warning",
+        message: message.message,
+        help: meta.help,
+        line: message.line,
+        column: message.column,
+        category: meta.category,
+      });
     }
   }
+
+  return diagnostics;
 };

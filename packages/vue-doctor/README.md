@@ -12,22 +12,23 @@ npx vue-doctor@latest
 
 Vue Doctor runs **three parallel analysis passes** on your codebase:
 
-### 1. Oxlint + Vue Doctor Plugin (46 rules)
+### 1. Oxlint + Vue Doctor Plugin (59 rules, 54 on by default)
 Custom ESTree-based rules for Vue.js:
 
 | Category | Rules | Examples |
 |----------|-------|---------|
-| **Reactivity** | 7 | `no-fetch-in-watch`, `no-watch-for-computed`, `prefer-computed` |
+| **Reactivity** | 9 | `no-fetch-in-watch`, `no-watch-for-computed`, `prefer-computed` |
 | **Ecosystem** | 4 | `pinia-no-destructure`, `router-no-string-push` |
 | **Architecture** | 2 | `no-giant-component`, `no-nested-component-definition` |
-| **Performance** | 16 | `no-transition-all`, `no-layout-property-animation`, `async-parallel` |
-| **Security** | 2 | `no-secrets-in-client-code`, `no-v-html` |
+| **Performance** | 18 | `no-transition-all`, `no-layout-property-animation`, `async-parallel` |
+| **Security** | 3 | `no-secrets-in-client-code`, `no-unsafe-html-sink` |
 | **Bundle Size** | 5 | `no-full-lodash-import`, `no-moment`, `prefer-dynamic-import` |
-| **Correctness** | 4 | `no-array-index-as-key`, `no-prevent-default`, `no-direct-dom-manipulation` |
-| **Nuxt** | 5 | `nuxt-no-img-element`, `nuxt-no-a-element`, `nuxt-async-client-component` |
+| **Correctness** | 8 | `no-array-index-as-key`, `no-prevent-default`, `no-direct-dom-manipulation` |
+| **Nuxt** | 9 | `nuxt-no-img-element`, `nuxt-no-a-element`, `nuxt-async-client-component` |
 | **Server** | 1 | `server-no-console-in-handler` |
+| **Supply Chain** | 3 | `lockfile-integrity`, `no-remote-dependency-spec`, `no-dependency-install-scripts` (project checks) |
 
-### 2. ESLint Plugin Vue (19 template rules)
+### 2. ESLint Plugin Vue (20 template rules)
 Template-level analysis with `eslint-plugin-vue`:
 - `vue/require-v-for-key`, `vue/no-use-v-if-with-v-for`
 - `vue/no-mutating-props`, `vue/no-ref-as-operand`
@@ -66,28 +67,60 @@ vue-doctor --diff main
 
 ## Configuration
 
-Create a `vue-doctor.config.json` in your project root:
+Put one config file in the project root: `vue-doctor.config.ts` (or `.mts`, `.js`, `.mjs`, `.json`), or a `vueDoctor` key in `package.json`. Parent directories are never searched.
+
+```ts
+// vue-doctor.config.ts
+import { defineConfig } from "@remylagerweij/vue-doctor";
+
+export default defineConfig({
+  extends: ["vue-doctor/recommended"], // or "vue-doctor/strict", "vue-doctor/security"
+  rules: {
+    "no-giant-component": "off",
+    "vue-doctor/security/no-unsafe-html-sink": "error",
+  },
+  ignore: { files: ["src/legacy/**"], rules: ["no-prevent-default"] },
+  gate: { failOn: "error", scope: "new", minScore: 70 },
+  deadCode: true,
+});
+```
 
 ```json
 {
-  "ignore": {
-    "rules": ["no-giant-component"],
-    "paths": ["legacy/**"]
-  }
+  "$schema": "./node_modules/@remylagerweij/vue-doctor/schema/vue-doctor.schema.json",
+  "ignore": { "files": ["src/legacy/**"] }
 }
 ```
 
-Or add to `package.json`:
+- `rules` sets a severity (`"off"`, `"warn"`, `"error"`) per rule. Rule IDs are `vue-doctor/<category>/<rule>` (e.g. `vue-doctor/bundle-size/no-moment`), `vue/<rule>` for template rules and `knip/<type>`; `vue-doctor/security/*` selects a whole group. The 1.x forms `no-moment` and `vue-doctor/no-moment` still work but print a deprecation warning.
+- `gate`, `lint`, `deadCode`, `verbose` and `diff` are defaults; command-line flags win.
+- The config is validated: unknown keys and invalid values exit with code 2 and say what is wrong.
+- `.ts`/`.js` configs are executed. Use JSON when scanning untrusted code.
 
-```json
-{
-  "vueDoctor": {
-    "ignore": {
-      "rules": ["no-prevent-default"]
-    }
-  }
-}
+## Baseline
+
+Adopting Vue Doctor on an existing codebase? Record today's findings and only fail on new ones:
+
+```bash
+npx @remylagerweij/vue-doctor baseline              # writes .vue-doctor-baseline.json (commit it)
+npx @remylagerweij/vue-doctor --baseline .vue-doctor-baseline.json --gate new --fail-on error
 ```
+
+Set `"baseline": ".vue-doctor-baseline.json"` in the config to apply it by default. Fingerprints survive code moving within a file.
+
+## Suppressing Findings
+
+Vue Doctor has its own suppression comments. `eslint-disable` / `oxlint-disable` comments do **not** hide Vue Doctor findings, and Vue Doctor never modifies your files.
+
+```ts
+// vue-doctor-disable-next-line vue-doctor/bundle-size/no-moment -- legacy report page
+import moment from "moment";
+const html = render(); // vue-doctor-disable-line
+/* vue-doctor-disable vue-doctor/bundle-size/no-moment */ /* vue-doctor-enable vue-doctor/bundle-size/no-moment */
+// vue-doctor-disable-file no-giant-component
+```
+
+In `.vue` templates use HTML comments: `<!-- vue-doctor-disable-next-line vue-doctor/security/no-unsafe-html-sink -->`. Without a rule list every rule is suppressed; rules are written as canonical IDs (`vue-doctor/<category>/<rule>`, `vue/<rule>`); the 1.x forms `rule` and `vue-doctor/rule` still work with a deprecation warning.
 
 ## Programmatic API
 

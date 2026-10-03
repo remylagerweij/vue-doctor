@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      changesets:
+        patterns: ["@changesets/*"]
+      eslint-vue:
+        patterns: ["eslint", "eslint-plugin-vue", "vue-eslint-parser"]
+      dev-minor-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # oxlint's JS plugin API is alpha and not covered by semver. It is exact-pinned and
+      # upgraded by hand with the fixture snapshot review (see .agents/workflows/upgrade-oxlint.md).
+      - dependency-name: oxlint
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]

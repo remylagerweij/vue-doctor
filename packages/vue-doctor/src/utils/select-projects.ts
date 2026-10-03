@@ -1,9 +1,8 @@
-import fs from "node:fs";
 import path from "node:path";
 import type { WorkspacePackage } from "../types.js";
-import { discoverVueSubprojects, listWorkspacePackages } from "./discover-project.js";
+import { discoverVueSubprojects, getRootPackage, listWorkspacePackages } from "./discover-project.js";
 import { isMonorepoRoot } from "./find-monorepo-root.js";
-import { prompts } from "./prompts.js";
+import { promptMultiselect } from "./prompts.js";
 
 export const selectProjects = async (
   directory: string,
@@ -14,12 +13,17 @@ export const selectProjects = async (
     return [directory];
   }
 
-  const packages = listWorkspacePackages(directory);
-  if (packages.length === 0) {
+  const workspacePackages = listWorkspacePackages(directory);
+  if (workspacePackages.length === 0) {
     const subprojects = discoverVueSubprojects(directory);
     if (subprojects.length === 0) return [directory];
     return subprojects.map((pkg) => pkg.directory);
   }
+
+  // A root that is itself a Vue/Nuxt app is a project next to its workspaces (e.g. a Nuxt app with
+  // only `docs` as a workspace); its own scan leaves the nested workspaces' files to them.
+  const rootPackage = getRootPackage(directory);
+  const packages = rootPackage ? [rootPackage, ...workspacePackages] : workspacePackages;
 
   if (projectFilter) {
     const requestedProjects = projectFilter.split(",").map((name) => name.trim());
@@ -37,20 +41,12 @@ export const selectProjects = async (
     return [packages[0].directory];
   }
 
-  const choices = packages.map((pkg: WorkspacePackage) => ({
-    title: pkg.name,
-    value: pkg.directory,
-    selected: true,
-  }));
+  const selectedProjects = await promptMultiselect(
+    "Select Vue projects to scan:",
+    packages.map((pkg: WorkspacePackage) => ({ label: pkg.name, value: pkg.directory })),
+  );
 
-  const { selectedProjects } = await prompts({
-    type: "multiselect",
-    name: "selectedProjects",
-    message: "Select Vue projects to scan:",
-    choices,
-  });
-
-  if (!selectedProjects || selectedProjects.length === 0) {
+  if (selectedProjects.length === 0) {
     return [directory];
   }
 

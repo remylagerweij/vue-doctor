@@ -1,0 +1,19 @@
+# Vue Doctor
+
+> Vue Doctor is a diagnostic tool and linter for Vue.js and Nuxt applications. It performs static analysis (oxlint), template checks (eslint-plugin-vue), dead code detection (Knip), and dependency audits (OSV.dev) to produce a 0–100 health score with actionable recommendations.
+
+## Quick Start
+- Scan changed files: `npx @remylagerweij/vue-doctor@latest . --scope changed --format json`
+- Full scan: `npx @remylagerweij/vue-doctor@latest .`
+- Get health score: `npx @remylagerweij/vue-doctor@latest . --score`
+- List rules: `npx @remylagerweij/vue-doctor@latest rules`
+- Explain a rule: `npx @remylagerweij/vue-doctor@latest explain <ruleId>`
+- Automatic codemods: `npx @remylagerweij/vue-doctor@latest . --fix`
+- Stdio MCP server: `npx @remylagerweij/vue-doctor@latest mcp`
+
+## Documentation
+- Full Documentation: https://remylagerweij.github.io/vue-doctor/
+- Rules Catalog: https://remylagerweij.github.io/vue-doctor/rules/
+- CLI Reference: https://remylagerweij.github.io/vue-doctor/reference/cli
+- Config Reference: https://remylagerweij.github.io/vue-doctor/reference/config
+- Full Text for LLMs: https://remylagerweij.github.io/vue-doctor/llms-full.txt

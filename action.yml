@@ -1,5 +1,5 @@
 name: "Vue Doctor"
-description: "Diagnose performance, security, and correctness issues in your Vue.js app."
+description: "Diagnose performance, security, architecture, and correctness issues in your Vue.js and Nuxt apps."
 author: "Remy Lagerweij"
 
 branding:
@@ -7,64 +7,206 @@ branding:
   color: "green"
 
 inputs:
+  version:
+    description: "Version of @remylagerweij/vue-doctor CLI to run (defaults to action's own version)"
+    required: false
+    default: ""
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "24"
   directory:
     description: "Project directory to scan"
+    required: false
     default: "."
-  verbose:
-    description: "Show file details per rule"
-    default: "true"
   project:
     description: "Workspace project(s) to scan (comma-separated)"
     required: false
-  node-version:
-    description: "Node.js version to use"
-    default: "22"
-  report:
-    description: "Generate HTML report"
+  scope:
+    description: "Scan scope: changed, lines, or full (defaults to changed on PRs, full on push)"
+    required: false
+  fail-on:
+    description: "Lowest finding severity that fails the CI gate: none, error, or warning"
+    required: false
+    default: "error"
+  gate:
+    description: "Which findings fail the gate: new or all"
+    required: false
+    default: "new"
+  min-score:
+    description: "Minimum health score required to pass gate (0-100)"
+    required: false
+  feedback:
+    description: "PR feedback modes (comma-separated): summary, findings, annotations, none"
+    required: false
+    default: "summary,findings"
+  grouping:
+    description: "PR review comments grouping: finding, rule-per-file, or rule"
+    required: false
+    default: "rule-per-file"
+  max-comments:
+    description: "Maximum review comments to post on PR"
+    required: false
+    default: "30"
+  agent-prompt:
+    description: "Include AI agent remediation prompt blocks in comments"
+    required: false
+    default: "true"
+  sarif:
+    description: "Generate and upload SARIF 2.1.0 report for GitHub Code Scanning"
+    required: false
     default: "false"
+  baseline:
+    description: "Path to baseline file"
+    required: false
+  audit:
+    description: "Enable dependency vulnerability audit via OSV.dev"
+    required: false
+    default: "false"
+  report:
+    description: "Generate and upload interactive HTML report"
+    required: false
+    default: "false"
+  github-token:
+    description: "GitHub API token for posting PR feedback"
+    required: false
+    default: "${{ github.token }}"
+  allow-pull-request-target:
+    description: "Allow running under pull_request_target (unsafe without sandboxing)"
+    required: false
+    default: "false"
+  feedback-only:
+    description: "Skip scan and only post PR feedback from existing report JSON (useful for workflow_run fork comments)"
+    required: false
+    default: "false"
+  report-json:
+    description: "Path to vue-doctor.json when using feedback-only"
+    required: false
+    default: "vue-doctor.json"
 
 outputs:
   score:
     description: "Health score (0-100)"
-    value: ${{ steps.score.outputs.score }}
+    value: ${{ steps.run.outputs.score }}
+  base-score:
+    description: "Base branch health score"
+    value: ${{ steps.run.outputs.base-score }}
+  score-delta:
+    description: "Score delta compared to base branch"
+    value: ${{ steps.run.outputs.score-delta }}
+  errors:
+    description: "Number of error-severity findings"
+    value: ${{ steps.run.outputs.errors }}
+  warnings:
+    description: "Number of warning-severity findings"
+    value: ${{ steps.run.outputs.warnings }}
+  new-issues:
+    description: "Number of newly introduced findings"
+    value: ${{ steps.run.outputs.new-issues }}
+  fixed-issues:
+    description: "Number of fixed findings"
+    value: ${{ steps.run.outputs.fixed-issues }}
+  sarif-path:
+    description: "Path to generated SARIF report"
+    value: ${{ steps.run.outputs.sarif-path }}
   report-path:
-    description: "Path to the generated HTML report"
-    value: ${{ steps.scan.outputs.report-path }}
+    description: "Path to generated HTML report"
+    value: ${{ steps.run.outputs.report-path }}
+  json-path:
+    description: "Path to generated JSON report"
+    value: ${{ steps.run.outputs.json-path }}
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-node@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ inputs.node-version }}
 
-    - id: scan
+    - name: Restore Vue Doctor cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.2
+      with:
+        path: node_modules/.cache/vue-doctor
+        key: vue-doctor-${{ runner.os }}-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml', '**/yarn.lock', '**/bun.lockb', '**/bun.lock') }}
+        restore-keys: |
+          vue-doctor-${{ runner.os }}-
+
+    - id: run
       shell: bash
       env:
+        INPUT_VERSION: ${{ inputs.version }}
         INPUT_DIRECTORY: ${{ inputs.directory }}
-        INPUT_VERBOSE: ${{ inputs.verbose }}
         INPUT_PROJECT: ${{ inputs.project }}
+        INPUT_SCOPE: ${{ inputs.scope }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_GATE: ${{ inputs.gate }}
+        INPUT_MIN_SCORE: ${{ inputs.min-score }}
+        INPUT_FEEDBACK: ${{ inputs.feedback }}
+        INPUT_GROUPING: ${{ inputs.grouping }}
+        INPUT_MAX_COMMENTS: ${{ inputs.max-comments }}
+        INPUT_AGENT_PROMPT: ${{ inputs.agent-prompt }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_AUDIT: ${{ inputs.audit }}
         INPUT_REPORT: ${{ inputs.report }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_ALLOW_PR_TARGET: ${{ inputs.allow-pull-request-target }}
+        INPUT_FEEDBACK_ONLY: ${{ inputs.feedback-only }}
+        INPUT_REPORT_JSON: ${{ inputs.report-json }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        FLAGS="--github-summary"
-        if [ "$INPUT_VERBOSE" = "true" ]; then FLAGS="$FLAGS --verbose"; fi
-        if [ -n "$INPUT_PROJECT" ]; then FLAGS="$FLAGS --project $INPUT_PROJECT"; fi
-        if [ "$INPUT_REPORT" = "true" ]; then FLAGS="$FLAGS --report"; fi
-        if command -v vue-doctor &> /dev/null; then
-          CMD="vue-doctor"
+        set -euo pipefail
+
+        # Resolve CLI executable
+        if [ -f "$GITHUB_ACTION_PATH/packages/vue-doctor/dist/cli.js" ]; then
+          CLI="node $GITHUB_ACTION_PATH/packages/vue-doctor/dist/cli.js"
+        elif [ -n "$INPUT_VERSION" ]; then
+          CLI="npx --yes @remylagerweij/vue-doctor@$INPUT_VERSION"
         else
-          CMD="npx -y @remylagerweij/vue-doctor@latest"
+          # Pin to the action's own version if package.json exists in action root
+          if [ -f "$GITHUB_ACTION_PATH/package.json" ]; then
+            PKG_VERSION=$(node -e "try { console.log(require('$GITHUB_ACTION_PATH/package.json').version || ''); } catch { console.log(''); }")
+            if [ -n "$PKG_VERSION" ]; then
+              CLI="npx --yes @remylagerweij/vue-doctor@$PKG_VERSION"
+            else
+              CLI="npx --yes @remylagerweij/vue-doctor@^2.0.0"
+            fi
+          else
+            CLI="npx --yes @remylagerweij/vue-doctor@^2.0.0"
+          fi
         fi
-        $CMD "$INPUT_DIRECTORY" $FLAGS
 
-        if [ "$INPUT_REPORT" = "true" ]; then
-          echo "report-path=$INPUT_DIRECTORY/vue-doctor-report.html" >> "$GITHUB_OUTPUT"
+        if [ "$INPUT_FEEDBACK_ONLY" = "true" ]; then
+          ARGS=("ci" "report" "--report-json" "$INPUT_REPORT_JSON" "--feedback" "$INPUT_FEEDBACK" "--grouping" "$INPUT_GROUPING" "--max-comments" "$INPUT_MAX_COMMENTS")
+          if [ "$INPUT_AGENT_PROMPT" = "false" ]; then ARGS+=("--no-agent-prompt"); fi
+          if [ -n "$INPUT_GITHUB_TOKEN" ]; then ARGS+=("--github-token" "$INPUT_GITHUB_TOKEN"); fi
+          $CLI "${ARGS[@]}"
+        else
+          ARGS=("ci" "run" "$INPUT_DIRECTORY" "--fail-on" "$INPUT_FAIL_ON" "--gate" "$INPUT_GATE" "--feedback" "$INPUT_FEEDBACK" "--grouping" "$INPUT_GROUPING" "--max-comments" "$INPUT_MAX_COMMENTS")
+          if [ -n "$INPUT_SCOPE" ]; then ARGS+=("--scope" "$INPUT_SCOPE"); fi
+          if [ -n "$INPUT_MIN_SCORE" ]; then ARGS+=("--min-score" "$INPUT_MIN_SCORE"); fi
+          if [ "$INPUT_AGENT_PROMPT" = "false" ]; then ARGS+=("--no-agent-prompt"); fi
+          if [ "$INPUT_SARIF" = "true" ]; then ARGS+=("--sarif"); fi
+          if [ -n "$INPUT_BASELINE" ]; then ARGS+=("--baseline" "$INPUT_BASELINE"); fi
+          if [ "$INPUT_AUDIT" = "true" ]; then ARGS+=("--audit"); fi
+          if [ "$INPUT_REPORT" = "true" ]; then ARGS+=("--report"); fi
+          if [ "$INPUT_ALLOW_PR_TARGET" = "true" ]; then ARGS+=("--allow-pull-request-target"); fi
+          if [ -n "$INPUT_GITHUB_TOKEN" ]; then ARGS+=("--github-token" "$INPUT_GITHUB_TOKEN"); fi
+          $CLI "${ARGS[@]}"
         fi
 
-    - id: score
-      shell: bash
-      env:
-        INPUT_DIRECTORY: ${{ inputs.directory }}
-      run: |
-        SCORE=$(npx -y @remylagerweij/vue-doctor@latest "$INPUT_DIRECTORY" --score 2>/dev/null || echo "")
-        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+    - name: Upload SARIF report
+      if: inputs.sarif == 'true' && steps.run.outputs.sarif-path != '' && always()
+      uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3
+      continue-on-error: true
+      with:
+        sarif_file: ${{ steps.run.outputs.sarif-path }}
+
+    - name: Upload HTML report
+      if: inputs.report == 'true' && steps.run.outputs.report-path != '' && always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      continue-on-error: true
+      with:
+        name: vue-doctor-report
+        path: ${{ steps.run.outputs.report-path }}

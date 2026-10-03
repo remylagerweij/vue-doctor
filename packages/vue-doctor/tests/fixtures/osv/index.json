@@ -1,0 +1,7 @@
+{
+  "lodash@4.17.15": ["GHSA-35jh-r3h4-6jhm", "GHSA-p6mc-m468-83gw"],
+  "lodash@4.17.20": ["GHSA-35jh-r3h4-6jhm"],
+  "minimist@1.2.5": ["GHSA-xvch-5gv4-984h"],
+  "semver@7.0.0": ["GHSA-c2qf-rxjj-qqgw"],
+  "vue@3.4.0": []
+}

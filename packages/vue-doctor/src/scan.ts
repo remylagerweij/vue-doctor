@@ -1,25 +1,27 @@
+import { availableParallelism } from "node:os";
 import path from "node:path";
 import pc from "picocolors";
 import { MILLISECONDS_PER_SECOND, PERFECT_SCORE, SCORE_BAR_WIDTH_CHARS } from "./constants.js";
-import type { Diagnostic, ScanOptions, ScanResult, VueDoctorConfig } from "./types.js";
-import { calculateScore } from "./utils/calculate-score.js";
+import {
+  diagnose,
+  NoVueDependencyError,
+  type AnalyzerName,
+  type DiagnoseOptions,
+  type DiagnoseResult,
+} from "./core/diagnose.js";
+import type { Diagnostic, ScanOptions } from "./types.js";
 import { colorizeByScore } from "./utils/colorize-by-score.js";
-import { combineDiagnostics, computeVueIncludePaths } from "./utils/combine-diagnostics.js";
 import { discoverProject, formatFrameworkName } from "./utils/discover-project.js";
 import { createFramedLine, printFramedBox, type FramedLine } from "./utils/framed-box.js";
 import { groupBy } from "./utils/group-by.js";
 import { highlighter } from "./utils/highlighter.js";
-import { loadConfig } from "./utils/load-config.js";
-import { logger } from "./utils/logger.js";
-import { resolveNodeForOxlint } from "./utils/resolve-compatible-node.js";
-import { runKnip } from "./utils/run-knip.js";
-import { runEslintVue } from "./utils/run-eslint-vue.js";
-import { runOxlint } from "./utils/run-oxlint.js";
-import { spinner } from "./utils/spinner.js";
+import { logger, output } from "./utils/logger.js";
+import { mapWithConcurrency } from "./utils/map-with-concurrency.js";
+import { createBatchProgressReporter, createProgressReporter, isAnimatedOutput } from "./utils/progress.js";
+import { createKnipSession } from "./utils/run-knip.js";
 
 const printProjectDetection = (
   projectInfo: ReturnType<typeof discoverProject>,
-  _userConfig: VueDoctorConfig | null,
   isDiffMode: boolean,
   includePaths: string[],
 ): void => {
@@ -61,7 +63,46 @@ const printScoreGauge = (score: number): void => {
   const scoreLabel = colorizeByScore(`${score}`, score);
   const maxLabel = pc.dim(`/${PERFECT_SCORE}`);
 
-  logger.log(`  ${filled}${empty} ${scoreLabel}${maxLabel}`);
+  output.line(`  ${filled}${empty} ${scoreLabel}${maxLabel}`);
+};
+
+/** Number of "fixing X gains +N" hints shown in the text output (the JSON report lists all). */
+const IMPACT_HINT_COUNT = 3;
+
+const SCORE_CAP_NOTES = {
+  "security-error": "a high-confidence security error",
+  "critical-secret": "a critical secret",
+} as const;
+
+const pluralize = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+/** Cap notice, one compact sub-score line per category (worst first) and the top impact hints. */
+const printScoreBreakdown = (result: DiagnoseResult): void => {
+  const { scoreCap, categoryScores, impact } = result;
+  if (scoreCap) {
+    output.line(
+      `  ${pc.dim(`Capped at ${scoreCap.value} (would be ${result.rawScore}) because of ${SCORE_CAP_NOTES[scoreCap.reason]}: ${scoreCap.ruleId}`)}`,
+    );
+  }
+  if (categoryScores.length > 0) {
+    output.break();
+    const nameWidth = Math.max(...categoryScores.map((entry) => entry.category.length));
+    for (const entry of categoryScores) {
+      const counts = [
+        entry.errors > 0 ? pluralize(entry.errors, "error") : null,
+        entry.warnings > 0 ? pluralize(entry.warnings, "warning") : null,
+      ].filter(Boolean);
+      output.line(
+        `  ${entry.category.padEnd(nameWidth)}  ${colorizeByScore(String(entry.score).padStart(3), entry.score)}  ${pc.dim(counts.join(", "))}`,
+      );
+    }
+  }
+  if (impact.length > 0) {
+    output.break();
+    for (const { ruleId, gain } of impact.slice(0, IMPACT_HINT_COUNT)) {
+      output.line(`  ${pc.dim(`Fixing ${ruleId} gains +${gain}`)}`);
+    }
+  }
 };
 
 const printDiagnosticsSummary = (
@@ -69,31 +110,32 @@ const printDiagnosticsSummary = (
   verbose: boolean,
 ): void => {
   if (diagnostics.length === 0) {
-    logger.success("  ✓ No issues found!");
+    output.line(highlighter.success("  ✓ No issues found!"));
     return;
   }
 
-  const byCategory = groupBy(diagnostics, (diagnostic) => diagnostic.category);
+  // The score breakdown above already lists each category with its counts; the per-rule
+  // detail below is only for --verbose.
+  if (verbose) {
+    const byCategory = groupBy(diagnostics, (diagnostic) => diagnostic.category);
+    for (const [category, categoryDiagnostics] of byCategory) {
+      const errorCount = categoryDiagnostics.filter((d) => d.severity === "error").length;
+      const warningCount = categoryDiagnostics.filter((d) => d.severity === "warning").length;
 
-  for (const [category, categoryDiagnostics] of byCategory) {
-    const errorCount = categoryDiagnostics.filter((d) => d.severity === "error").length;
-    const warningCount = categoryDiagnostics.filter((d) => d.severity === "warning").length;
+      const parts: string[] = [];
+      if (errorCount > 0) parts.push(highlighter.error(`${errorCount} error${errorCount > 1 ? "s" : ""}`));
+      if (warningCount > 0) parts.push(highlighter.warn(`${warningCount} warning${warningCount > 1 ? "s" : ""}`));
 
-    const parts: string[] = [];
-    if (errorCount > 0) parts.push(highlighter.error(`${errorCount} error${errorCount > 1 ? "s" : ""}`));
-    if (warningCount > 0) parts.push(highlighter.warn(`${warningCount} warning${warningCount > 1 ? "s" : ""}`));
+      output.line(`  ${pc.bold(category)}: ${parts.join(", ")}`);
 
-    logger.log(`  ${pc.bold(category)}: ${parts.join(", ")}`);
-
-    if (verbose) {
       const byRule = groupBy(categoryDiagnostics, (d) => `${d.plugin}/${d.rule}`);
       for (const [_ruleKey, ruleDiagnostics] of byRule) {
         const firstDiag = ruleDiagnostics[0];
         const icon = firstDiag.severity === "error" ? highlighter.error("✕") : highlighter.warn("△");
-        logger.log(`    ${icon} ${firstDiag.message} ${pc.dim(`(×${ruleDiagnostics.length})`)}`);
+        output.line(`    ${icon} ${firstDiag.message} ${pc.dim(`(×${ruleDiagnostics.length})`)}`);
 
         if (firstDiag.help) {
-          logger.log(`      ${pc.dim("→ " + firstDiag.help)}`);
+          output.line(`      ${pc.dim("→ " + firstDiag.help)}`);
         }
 
         // Show up to 3 affected files
@@ -103,11 +145,11 @@ const printDiagnosticsSummary = (
           if (shown >= 3) {
             const remaining = filesByCount.size - 3;
             if (remaining > 0) {
-              logger.log(`      ${pc.dim(`... and ${remaining} more file${remaining > 1 ? "s" : ""}`)}`);
+              output.line(`      ${pc.dim(`... and ${remaining} more file${remaining > 1 ? "s" : ""}`)}`);
             }
             break;
           }
-          logger.log(`      ${pc.dim(filePath)}`);
+          output.line(`      ${pc.dim(filePath)}`);
           shown++;
         }
       }
@@ -115,196 +157,215 @@ const printDiagnosticsSummary = (
   }
 
   if (!verbose && diagnostics.length > 0) {
-    logger.log("");
-    logger.log(`  ${pc.dim("💡 Tip: Run with ")}${pc.bold("--verbose")}${pc.dim(" to see detailed file paths, or ")}${pc.bold("--json")}${pc.dim(" for machine-readable output.")}`);
+    logger.break();
+    logger.log(`  ${pc.dim("💡 Tip: Run with ")}${pc.bold("--verbose")}${pc.dim(" to see findings per rule and file, or ")}${pc.bold("--format json")}${pc.dim(" for machine-readable output.")}`);
   }
+};
+
+const ANALYZER_LABELS: Record<AnalyzerName, string> = {
+  lint: "lint checks",
+  template: "template checks",
+  "dead-code": "dead code checks",
+  project: "project checks",
+  audit: "dependency audit",
+};
+
+export interface ScanOutcome extends DiagnoseResult {
+  /** The scanned project directory; the caller needs it to build the machine-readable report. */
+  directory: string;
+}
+
+const printSkippedWarning = (skipped: DiagnoseResult["skipped"]): void => {
+  if (skipped.length === 0) return;
+  const noun = skipped.length === 1 ? "analyzer" : "analyzers";
+  logger.warn(`  ⚠ ${skipped.length} ${noun} did not run — the results and score are incomplete:`);
+  for (const entry of skipped) {
+    // The first line is the message; stack traces and tool output are in --debug.
+    const summary = entry.reason.split(/\r?\n/, 1)[0];
+    logger.warn(`    • ${ANALYZER_LABELS[entry.analyzer]}: ${summary}`);
+  }
+  logger.warn("    Use --strict to fail the run (exit code 3) when this happens.");
+};
+
+const printTimings = (timings: Record<string, number>): void => {
+  const { total, ...analyzers } = timings;
+  const parts = Object.entries(analyzers).map(([name, durationMs]) => `${name} ${durationMs}ms`);
+  logger.log(`  Timings: ${[...parts, `total ${total}ms`].join(", ")}`);
+};
+
+/** Text output (banner, progress, report); `--json`/`--format` and `--score` print nothing of it. */
+const isInteractive = (options: ScanOptions): boolean => !options.json && !options.scoreOnly;
+
+const analyzeProject = async (
+  directory: string,
+  options: ScanOptions,
+  hooks: Pick<DiagnoseOptions, "onProgress" | "onDebug" | "knipSession">,
+): Promise<ScanOutcome> => {
+  const result = await diagnose(directory, {
+    lint: options.lint,
+    deadCode: options.deadCode,
+    includePaths: options.includePaths ?? [],
+    force: options.force,
+    config: options.config,
+    baseline: options.baseline,
+    offline: options.offline,
+    audit: options.audit,
+    cache: options.cache,
+    ...hooks,
+  });
+  return { ...result, directory };
+};
+
+/** Prints everything about a finished scan: report files, score, findings, status footer. */
+const renderOutcome = async (outcome: ScanOutcome, options: ScanOptions): Promise<void> => {
+  const { directory: _directory, ...result } = outcome;
+  // Status output goes to stderr, so it is safe in every mode (also --json and --score).
+  const printStatusFooter = (): void => {
+    if (options.timings) printTimings(result.timings);
+    printSkippedWarning(result.skipped);
+  };
+
+  const { diagnostics, score, label, timings } = result;
+  const elapsed = (timings.total / MILLISECONDS_PER_SECOND).toFixed(1);
+
+  if (options.json) {
+    // The CLI renders structured output (json/jsonl) once for all projects, so multi-project
+    // runs stay a single document.
+    printStatusFooter();
+    return;
+  }
+
+  if (options.scoreOnly) {
+    output.line(String(score));
+    printStatusFooter();
+    return;
+  }
+
+  output.break();
+  printScoreGauge(score);
+  output.break();
+  output.line(
+    `  ${pc.bold("Score:")} ${colorizeByScore(String(score), score)} — ${colorizeByScore(label, score)}`,
+  );
+  output.line(`  ${pc.dim(`Completed in ${elapsed}s`)}`);
+  printScoreBreakdown(result);
+  output.break();
+  printDiagnosticsSummary(diagnostics, options.verbose ?? false);
+  output.break();
+
+  if (result.suppressed.count > 0) {
+    const noun = result.suppressed.count === 1 ? "finding" : "findings";
+    logger.log(
+      `  ${pc.dim(`${result.suppressed.count} ${noun} suppressed by vue-doctor-disable comments`)}`,
+    );
+    logger.break();
+  }
+
+  if (result.baseline) {
+    const { matched, fixed } = result.baseline;
+    const fixedText = fixed === null ? "" : `, ${fixed} fixed`;
+    logger.log(`  ${pc.dim(`Baseline: ${result.baseline.new} new, ${matched} known${fixedText}`)}`);
+    logger.break();
+  }
+
+  printStatusFooter();
 };
 
 export const scan = async (
   directory: string,
-  inputOptions: ScanOptions = {},
-): Promise<ScanResult> => {
-  const startTime = performance.now();
-  const projectInfo = discoverProject(directory);
-  const userConfig = loadConfig(directory);
-  const options = { ...inputOptions };
+  options: ScanOptions = {},
+): Promise<ScanOutcome> => {
   const includePaths = options.includePaths ?? [];
-  const isDiffMode = includePaths.length > 0;
+  const isInteractiveOutput = isInteractive(options);
 
-  if (!projectInfo.vueVersion && !options.force) {
-    throw new Error("No Vue dependency found in package.json. Use --force to bypass this check.");
-  }
-
-  if (!options.scoreOnly) {
-    printProjectDetection(projectInfo, userConfig, isDiffMode, includePaths);
-  }
-
-  const vueIncludePaths = computeVueIncludePaths(includePaths);
-
-  let didLintFail = false;
-  let didDeadCodeFail = false;
-  let didTemplateLintFail = false;
-
-  const resolvedNode = await (async () => {
-    if (options.lint === false) return null;
-    const resolution = resolveNodeForOxlint();
-    if (!resolution) {
-      didLintFail = true;
-      if (!options.scoreOnly) {
-        logger.warn("  ⚠ Lint checks require Node.js ≥20.19 or ≥22.12. Skipping lint pass.");
-      }
+  if (isInteractiveOutput) {
+    const projectInfo = discoverProject(directory);
+    if (!projectInfo.vueVersion && !options.force) {
+      throw new NoVueDependencyError(directory);
     }
-    return resolution;
-  })();
-
-  const lintPromise = resolvedNode
-    ? (async () => {
-        const lintSpinner = options.scoreOnly ? null : spinner("Running lint checks...").start();
-        try {
-          const lintDiagnostics = await runOxlint(
-            directory,
-            projectInfo.hasTypeScript,
-            projectInfo.framework,
-            isDiffMode ? vueIncludePaths : undefined,
-            resolvedNode.binaryPath,
-          );
-          lintSpinner?.succeed("Running lint checks.");
-          return lintDiagnostics;
-        } catch (error) {
-          didLintFail = true;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          const isNativeBindingError = errorMessage.includes("native binding");
-          lintSpinner?.fail(
-            isNativeBindingError
-              ? `Lint checks failed — oxlint's native binding requires a compatible Node.js version.`
-              : `Lint checks failed: ${errorMessage}`,
-          );
-          return [] as Diagnostic[];
-        }
-      })()
-    : Promise.resolve([] as Diagnostic[]);
-
-  const templateLintPromise = options.lint !== false
-    ? (async () => {
-        const templateSpinner = options.scoreOnly ? null : spinner("Running template checks...").start();
-        try {
-          const templateDiagnostics = await runEslintVue(
-            directory,
-            isDiffMode ? vueIncludePaths : undefined,
-          );
-          templateSpinner?.succeed("Running template checks.");
-          return templateDiagnostics;
-        } catch (error) {
-          didTemplateLintFail = true;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          templateSpinner?.fail(`Template checks failed: ${errorMessage}`);
-          return [] as Diagnostic[];
-        }
-      })()
-    : Promise.resolve([] as Diagnostic[]);
-
-  const deadCodePromise = options.deadCode !== false && !isDiffMode
-    ? (async () => {
-        const deadCodeSpinner = options.scoreOnly
-          ? null
-          : spinner("Running dead code checks...").start();
-        try {
-          const deadCodeDiagnostics = await runKnip(directory);
-          deadCodeSpinner?.succeed("Running dead code checks.");
-          return deadCodeDiagnostics;
-        } catch (error) {
-          didDeadCodeFail = true;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          deadCodeSpinner?.fail(`Dead code checks failed: ${errorMessage}`);
-          return [] as Diagnostic[];
-        }
-      })()
-    : Promise.resolve([] as Diagnostic[]);
-
-  const [lintDiagnostics, templateLintDiagnostics, deadCodeDiagnostics] = await Promise.all([
-    lintPromise,
-    templateLintPromise,
-    deadCodePromise,
-  ]);
-
-  const diagnostics = combineDiagnostics(
-    [...lintDiagnostics, ...templateLintDiagnostics],
-    deadCodeDiagnostics,
-    directory,
-    isDiffMode,
-    userConfig,
-  );
-
-  const scoreResult = await calculateScore(diagnostics);
-  const skippedChecks: string[] = [];
-  if (didLintFail) skippedChecks.push("lint");
-  if (didTemplateLintFail) skippedChecks.push("template lint");
-  if (didDeadCodeFail) skippedChecks.push("dead code");
-
-  const elapsedMs = performance.now() - startTime;
-  const elapsed = (elapsedMs / MILLISECONDS_PER_SECOND).toFixed(1);
-
-  const reportData = {
-    score: scoreResult?.score ?? 0,
-    label: scoreResult?.label ?? "Unknown",
-    diagnostics,
-    project: projectInfo,
-    elapsed,
-    skippedChecks,
-    timestamp: new Date().toISOString(),
-  };
-
-  // JSON output mode
-  if (options.json) {
-    const { generateJsonReport } = await import("./utils/report.js");
-    console.log(JSON.stringify(generateJsonReport(reportData), null, 2));
-    return { diagnostics, scoreResult, skippedChecks };
+    printProjectDetection(projectInfo, includePaths.length > 0, includePaths);
   }
 
-  // Score-only mode
-  if (options.scoreOnly) {
-    if (scoreResult) {
-      console.log(scoreResult.score);
+  const outcome = await analyzeProject(directory, options, {
+    onProgress: isInteractiveOutput
+      ? await createProgressReporter({ labels: ANALYZER_LABELS, animated: isAnimatedOutput() })
+      : undefined,
+    onDebug: logger.debug,
+    knipSession: options.knipSession,
+  });
+  await renderOutcome(outcome, options);
+  return outcome;
+};
+
+/** Upper bound for concurrent project scans: ESLint runs in this process, so more only adds memory. */
+const MAX_CONCURRENT_PROJECT_SCANS = 4;
+
+/**
+ * How many projects to scan at once: half the available CPUs, because every scan already runs its
+ * analyzers concurrently (oxlint and knip in child processes, ESLint here), so one scan keeps about
+ * two cores busy and more concurrent scans only oversubscribe the machine. At least 1, at most 4
+ * (see MAX_CONCURRENT_PROJECT_SCANS) and never more than there are projects.
+ */
+export const resolveScanConcurrency = (
+  projectCount: number,
+  cpuCount: number = availableParallelism(),
+): number =>
+  Math.max(1, Math.min(projectCount, MAX_CONCURRENT_PROJECT_SCANS, Math.floor(cpuCount / 2)));
+
+export interface ProjectScan {
+  directory: string;
+  options: ScanOptions;
+}
+
+/**
+ * Scans several projects and prints their results in the order given, whatever the order they
+ * finish in. A single project is a plain `scan`. With several, knip runs once for the whole
+ * monorepo (a shared `KnipSession`), the projects are analysed concurrently (`concurrency`,
+ * default `resolveScanConcurrency`), and output is deferred so nothing interleaves: one spinner
+ * while they run, then per project its banner, check outcomes and report, in order.
+ * If any project fails (e.g. no Vue dependency), the error is thrown and nothing is printed for the batch.
+ */
+export const scanProjects = async (
+  projects: ProjectScan[],
+  concurrency: number = resolveScanConcurrency(projects.length),
+): Promise<ScanOutcome[]> => {
+  if (projects.length <= 1) {
+    return Promise.all(projects.map((project) => scan(project.directory, project.options)));
+  }
+
+  const knipSession = createKnipSession();
+  const isInteractiveOutput = projects.some((project) => isInteractive(project.options));
+  const progress = await createBatchProgressReporter({
+    labels: ANALYZER_LABELS,
+    total: projects.length,
+    animated: isAnimatedOutput() && isInteractiveOutput,
+  });
+  // Without a project prefix, concurrent --debug lines could not be told apart.
+  const debugFor = (directory: string) => (namespace: string, message: string) =>
+    logger.debug(namespace, `[${path.basename(directory)}] ${message}`);
+
+  let outcomes: ScanOutcome[];
+  try {
+    outcomes = await mapWithConcurrency(projects, concurrency, async (project, index) => {
+      const outcome = await analyzeProject(project.directory, project.options, {
+        onProgress: isInteractive(project.options) ? progress.forProject(index) : undefined,
+        onDebug: debugFor(project.directory),
+        knipSession,
+      });
+      progress.projectDone();
+      return outcome;
+    });
+  } finally {
+    progress.finish();
+  }
+
+  for (const [index, outcome] of outcomes.entries()) {
+    const { options } = projects[index];
+    if (isInteractiveOutput && isInteractive(options)) {
+      printProjectDetection(outcome.project, outcome.isDiffMode, outcome.includePaths);
+      progress.flush(index);
     }
-    return { diagnostics, scoreResult, skippedChecks };
+    await renderOutcome(outcome, options);
   }
-
-  // HTML report mode
-  if (options.report) {
-    const { writeHtmlReport } = await import("./utils/report.js");
-    const reportPath = writeHtmlReport(reportData, directory);
-    logger.success(`\n  📊 Report saved to ${reportPath}\n`);
-  }
-
-  // GitHub Actions step summary
-  if (options.githubSummary && process.env.GITHUB_STEP_SUMMARY) {
-    const fs = await import("node:fs");
-    const { generateGithubSummary } = await import("./utils/report.js");
-    const summary = generateGithubSummary(reportData);
-    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
-    logger.success("  📝 Written to GitHub Step Summary");
-  }
-
-  // Print results
-  logger.break();
-
-  if (scoreResult) {
-    printScoreGauge(scoreResult.score);
-    logger.break();
-
-    const scoreLabel = colorizeByScore(scoreResult.label, scoreResult.score);
-    logger.log(`  ${pc.bold("Score:")} ${colorizeByScore(String(scoreResult.score), scoreResult.score)} — ${scoreLabel}`);
-  }
-
-  logger.log(`  ${pc.dim(`Completed in ${elapsed}s`)}`);
-
-  logger.break();
-  printDiagnosticsSummary(diagnostics, options.verbose ?? false);
-  logger.break();
-
-  if (skippedChecks.length > 0) {
-    logger.warn(`  ⚠ Skipped: ${skippedChecks.join(", ")}`);
-  }
-
-  return { diagnostics, scoreResult, skippedChecks };
+  return outcomes;
 };

@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "type": "string",
+      "const": "vue-doctor/report@2"
+    },
+    "scoreVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991,
+      "description": "Version of the score formula (docs: guide/scoring)."
+    },
+    "tool": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "vue-doctor"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ]
+    },
+    "generatedAt": {
+      "description": "ISO 8601 timestamp. Omitted with --no-timestamp.",
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "projects": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "projects",
+        "errors",
+        "warnings"
+      ]
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string",
+            "description": "Project directory relative to the scanned directory (the directory argument), with forward slashes; `.` for the project at that directory."
+          },
+          "framework": {
+            "type": "string",
+            "description": "\"nuxt\", \"vite\", \"quasar\", \"vuecli\" or \"unknown\"."
+          },
+          "vueVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "typescript": {
+            "type": "boolean"
+          },
+          "sourceFiles": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "changed"
+                ],
+                "description": "\"changed\" when only changed files (--diff) were scanned."
+              },
+              "files": {
+                "description": "Number of scanned files in `changed` mode.",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "description": "What was scanned."
+          },
+          "score": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Overall score after caps; what `--min-score` compares."
+              },
+              "label": {
+                "type": "string"
+              },
+              "rawScore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Score before the security caps."
+              },
+              "cap": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "security-error",
+                          "critical-secret"
+                        ]
+                      },
+                      "ruleId": {
+                        "type": "string",
+                        "description": "A rule whose finding triggers the cap."
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "reason",
+                      "ruleId"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The cap that lowered the score; null when none applied."
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "score": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "warnings": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "score",
+                    "label",
+                    "errors",
+                    "warnings"
+                  ]
+                },
+                "description": "Sub-scores of the categories that have findings, worst first (same penalty model, never capped)."
+              },
+              "impact": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ruleId": {
+                      "type": "string"
+                    },
+                    "gain": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "ruleId",
+                    "gain"
+                  ]
+                },
+                "description": "Overall score gain from fixing every finding of the rule, largest first."
+              }
+            },
+            "required": [
+              "value",
+              "label",
+              "rawScore",
+              "cap",
+              "categories",
+              "impact"
+            ],
+            "description": "Overall score, sub-scores, caps and per-rule impact; see scoreVersion for the formula."
+          },
+          "categories": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "errors": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "warnings": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "errors",
+                "warnings"
+              ]
+            },
+            "description": "Finding counts per category (only categories with findings)."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "errors": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "warnings": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "suppressed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "errors",
+              "warnings",
+              "suppressed"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ruleId": {
+                  "type": "string",
+                  "description": "Rule identifier, e.g. \"vue-doctor/security/no-unsafe-html-sink\" or \"vue/require-v-for-key\"."
+                },
+                "category": {
+                  "type": "string",
+                  "description": "Rule category, e.g. \"Security\" or \"Dead Code\"."
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "error",
+                    "warning"
+                  ]
+                },
+                "confidence": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ],
+                  "description": "How likely the finding is a true positive."
+                },
+                "cwe": {
+                  "description": "CWE identifiers, e.g. [\"CWE-79\"].",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "owasp": {
+                  "description": "OWASP Top 10 category, e.g. \"A03:2021\".",
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string",
+                  "description": "Project-relative path with forward slashes."
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "1-based line; 0 when the finding is about the whole file."
+                },
+                "column": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "1-based column; 0 when unknown."
+                },
+                "endLine": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "endColumn": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "message": {
+                  "type": "string"
+                },
+                "help": {
+                  "type": "string",
+                  "description": "Short remediation hint."
+                },
+                "docsUrl": {
+                  "type": "string",
+                  "description": "Documentation page of the rule."
+                },
+                "codeFrame": {
+                  "description": "A few numbered source lines around the finding; the finding's line is marked with `>`. Omitted for findings that expose a credential.",
+                  "type": "string"
+                },
+                "fingerprint": {
+                  "description": "Stable ID that survives code moving within a file; used by baselines.",
+                  "type": "string"
+                },
+                "status": {
+                  "description": "Present when a reference point (baseline file or base branch) exists.",
+                  "type": "string",
+                  "enum": [
+                    "new",
+                    "existing",
+                    "baseline"
+                  ]
+                },
+                "fixable": {
+                  "type": "boolean",
+                  "description": "Whether the rule has an automatic fix."
+                },
+                "suggestion": {
+                  "description": "Concrete fix suggestion, for rules that provide one.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "text"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "text"
+                  ]
+                },
+                "agentPrompt": {
+                  "type": "string",
+                  "description": "Self-contained prompt for an AI coding agent to fix this finding."
+                }
+              },
+              "required": [
+                "ruleId",
+                "category",
+                "severity",
+                "confidence",
+                "file",
+                "line",
+                "column",
+                "message",
+                "help",
+                "docsUrl",
+                "fixable",
+                "agentPrompt"
+              ],
+              "description": "One finding."
+            },
+            "description": "Ordered by file, line, column, ruleId."
+          },
+          "ruleGroups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ruleId": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 9007199254740991,
+                  "description": "Number of findings of the rule in this project."
+                },
+                "agentPrompt": {
+                  "type": "string",
+                  "description": "One prompt for an AI coding agent to fix all findings of the rule; lists at most 10 locations."
+                }
+              },
+              "required": [
+                "ruleId",
+                "count",
+                "agentPrompt"
+              ],
+              "description": "Findings of one rule, for fixing them together."
+            },
+            "description": "Rules with at least two findings, most findings first (then by rule ID)."
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tool": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tool",
+                "reason"
+              ]
+            },
+            "description": "Analyzers that did not run; the score is incomplete when this is not empty."
+          },
+          "timings": {
+            "description": "Milliseconds per analyzer plus `total`. Omitted with --no-timestamp.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "suppressed": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "byRule": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            },
+            "required": [
+              "count",
+              "byRule"
+            ]
+          },
+          "baseline": {
+            "description": "Present when a baseline was applied.",
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Baseline file, relative to the project root when inside it."
+              },
+              "matched": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "new": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "fixed": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`null` in diff mode."
+              }
+            },
+            "required": [
+              "path",
+              "matched",
+              "new",
+              "fixed"
+            ]
+          },
+          "offline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "root",
+          "framework",
+          "vueVersion",
+          "typescript",
+          "sourceFiles",
+          "scope",
+          "score",
+          "categories",
+          "summary",
+          "findings",
+          "ruleGroups",
+          "skipped",
+          "suppressed",
+          "offline"
+        ],
+        "description": "Result for one project."
+      },
+      "description": "Ordered by project name."
+    }
+  },
+  "required": [
+    "format",
+    "scoreVersion",
+    "tool",
+    "summary",
+    "projects"
+  ],
+  "description": "Vue Doctor report",
+  "$id": "https://remylagerweij.github.io/vue-doctor/schema/report.schema.json",
+  "title": "Vue Doctor report (vue-doctor/report@2)"
+}
