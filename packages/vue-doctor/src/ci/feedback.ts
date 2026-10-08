@@ -7,6 +7,7 @@ import {
 } from "../report/format-markdown.js";
 import { escapeMarkdown, markdownCode, markdownFence, sanitizeMarkerId } from "../report/markdown-escape.js";
 import type { GitHubClient } from "./github-client.js";
+import { formatGithub, toRepoPath } from "../report/format-github.js";
 import { logger } from "../utils/logger.js";
 
 export type FeedbackMode = "summary" | "annotations" | "findings" | "none";
@@ -23,6 +24,8 @@ export interface FeedbackOptions {
   commitSha: string;
   scoreDelta?: number;
   baseScore?: number;
+  /** POSIX path from the repository root to the scanned directory; review comments need repository paths. */
+  sourceRootPrefix?: string;
 }
 
 export interface CommentGroup {
@@ -175,7 +178,10 @@ export const postReviewComments = async (
 ): Promise<void> => {
   if (!options.pullNumber) return;
 
-  const allFindings = report.projects.flatMap((p) => p.findings);
+  const prefix = options.sourceRootPrefix ?? "";
+  const allFindings = report.projects.flatMap((p) =>
+    p.findings.map((finding) => ({ ...finding, file: toRepoPath(prefix, p.root, finding.file) })),
+  );
   const groups = groupFindings(allFindings, options.grouping, options.agentPrompt);
 
   const activeGroups = groups.slice(0, options.maxComments);
@@ -259,18 +265,9 @@ export const postCommitStatus = async (
 };
 
 /**
- * Emits inline GitHub Action workflow annotations to stdout/stderr.
+ * Emits inline GitHub Action workflow annotations to stdout, with repository-relative paths.
  */
-export const emitAnnotations = (report: Report): void => {
-  for (const project of report.projects) {
-    for (const finding of project.findings) {
-      const level = finding.severity === "error" ? "error" : "warning";
-      const file = finding.file;
-      const line = finding.line > 0 ? finding.line : 1;
-      const col = finding.column > 0 ? finding.column : 1;
-      const msg = `[${finding.ruleId}] ${finding.message}`;
-      // Format: ::error file={name},line={line},col={col}::{message}
-      console.log(`::${level} file=${file},line=${line},col=${col}::${msg}`);
-    }
-  }
+export const emitAnnotations = (report: Report, sourceRootPrefix = ""): void => {
+  const output = formatGithub(report, { sourceRootPrefix });
+  if (output) process.stdout.write(output.endsWith("\n") ? output : `${output}\n`);
 };
