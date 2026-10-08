@@ -2,7 +2,8 @@ import type { Report, ReportFinding } from "../report/model.js";
 import {
   renderMarkdownSummary,
   renderMarkdownFinding,
-  SUMMARY_MARKER,
+  sanitizeMarkerScope,
+  summaryMarker,
   promptOf,
 } from "../report/format-markdown.js";
 import { escapeMarkdown, markdownCode, markdownFence, sanitizeMarkerId } from "../report/markdown-escape.js";
@@ -38,6 +39,18 @@ export interface CommentGroup {
 }
 
 export const FINDING_MARKER_PREFIX = "<!-- vue-doctor:finding:";
+export const SCOPE_MARKER_PREFIX = "<!-- vue-doctor:scope:";
+
+const normalizeScope = (prefix = ""): string =>
+  prefix.split("/").filter((part) => part !== "" && part !== ".").join("/");
+
+const scopeMarker = (scope: string): string => `${SCOPE_MARKER_PREFIX}${sanitizeMarkerScope(scope)} -->`;
+
+/** The scanned directory a review comment belongs to; comments without a scope marker belong to the repository root. */
+export const extractScope = (body: string): string => {
+  const match = body.match(/<!-- vue-doctor:scope:([^\s]*) -->/);
+  return match ? match[1] : "";
+};
 
 /**
  * Extracts the marker ID from a comment body if present.
@@ -54,8 +67,10 @@ export const groupFindings = (
   findings: ReportFinding[],
   grouping: GroupingMode,
   agentPrompt: boolean,
+  scope = "",
 ): CommentGroup[] => {
   if (findings.length === 0) return [];
+  const withScope = (body: string): string => (scope ? `${body.trimEnd()}\n${scopeMarker(scope)}\n` : body);
 
   if (grouping === "finding") {
     return findings.map((finding) => {
@@ -71,7 +86,7 @@ export const groupFindings = (
         line: Math.max(1, finding.line),
         ruleId: finding.ruleId,
         findings: [finding],
-        body,
+        body: withScope(body),
       };
     });
   }
@@ -130,7 +145,7 @@ export const groupFindings = (
       line: Math.max(1, first.line),
       ruleId: first.ruleId,
       findings: groupList,
-      body: lines.join("\n") + "\n",
+      body: withScope(lines.join("\n") + "\n"),
     });
   }
 
@@ -147,13 +162,16 @@ export const postStickySummary = async (
 ): Promise<void> => {
   if (!options.pullNumber) return;
 
+  const scope = normalizeScope(options.sourceRootPrefix);
   const summaryMarkdown = renderMarkdownSummary(report, {
     stickyMarker: true,
     collapseFindings: true,
+    scope,
   });
 
+  const marker = summaryMarker(scope);
   const comments = await client.listIssueComments(options.owner, options.repo, options.pullNumber);
-  const existing = comments.find((c) => c.body?.includes(SUMMARY_MARKER));
+  const existing = comments.find((c) => c.body?.includes(marker));
 
   if (existing) {
     if (existing.body !== summaryMarkdown) {
@@ -179,10 +197,11 @@ export const postReviewComments = async (
   if (!options.pullNumber) return;
 
   const prefix = options.sourceRootPrefix ?? "";
+  const scope = normalizeScope(prefix);
   const allFindings = report.projects.flatMap((p) =>
     p.findings.map((finding) => ({ ...finding, file: toRepoPath(prefix, p.root, finding.file) })),
   );
-  const groups = groupFindings(allFindings, options.grouping, options.agentPrompt);
+  const groups = groupFindings(allFindings, options.grouping, options.agentPrompt, scope);
 
   const activeGroups = groups.slice(0, options.maxComments);
   const activeMarkers = new Set(activeGroups.map((g) => g.marker));
@@ -193,7 +212,8 @@ export const postReviewComments = async (
 
   for (const c of existingComments) {
     const marker = extractFindingMarker(c.body);
-    if (marker) {
+    // Other scans of the same PR (one per monorepo project) own their own comments.
+    if (marker && extractScope(c.body) === scope) {
       trackedComments.set(marker, { id: c.id, body: c.body });
     }
   }

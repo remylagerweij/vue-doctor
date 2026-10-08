@@ -7,6 +7,7 @@ import {
   extractFindingMarker,
   groupFindings,
   postReviewComments,
+  postStickySummary,
   FINDING_MARKER_PREFIX,
   type FeedbackOptions,
 } from "../src/ci/feedback.js";
@@ -194,6 +195,86 @@ describe("CI feedback paths in a monorepo", () => {
     } finally {
       write.mockRestore();
     }
+  });
+});
+
+describe("CI feedback for several scans of one PR", () => {
+  const optionsFor = (sourceRootPrefix: string): FeedbackOptions => ({
+    feedback: ["summary", "findings"],
+    grouping: "rule-per-file",
+    maxComments: 30,
+    agentPrompt: false,
+    owner: "o",
+    repo: "r",
+    pullNumber: 1,
+    commitSha: "sha",
+    sourceRootPrefix,
+  });
+
+  const summaryReport = (score: number, findings: ReportFinding[] = []): Report => {
+    const report = createMockReport(score, findings);
+    const project = {
+      ...report.projects[0],
+      summary: { errors: report.summary.errors, warnings: report.summary.warnings, suppressed: 0 },
+      skipped: [],
+      ruleGroups: [],
+    };
+    return { ...report, projects: [project] } as Report;
+  };
+
+  const summaryClient = (bodies: string[]) => {
+    const client = {
+      listIssueComments: vi.fn().mockResolvedValue(bodies.map((body, index) => ({ id: index + 1, body }))),
+      createIssueComment: vi.fn().mockResolvedValue(undefined),
+      updateIssueComment: vi.fn().mockResolvedValue(undefined),
+    };
+    return client;
+  };
+
+  it("keeps one sticky summary per scanned directory", async () => {
+    const report = summaryReport(80, [createFinding()]);
+    const web = summaryClient([]);
+    await postStickySummary(web as unknown as GitHubClient, optionsFor("apps/web"), report);
+    const webBody: string = web.createIssueComment.mock.calls[0][3];
+    expect(webBody.startsWith("<!-- vue-doctor:summary:apps/web -->")).toBe(true);
+    expect(webBody).toContain("## 🩺 Vue Doctor (`apps/web`)");
+
+    const admin = summaryClient([webBody]);
+    await postStickySummary(admin as unknown as GitHubClient, optionsFor("apps/admin"), report);
+    expect(admin.updateIssueComment).not.toHaveBeenCalled();
+    expect(admin.createIssueComment).toHaveBeenCalledTimes(1);
+
+    const rerun = summaryClient([webBody]);
+    await postStickySummary(rerun as unknown as GitHubClient, optionsFor("apps/web"), summaryReport(70));
+    expect(rerun.createIssueComment).not.toHaveBeenCalled();
+    expect(rerun.updateIssueComment.mock.calls[0][2]).toBe(1);
+  });
+
+  it("keeps the unscoped summary marker for a scan of the repository root", async () => {
+    const client = summaryClient(["<!-- vue-doctor:summary:apps/web -->\nother project"]);
+    await postStickySummary(client as unknown as GitHubClient, optionsFor(""), summaryReport(80));
+    expect(client.updateIssueComment).not.toHaveBeenCalled();
+    const body: string = client.createIssueComment.mock.calls[0][3];
+    expect(body.startsWith("<!-- vue-doctor:summary -->\n")).toBe(true);
+  });
+
+  it("only removes stale review comments of its own scan", async () => {
+    const other = "<!-- vue-doctor:finding:apps_admin_x -->\nbody\n<!-- vue-doctor:scope:apps/admin -->\n";
+    const ownStale = "<!-- vue-doctor:finding:apps_web_gone -->\nbody\n<!-- vue-doctor:scope:apps/web -->\n";
+    const rootStale = "<!-- vue-doctor:finding:root_gone -->\nbody\n";
+    const client = {
+      listReviewComments: vi.fn().mockResolvedValue([
+        { id: 1, body: other },
+        { id: 2, body: ownStale },
+        { id: 3, body: rootStale },
+      ]),
+      createReviewComment: vi.fn().mockResolvedValue(undefined),
+      updateReviewComment: vi.fn().mockResolvedValue(undefined),
+      deleteReviewComment: vi.fn().mockResolvedValue(undefined),
+    };
+    await postReviewComments(client as unknown as GitHubClient, optionsFor("apps/web"), createMockReport(80, [createFinding()]));
+    expect(client.deleteReviewComment.mock.calls.map((call) => call[2])).toEqual([2]);
+    expect(client.createReviewComment.mock.calls[0][3].body).toContain("<!-- vue-doctor:scope:apps/web -->");
   });
 });
 

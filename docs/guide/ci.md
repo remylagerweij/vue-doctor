@@ -65,8 +65,8 @@ Vue Doctor supports multiple feedback modes configured via the `feedback` input:
 
 | Mode | Behavior |
 |---|---|
-| `summary` | A **sticky PR comment** (`<!-- vue-doctor:summary -->`) updated in place on every commit. Displays health score, score delta against base, error/warning counts, and an AI fix prompt. |
-| `findings` | Inline PR review comments anchored to modified code lines. Each comment includes description, remediation guidance, and an AI prompt block. |
+| `summary` | A **sticky PR comment** updated in place on every commit. Displays health score, score delta against base, error/warning counts, and an AI fix prompt. Each scanned directory keeps its own comment (`<!-- vue-doctor:summary:apps/web -->`; a scan of the repository root uses `<!-- vue-doctor:summary -->`), so a matrix job per monorepo project shows every project. |
+| `findings` | Inline PR review comments anchored to modified code lines. Each comment includes description, remediation guidance, and an AI prompt block. A scan only updates or removes the comments of its own directory, so parallel scans of one PR leave each other's comments alone. |
 | `annotations` | Workflow check annotations (`::error` and `::warning`) displayed directly in the GitHub diff view without requiring PR write permissions. |
 | `none` | Disables PR comments and outputs results only to the GitHub Step Summary and console. |
 
