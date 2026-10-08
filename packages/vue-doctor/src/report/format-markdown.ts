@@ -34,6 +34,8 @@ export interface MarkdownOptions {
   maxFindingsPerRule?: number;
   /** Starts the document with the `<!-- vue-doctor:summary -->` marker that a sticky comment is looked up by. */
   stickyMarker?: boolean;
+  /** Repository path of the scanned directory; scopes the sticky marker and titles the summary. `""` is the repository root. */
+  scope?: string;
   /** Wraps the findings list in a collapsed `<details>` block. */
   collapseFindings?: boolean;
   /** Lists only findings that are new relative to the baseline or base branch (when the report has statuses). */
@@ -55,6 +57,12 @@ export interface MarkdownFindingOptions {
 }
 
 export const SUMMARY_MARKER = "<!-- vue-doctor:summary -->";
+
+/** Sticky summary marker for one scanned directory; the repository root keeps the unscoped marker. */
+export const summaryMarker = (scope = ""): string => (scope ? `<!-- vue-doctor:summary:${sanitizeMarkerScope(scope)} -->` : SUMMARY_MARKER);
+
+/** Keeps a repository path usable inside an HTML comment marker. */
+export const sanitizeMarkerScope = (scope: string): string => scope.replace(/[^A-Za-z0-9_./@-]/g, "");
 
 const DEFAULT_MAX_FINDINGS = 50;
 const DEFAULT_MAX_FINDINGS_PER_RULE = 10;
@@ -103,11 +111,16 @@ const renderCategoryTable = (project: ReportProject): string[] => {
   ];
 };
 
-const renderProjectSummary = (project: ReportProject, heading: string | null, docsBaseUrl: string): string[] => {
+const renderProjectSummary = (
+  project: ReportProject,
+  heading: string | null,
+  docsBaseUrl: string,
+  scope = "",
+): string[] => {
   const { score } = project;
   const lines: string[] = [];
   const scoreText = `${scoreIcon(score.value)} **${score.value}/100** (${escapeMarkdown(score.label)})`;
-  if (heading === null) lines.push(`## 🩺 Vue Doctor: ${scoreText}`, "");
+  if (heading === null) lines.push(`## 🩺 Vue Doctor${scope ? ` (${markdownCode(scope)})` : ""}: ${scoreText}`, "");
   else lines.push(`### ${escapeMarkdown(heading)}: ${scoreText}`, "");
 
   if (score.cap) {
@@ -156,9 +169,9 @@ const renderProjectSummary = (project: ReportProject, heading: string | null, do
 export const renderMarkdownSummary = (report: Report, options: MarkdownOptions = {}): string => {
   const docsBaseUrl = options.docsBaseUrl ?? DOCS_BASE_URL;
   const lines: string[] = [];
-  if (options.stickyMarker) lines.push(SUMMARY_MARKER, "");
+  if (options.stickyMarker) lines.push(summaryMarker(options.scope), "");
   if (report.projects.length === 1) {
-    lines.push(...renderProjectSummary(report.projects[0], null, docsBaseUrl));
+    lines.push(...renderProjectSummary(report.projects[0], null, docsBaseUrl, options.scope));
   } else {
     lines.push(
       `## 🩺 Vue Doctor: ${plural(report.summary.projects, "project")}`,
