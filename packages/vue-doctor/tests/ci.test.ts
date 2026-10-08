@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  emitAnnotations,
   extractFindingMarker,
   groupFindings,
+  postReviewComments,
   FINDING_MARKER_PREFIX,
+  type FeedbackOptions,
 } from "../src/ci/feedback.js";
+import type { GitHubClient } from "../src/ci/github-client.js";
 import { calculateScoreDelta } from "../src/ci/score-cache.js";
 import {
   renderMainWorkflow,
@@ -134,6 +138,62 @@ describe("CI PR comment feedback", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].findings).toHaveLength(2);
     expect(groups[0].body).toContain("`rule-a` (2 findings)");
+  });
+});
+
+describe("CI feedback paths in a monorepo", () => {
+  const withRoot = (root: string, findings: ReportFinding[]): Report => {
+    const report = createMockReport(80, findings);
+    return { ...report, projects: [{ ...report.projects[0], root }] };
+  };
+
+  const reviewPathsFor = async (report: Report, sourceRootPrefix?: string): Promise<string[]> => {
+    const createReviewComment = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      listReviewComments: vi.fn().mockResolvedValue([]),
+      createReviewComment,
+    } as unknown as GitHubClient;
+    const options: FeedbackOptions = {
+      feedback: ["findings"],
+      grouping: "rule-per-file",
+      maxComments: 30,
+      agentPrompt: false,
+      owner: "o",
+      repo: "r",
+      pullNumber: 1,
+      commitSha: "sha",
+      sourceRootPrefix,
+    };
+    await postReviewComments(client, options, report);
+    return createReviewComment.mock.calls.map((call) => call[3].path);
+  };
+
+  it("anchors review comments at repository paths when the scan runs in a sub-directory", async () => {
+    const report = withRoot(".", [createFinding({ file: "app/components/Nav.vue" })]);
+    expect(await reviewPathsFor(report, "apps/web")).toEqual(["apps/web/app/components/Nav.vue"]);
+  });
+
+  it("joins workspace project roots to the review comment path", async () => {
+    const report = withRoot("packages/ui", [createFinding({ file: "src/Button.vue" })]);
+    expect(await reviewPathsFor(report)).toEqual(["packages/ui/src/Button.vue"]);
+  });
+
+  it("leaves paths unchanged for a project at the repository root", async () => {
+    const report = withRoot(".", [createFinding({ file: "src/App.vue" })]);
+    expect(await reviewPathsFor(report, "")).toEqual(["src/App.vue"]);
+  });
+
+  it("emits escaped annotations with repository paths", () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const report = withRoot(".", [createFinding({ file: "src/App.vue", message: "a\n::add-mask::x" })]);
+      emitAnnotations(report, "apps/web");
+      const output = write.mock.calls.map((call) => String(call[0])).join("");
+      expect(output).toContain("file=apps/web/src/App.vue");
+      expect(output).not.toContain("\n::add-mask::");
+    } finally {
+      write.mockRestore();
+    }
   });
 });
 

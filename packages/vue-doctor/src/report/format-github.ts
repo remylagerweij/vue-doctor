@@ -42,7 +42,7 @@ const toLevel = (finding: ReportFinding): AnnotationLevel =>
   finding.severity === "error" ? "error" : finding.confidence === "low" ? "notice" : "warning";
 
 /** Repository-relative POSIX path of a finding (`..` segments are resolved; absolute paths stay as they are). */
-const toRepoPath = (prefix: string, projectRoot: string, file: string): string => {
+export const toRepoPath = (prefix: string, projectRoot: string, file: string): string => {
   const joined = [prefix, projectRoot, file.replace(/\\/g, "/")].filter((part) => part !== "" && part !== ".").join("/");
   const absolute = /^([A-Za-z]:)?\//.test(joined);
   const segments: string[] = [];

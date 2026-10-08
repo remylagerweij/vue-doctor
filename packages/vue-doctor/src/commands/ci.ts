@@ -11,6 +11,7 @@ import { scanProjects } from "../scan.js";
 import type { ScanOptions } from "../types.js";
 import { getDiffInfo, filterSourceFiles } from "../utils/get-diff-files.js";
 import { logger } from "../utils/logger.js";
+import { relativeToSourceRoot } from "../utils/find-source-root.js";
 import { handleError } from "../utils/handle-error.js";
 import { GitHubClient } from "../ci/github-client.js";
 import {
@@ -183,8 +184,9 @@ export const registerCiCommand = (program: Command): void => {
           .split(",")
           .map((m: string) => m.trim().toLowerCase());
 
+        const sourceRootPrefix = relativeToSourceRoot(projectDir);
         if (feedbackModes.includes("annotations")) {
-          emitAnnotations(report);
+          emitAnnotations(report, sourceRootPrefix);
         }
 
         const token = options.githubToken ?? process.env.GITHUB_TOKEN;
@@ -208,6 +210,7 @@ export const registerCiCommand = (program: Command): void => {
             commitSha,
             scoreDelta: deltaInfo.scoreDelta ?? undefined,
             baseScore: deltaInfo.baseScore ?? undefined,
+            sourceRootPrefix,
           };
 
           if (feedbackModes.includes("summary") && feedbackOpts.pullNumber) {
