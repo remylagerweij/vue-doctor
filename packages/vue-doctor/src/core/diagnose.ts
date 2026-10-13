@@ -23,6 +23,7 @@ import { runKnip, type KnipSession } from "../utils/run-knip.js";
 import { isInsideAnyDirectory, listProjectSourceFiles, normalizeRelativePath } from "../utils/list-source-files.js";
 import { runOxlint } from "../utils/run-oxlint.js";
 import { applySuppressions, type SuppressedSummary } from "../utils/suppressions.js";
+import { resolveConfiguredRuleOptions } from "../config/rule-options.js";
 
 export type AnalyzerName = "lint" | "template" | "dead-code" | "project" | "audit";
 
@@ -233,7 +234,11 @@ export const diagnose = async (
   const shouldTemplateLint = options.templateLint ?? shouldLint;
   const shouldDeadCode = (options.deadCode ?? config?.deadCode) !== false && !isDiffMode;
 
-  const cacheContexts = (options.cache ?? config?.cache) === false ? null : computeCacheContexts(directory, project);
+  const ruleOptions = shouldLint ? resolveConfiguredRuleOptions(config, logger.warn) : {};
+  if (Object.keys(ruleOptions).length > 0) debug("lint", `rule options ${JSON.stringify(ruleOptions)}`);
+
+  const cacheContexts =
+    (options.cache ?? config?.cache) === false ? null : computeCacheContexts(directory, project, ruleOptions);
   const cache = cacheContexts
     ? openAnalysisCache(directory, cacheContexts, (message) => debug("cache", message))
     : null;
@@ -263,7 +268,7 @@ export const diagnose = async (
           );
         }
         const lint = (paths: string[] | undefined) =>
-          runOxlint(directory, project.hasTypeScript, project.framework, paths, nodeBinaryPath, logCommand("lint"));
+          runOxlint(directory, project.hasTypeScript, project.framework, paths, nodeBinaryPath, logCommand("lint"), ruleOptions);
         if (!cache) return lint(isDiffMode ? vueIncludePaths : hasNestedWorkspaces ? getCacheTargets() : undefined);
         return cache.analyzeFiles("lint", getCacheTargets(), lint);
       })

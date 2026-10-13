@@ -13,6 +13,8 @@ export interface RuleCase {
    * (`.vue`, `server/`, `.client.vue`, test files). Defaults to `src/example.ts`.
    */
   filename?: string;
+  /** The rule's options (`["warn", options]` in config), e.g. what a scan infers about the project. */
+  options?: Record<string, unknown>;
 }
 
 export interface InvalidRuleCase extends RuleCase {

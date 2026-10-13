@@ -280,6 +280,19 @@ describe("diagnose() with legacy rule IDs", () => {
     ]);
   }, 60_000);
 
+  it("warns about options given to a rule that takes none", async () => {
+    const warnings = await captureWarnings(() =>
+      diagnose(BASIC_VUE_DIRECTORY, {
+        cache: false,
+        deadCode: false,
+        config: { rules: { "vue-doctor/performance/no-deep-watch": ["warn", { depth: 2 }] } },
+      }),
+    );
+    expect(warnings).toEqual([
+      'Options for "vue-doctor/performance/no-deep-watch" are ignored: only single rules that document options accept them.',
+    ]);
+  }, 60_000);
+
   it("does not warn for canonical IDs and groups", async () => {
     const warnings = await captureWarnings(() =>
       diagnose(BASIC_VUE_DIRECTORY, {

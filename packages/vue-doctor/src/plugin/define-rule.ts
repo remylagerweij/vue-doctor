@@ -57,7 +57,25 @@ export interface RuleMeta {
   help: string;
   /** Instructions for an AI coding agent on how to fix a finding correctly. */
   agentGuidance: string;
+  /**
+   * JSON Schema of the rule's options object, set in config as `["warn", { ... }]`. Rules without it
+   * take no options. Every property needs a `description`: the rule docs are generated from it.
+   */
+  options?: RuleOptionsSchema;
   engine: RuleEngine;
+}
+
+export interface RuleOptionSchema {
+  type: "boolean" | "string" | "array";
+  description: string;
+  items?: { type: "string" };
+  enum?: readonly string[];
+}
+
+export interface RuleOptionsSchema {
+  type: "object";
+  properties: Record<string, RuleOptionSchema>;
+  additionalProperties: false;
 }
 
 /** What a rule file passes to `defineRule`; the engine is implied. */
@@ -67,7 +85,7 @@ type OxlintRuleMeta = Omit<RuleMeta, "engine">;
 interface HostRuleMeta {
   type: "problem" | "suggestion";
   docs: { description: string };
-  schema: [];
+  schema: [] | [RuleOptionsSchema];
 }
 
 /** An oxlint/ESLint-compatible rule that also carries Vue Doctor's registry metadata. */
@@ -86,7 +104,7 @@ export const defineRule = ({ meta, create }: RuleDefinition): DefinedRule => ({
   meta: {
     type: meta.category === "Security" || meta.defaultSeverity === "error" ? "problem" : "suggestion",
     docs: { description: meta.help },
-    schema: [],
+    schema: meta.options ? [meta.options] : [],
   },
   create,
   ruleMeta: { ...meta, engine: "oxlint" },

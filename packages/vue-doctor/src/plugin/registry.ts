@@ -72,16 +72,25 @@ export const isEnabled = (meta: RuleMeta, framework: Framework): boolean => {
 const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
   severity === "error" ? "error" : "warn";
 
+/** Options per own rule, keyed by the rule's flat name (`require-input-validation`). */
+export type RuleOptionsById = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+
 interface OxlintConfigOptions {
   pluginPath: string;
   framework: Framework;
+  /** Options for rules that declare `options`; entries for other rules are ignored. */
+  ruleOptions?: RuleOptionsById;
 }
 
-export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOptions) => {
-  const rules: Record<string, "error" | "warn"> = {};
+type OxlintRuleEntry = "error" | "warn" | ["error" | "warn", Readonly<Record<string, unknown>>];
+
+export const createOxlintConfig = ({ pluginPath, framework, ruleOptions = {} }: OxlintConfigOptions) => {
+  const rules: Record<string, OxlintRuleEntry> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
     if (!isEnabled(meta, framework)) continue;
-    rules[`${PLUGIN_NAME}/${meta.id}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const severity = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const options = meta.options ? ruleOptions[meta.id] : undefined;
+    rules[`${PLUGIN_NAME}/${meta.id}`] = options && Object.keys(options).length > 0 ? [severity, options] : severity;
   }
 
   return {

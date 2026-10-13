@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createOxlintConfig } from "../../src/plugin/registry.js";
+import { createOxlintConfig, type RuleOptionsById } from "../../src/plugin/registry.js";
 import { resolvePluginPath } from "../../src/utils/run-oxlint.js";
 
 const esmRequire = createRequire(import.meta.url);
@@ -67,7 +67,7 @@ const spawnOxlint = (args: string[], cwd: string): Promise<string> =>
  *
  * Requires `npm run build` (the plugin is loaded from dist/, exactly as `vue-doctor` does).
  */
-export const runOxlintOnFiles = async (files: SourceFile[]): Promise<FileResult[]> => {
+export const runOxlintOnFiles = async (files: SourceFile[], ruleOptions?: RuleOptionsById): Promise<FileResult[]> => {
   const pluginPath = resolvePluginPath();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vdoc-cases-"));
   try {
@@ -78,7 +78,7 @@ export const runOxlintOnFiles = async (files: SourceFile[]): Promise<FileResult[
     });
     const configPath = path.join(root, "oxlintrc.json");
     // `nuxt` enables every rule, including the Nuxt-only ones.
-    fs.writeFileSync(configPath, JSON.stringify(createOxlintConfig({ pluginPath, framework: "nuxt" })));
+    fs.writeFileSync(configPath, JSON.stringify(createOxlintConfig({ pluginPath, framework: "nuxt", ruleOptions })));
 
     const stdout = await spawnOxlint(
       [resolveOxlintBinary(), "-c", configPath, "--format", "json", "--disable-nested-config", "."],

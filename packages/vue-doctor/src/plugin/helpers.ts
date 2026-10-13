@@ -24,6 +24,18 @@ export const getFilename = (context: RuleContext): string => {
   return filename.replace(/\\/g, "/");
 };
 
+/** The rule's options object (`["warn", { ... }]`), or `{}` when none is configured. */
+export const getRuleOptions = (context: RuleContext): Readonly<Record<string, unknown>> => {
+  const first = context.options?.[0];
+  return first !== null && typeof first === "object" && !Array.isArray(first) ? (first as Record<string, unknown>) : {};
+};
+
+/** A string-list option, ignoring anything that is not a string. */
+export const getStringListOption = (options: Readonly<Record<string, unknown>>, key: string): string[] => {
+  const value = options[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+};
+
 // Walk protocol: a visitor may return WALK_SKIP to not descend into the current node's
 // children, or WALK_STOP to abort the whole walk. Any other return value is ignored.
 export const WALK_SKIP = Symbol("walk-skip");
