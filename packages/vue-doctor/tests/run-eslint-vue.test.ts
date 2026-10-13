@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Diagnostic } from "../src/types.js";
 import { runEslintVue } from "../src/utils/run-eslint-vue.js";
 
 const FIXTURES_DIRECTORY = path.resolve(import.meta.dirname, "fixtures");
@@ -129,6 +130,100 @@ describe("runEslintVue", () => {
         "src/Broken.vue",
       ]);
       expect(diagnostics.every((diagnostic) => diagnostic.rule === "security/no-unsafe-html-sink")).toBe(true);
+    });
+  });
+
+  describe("with <script lang=\"ts\">", () => {
+    let projectDirectory: string;
+
+    const write = (relativePath: string, content: string): void => {
+      fs.writeFileSync(path.join(projectDirectory, relativePath), content);
+    };
+
+    const rulesIn = (diagnostics: Diagnostic[], filePath: string): string[] =>
+      diagnostics.filter((diagnostic) => diagnostic.filePath === filePath).map((diagnostic) => diagnostic.rule);
+
+    let diagnostics: Diagnostic[];
+
+    beforeAll(async () => {
+      projectDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vue-doctor-eslint-ts-"));
+      write(
+        "DeclaredEmits.vue",
+        `<template>
+  <button @click="$emit('change', 1)">a</button>
+  <button @click="$emit('update:open', false)">b</button>
+</template>
+
+<script setup lang="ts">
+const emit = defineEmits<{ (e: "change", value: number): void; (e: "update:open", value: boolean): void }>();
+</script>
+`,
+      );
+      write(
+        "UndeclaredEmit.vue",
+        `<template><button @click="$emit('closed', id as string)">x</button></template>
+
+<script setup lang="ts">
+defineProps<{ id: unknown }>();
+defineEmits<{ (e: "change", value: number): void }>();
+</script>
+`,
+      );
+      write(
+        "ScriptRules.vue",
+        `<script setup lang="ts">
+import { computed, ref } from "vue";
+const props = defineProps<{ items: string[] }>();
+const count = ref<number>(0);
+const doubled = computed((): number => {
+  count.value++;
+  return count.value * 2;
+});
+function reset(): void {
+  props.items = [];
+}
+</script>
+
+<template><p>{{ doubled }}</p></template>
+`,
+      );
+      write(
+        "Unparsable.vue",
+        `<template><button @click="$emit('closed')">x</button><div v-html="html"></div></template>
+
+<script setup lang="ts">
+const html: string = ;
+</script>
+`,
+      );
+      diagnostics = await runEslintVue(projectDirectory);
+    });
+
+    afterAll(() => {
+      fs.rmSync(projectDirectory, { recursive: true, force: true });
+    });
+
+    it("sees a typed defineEmits after the template", () => {
+      expect(rulesIn(diagnostics, "DeclaredEmits.vue")).toEqual([]);
+    });
+
+    it("reports an undeclared event emitted from a TypeScript template expression", () => {
+      const findings = diagnostics.filter((diagnostic) => diagnostic.filePath === "UndeclaredEmit.vue");
+
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({ rule: "vue/require-explicit-emits", line: 1 });
+      expect(findings[0].message).toContain('"closed"');
+    });
+
+    it("runs rules that read the script", () => {
+      expect(rulesIn(diagnostics, "ScriptRules.vue").sort()).toEqual([
+        "vue/no-mutating-props",
+        "vue/no-side-effects-in-computed-properties",
+      ]);
+    });
+
+    it("keeps template-only rules and turns script-dependent rules off when the script cannot be parsed", () => {
+      expect(rulesIn(diagnostics, "Unparsable.vue")).toEqual(["security/no-unsafe-html-sink"]);
     });
   });
 });

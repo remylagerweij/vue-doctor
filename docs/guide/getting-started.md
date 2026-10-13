@@ -24,7 +24,7 @@ npx vue-doctor@latest ./my-vue-app
 Vue Doctor runs three analysis passes in parallel:
 
 1. **Oxlint with the Vue Doctor plugin**: custom rules for reactivity, performance, security, bundle size, correctness, architecture, Nuxt and server code.
-2. **eslint-plugin-vue**: template-level checks, run in-process with Vue Doctor's own bundled ESLint. Your project's ESLint and config are never loaded.
+2. **eslint-plugin-vue**: template-level checks, run in-process with Vue Doctor's own bundled ESLint, and its own `@typescript-eslint/parser` and TypeScript for `<script lang="ts">`. Your project's ESLint, TypeScript and config are never loaded.
 3. **Knip**: unused files, exports, types and dependencies.
 
 See the [rules index](/rules/) for the rule catalogue.

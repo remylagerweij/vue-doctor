@@ -13,7 +13,7 @@ Vue Doctor is a high-performance diagnostic tool for Vue.js and Nuxt application
   - `docs` — VitePress documentation site with automated rule pages and `llms.txt`.
 - **Four Parallel Analysis Passes**:
   1. **Oxlint AST Plugin** (`packages/vue-doctor/src/plugin/`): Sub-second AST analysis of `.vue`, `.js`, `.ts` files using custom JavaScript-implemented Oxlint rules.
-  2. **ESLint Vue Pass** (`run-eslint-vue.ts`): Deep template validation via `eslint-plugin-vue` and `vue-eslint-parser` for template-specific anti-patterns.
+  2. **ESLint Vue Pass** (`run-eslint-vue.ts`): Deep template validation via `eslint-plugin-vue` and `vue-eslint-parser` for template-specific anti-patterns. `<script lang="ts">` is parsed by `@typescript-eslint/parser` on Vue Doctor's own pinned `typescript` (6.0, the last line with a JS API; see `load-typescript-parser.ts`), so rules that read the script (emits, props, computed) see TypeScript SFCs. A script that still fails to parse is re-linted without it, with those script-dependent rules off (`SCRIPT_DEPENDENT_TEMPLATE_RULES`).
   3. **Knip Pass** (`run-knip.ts`): Unused exports, dead files, and unreferenced dependencies.
   4. **Project Checks Pass** (`engine: "fs"` via `run-project-checks.ts`): Filesystem inspection for committed secrets, lockfile integrity, and sensitive files in `public/`.
 - **104 Registered Rules** (`RULE_REGISTRY` in `src/plugin/registry.ts`):
@@ -28,7 +28,7 @@ Vue Doctor is a high-performance diagnostic tool for Vue.js and Nuxt application
 ## Architectural Invariants & Contracts
 
 ### 1. Lazy Loading Contract
-`tests/lazy-loading.test.ts` enforces that `--version` and `--help` never load the heavyweight libraries (`eslint`, `eslint-plugin-vue`, `vue-eslint-parser`, `knip`, `zod`, `jiti`, `@clack/prompts`), and that a `--no-dead-code` scan without a config file loads none of `knip`, `zod`, `jiti` or `@clack/prompts`.
+`tests/lazy-loading.test.ts` enforces that `--version` and `--help` never load the heavyweight libraries (`eslint`, `eslint-plugin-vue`, `vue-eslint-parser`, `@typescript-eslint/parser`, `typescript`, `knip`, `zod`, `jiti`, `@clack/prompts`), and that a `--no-dead-code` scan without a config file loads none of `knip`, `zod`, `jiti` or `@clack/prompts`.
 - Use dynamic `await import(...)` inside command handlers (`mcp`, `ci`, `init`, `agents`, `rules`, `--fix`).
 - `src/cli.ts` is a shim; keep the top-level imports of `src/program.ts` limited to lightweight utilities and Commander.
 

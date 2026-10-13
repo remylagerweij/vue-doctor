@@ -1,14 +1,14 @@
 ## 🩺 Vue Doctor: 🟠 **50/100** (Needs work)
 
-> **Score capped at 50** (60 before the cap) because of a high-confidence security error in `vue-doctor/security/no-eval`.
+> **Score capped at 50** (59 before the cap) because of a high-confidence security error in `vue-doctor/security/no-eval`.
 
-3 errors · 62 warnings
+3 errors · 65 warnings
 
 | Category | Score | Errors | Warnings |
 | --- | ---: | ---: | ---: |
 | Performance | 🟡 87 | 0 | 25 |
 | Correctness | 🟢 91 | 2 | 14 |
-| Reactivity | 🟢 93 | 0 | 9 |
+| Reactivity | 🟢 93 | 0 | 12 |
 | Security | 🟢 96 | 1 | 4 |
 | Bundle Size | 🟢 97 | 0 | 4 |
 | Ecosystem | 🟢 97 | 0 | 4 |
@@ -16,7 +16,7 @@
 
 **Biggest improvements**
 
-- Fixing [`vue-doctor/security/no-eval`](https://remylagerweij.github.io/vue-doctor/rules/security/no-eval) gains **+11**
+- Fixing [`vue-doctor/security/no-eval`](https://remylagerweij.github.io/vue-doctor/rules/security/no-eval) gains **+10**
 
 ---
 
@@ -48,11 +48,11 @@ Use template refs: \`const el = ref&lt;HTMLElement&gt;\(\)\` with \`ref="el"\` i
 
 ### ⚠️ [`vue-doctor/correctness/prefer-defineProps-destructure`](https://remylagerweij.github.io/vue-doctor/rules/correctness/prefer-defineProps-destructure) (3)
 
-Destructure props with native defaults: \`const { title, size = "md" } = defineProps&lt;Props&gt;\(\)\` \(Vue 3.5+\)
+Destructure props for reactive access: \`const { prop1, prop2 } = defineProps&lt;Props&gt;\(\)\`
 
-- `correctness-issues.vue:20`: const props = defineProps\(\) is only read as \`props.x\` — destructure it: const { x, y = default } = defineProps&lt;Props&gt;\(\)
-- `correctness-issues.vue:23`: const p2 = defineProps\(\) is only read as \`p2.x\` — destructure it: const { x, y = default } = defineProps&lt;Props&gt;\(\)
-- `reactivity-issues.vue:4`: const props = defineProps\(\) is only read as \`props.x\` — destructure it: const { x, y = default } = defineProps&lt;Props&gt;\(\)
+- `correctness-issues.vue:20`: const props = defineProps\(\) — destructure props for reactive access: const { prop1, prop2 } = defineProps&lt;Props&gt;\(\)
+- `correctness-issues.vue:23`: const p2 = defineProps\(\) — destructure props for reactive access: const { prop1, prop2 } = defineProps&lt;Props&gt;\(\)
+- `reactivity-issues.vue:4`: const props = defineProps\(\) — destructure props for reactive access: const { prop1, prop2 } = defineProps&lt;Props&gt;\(\)
 
 ### ⚠️ [`vue-doctor/performance/js-tosorted-immutable`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable) (3)
 
@@ -61,6 +61,13 @@ Use \`array.toSorted\(\)\` \(ES2023\) instead of \`\[...array\].sort\(\)\` for c
 - `architecture-issues.vue:22`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
 - `js-perf-issues.ts:16`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
 - `js-perf-issues.vue:9`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
+
+### ⚠️ [`vue-doctor/reactivity/no-watch-for-computed`](https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed) (3)
+
+Replace the watcher with a computed property: \`const value = computed\(\(\) =&gt; transform\(source\)\)\`
+
+- `architecture-issues.vue:99`: watch\(\) that only sets a ref — replace with a computed property
+- `architecture-issues.vue:103`: watch\(\) that only sets a ref — replace with a computed property
 
 ### ⚠️ [`vue-doctor/correctness/no-prevent-default`](https://remylagerweij.github.io/vue-doctor/rules/correctness/no-prevent-default) (2)
 
@@ -243,16 +250,4 @@ List specific properties: \`transition: "opacity 200ms, transform 200ms"\` — o
 
 - `performance-issues.vue:11`: transition: "all" animates every CSS property — list specific properties instead
 
-### ⚠️ [`vue-doctor/reactivity/no-ref-from-prop`](https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop) (1)
-
-Remove the ref and derive inline: \`const value = computed\(\(\) =&gt; transform\(props.propName\)\)\`
-
-- `reactivity-issues.vue:7`: ref\(\) initialized from the prop \`modelValue\` and never updated — this copy won't stay in sync. Use computed\(\) or toRef\(\(\) =&gt; props.modelValue\) instead
-
-### ⚠️ [`vue-doctor/reactivity/no-watch-for-computed`](https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed) (1)
-
-Replace the watcher with a computed property: \`const value = computed\(\(\) =&gt; transform\(source\)\)\`
-
-- `reactivity-issues.vue:11`: watch\(\) only derives \`derivedValue\` from its source and nothing else writes it — replace both with a computed property
-
-_… and 15 more findings not shown. Use `--format json` for the complete list._
+_… and 18 more findings not shown. Use `--format json` for the complete list._

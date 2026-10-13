@@ -78,6 +78,8 @@ export const computeCacheContexts = (directory: string, project: ProjectInfo): C
       eslint: tools.eslint,
       eslintPluginVue: tools["eslint-plugin-vue"],
       parser: tools["vue-eslint-parser"],
+      typescriptParser: tools["@typescript-eslint/parser"],
+      typescript: tools.typescript,
       rules: { ...createTemplateRuleConfig(), ...createCustomTemplateRuleConfig(project.framework) },
       // Template ignores are derived from the root .gitignore.
       gitignore: hashFileOrMissing(path.join(directory, ".gitignore")),

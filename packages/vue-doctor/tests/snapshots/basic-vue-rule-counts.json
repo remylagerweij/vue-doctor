@@ -47,6 +47,7 @@
   "vue-doctor/security/no-eval": 1,
   "vue-doctor/security/no-secret-named-literal": 1,
   "vue-doctor/security/no-unsafe-html-sink": 2,
+  "vue/no-side-effects-in-computed-properties": 1,
   "vue/no-template-target-blank": 1,
   "vue/require-explicit-emits": 1,
   "vue/require-v-for-key": 1

@@ -11,7 +11,17 @@ const RECORDER_PATH = path.join(PACKAGE_DIRECTORY, "tests", "support", "record-i
 const BASIC_VUE_DIRECTORY = path.join(PACKAGE_DIRECTORY, "tests", "fixtures", "basic-vue");
 
 /** Packages that cost hundreds of milliseconds to load; commands that do not need them must not. */
-const HEAVY_PACKAGES = ["eslint", "eslint-plugin-vue", "vue-eslint-parser", "knip", "zod", "jiti", "@clack/prompts"];
+const HEAVY_PACKAGES = [
+  "eslint",
+  "eslint-plugin-vue",
+  "vue-eslint-parser",
+  "@typescript-eslint/parser",
+  "typescript",
+  "knip",
+  "zod",
+  "jiti",
+  "@clack/prompts",
+];
 
 let logDirectory: string;
 
