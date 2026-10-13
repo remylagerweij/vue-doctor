@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleConfig, getEnabledFsRules } from "../plugin/registry.js";
 import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
+import { listNuxtKnipInputs } from "../utils/nuxt-project.js";
 import { listProjectSourceFiles } from "../utils/list-source-files.js";
 import { resolvePluginPath } from "../utils/run-oxlint.js";
 import { getToolVersions } from "../utils/tool-versions.js";
@@ -101,5 +102,7 @@ export const computeDeadCodeKey = (
       parts.push(`${relativePath}:${hashFileOrMissing(path.join(root, relativePath))}`);
     }
   }
+  // Knip resolves Nuxt auto-imports and aliases from `.nuxt/`, which `nuxi prepare` regenerates.
+  for (const input of listNuxtKnipInputs(directory)) parts.push(`${path.relative(directory, input)}:${hashFileOrMissing(input)}`);
   return hashText(parts.join("\n"));
 };

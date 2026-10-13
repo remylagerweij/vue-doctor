@@ -20,6 +20,7 @@ import { runEslintVue } from "../utils/run-eslint-vue.js";
 import { runAudit } from "../utils/run-audit.js";
 import type { FetchImplementation } from "../utils/osv.js";
 import { runKnip, type KnipSession } from "../utils/run-knip.js";
+import { isUnpreparedNuxtProject } from "../utils/nuxt-project.js";
 import { isInsideAnyDirectory, listProjectSourceFiles, normalizeRelativePath } from "../utils/list-source-files.js";
 import { runOxlint } from "../utils/run-oxlint.js";
 import { applySuppressions, type SuppressedSummary } from "../utils/suppressions.js";
@@ -139,6 +140,12 @@ const loadBaselineReference = (directory: string, baselineOption: string) => {
   const baselinePath = path.resolve(directory, baselineOption);
   return { baselinePath, fingerprints: readBaseline(baselinePath) };
 };
+
+// Without `.nuxt/`, knip cannot resolve Nuxt's auto-imports and aliases, so these report used code as unused.
+const NUXT_TYPES_DEPENDENT_KNIP_RULES = new Set(["files", "exports", "types"]);
+
+const UNPREPARED_NUXT_REASON =
+  "unused files, exports and types were not checked: this Nuxt project has no .nuxt/ directory, so knip cannot see its auto-imports and aliases. Run `nuxi prepare` first";
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -279,8 +286,14 @@ export const diagnose = async (
     : Promise.resolve([]);
 
   const deadCodePromise = shouldDeadCode
-    ? runAnalyzer("dead-code", () => {
+    ? runAnalyzer("dead-code", async () => {
         const deadCode = () => runKnip(directory, logCommand("dead-code"), options.knipSession);
+        if (project.framework === "nuxt" && isUnpreparedNuxtProject(directory)) {
+          // Never cached: once `nuxi prepare` has run, the next scan must analyse again.
+          const found = await deadCode();
+          skipped.push({ analyzer: "dead-code", reason: UNPREPARED_NUXT_REASON });
+          return found.filter((diagnostic) => !NUXT_TYPES_DEPENDENT_KNIP_RULES.has(diagnostic.rule));
+        }
         if (!cache || !cacheContexts) return deadCode();
         // The cached entry is this project's share of the monorepo run; its key covers every file
         // the run reads, so a warm cache skips knip (and the shared run is never started) for all

@@ -12,7 +12,7 @@ import type {
 import { findMonorepoRoot, isMonorepoRoot } from "./find-monorepo-root.js";
 import { readPackageJson } from "./read-package-json.js";
 
-const NUXT_CONFIG_FILENAMES = [
+export const NUXT_CONFIG_FILENAMES = [
   "nuxt.config.ts",
   "nuxt.config.js",
   "nuxt.config.mjs",

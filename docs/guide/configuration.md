@@ -38,4 +38,8 @@ Rules about shipped code do not run on test files: Nuxt rendering rules (`nuxt-n
 
 A test file is, relative to the project root: `*.spec.*`, `*.test.*`, `*.cy.*` and `*.e2e.*` scripts (and `*.spec.vue` / `*.test.vue`), anything under a `test/`, `tests/`, `__tests__/`, `__mocks__/`, `__fixtures__/`, `e2e/` or `cypress/` directory, and `vitest`, `playwright`, `cypress` and `jest` config files (including variants such as `vitest.component.config.ts`).
 
+## Nuxt projects
+
+Run `nuxi prepare` (or any `nuxi dev`/`build`) before scanning a fresh checkout. Knip reads Nuxt's auto-imports and path aliases from the generated `.nuxt/` directory; without it every page, component and composable looks unused. When a Nuxt project has no `.nuxt/`, Vue Doctor still reports duplicate exports but leaves out unused files, exports and types, and lists the dead-code analyzer as incomplete with a reminder to run `nuxi prepare`. That partial result is never cached.
+
 See the [configuration reference](/reference/config) for every key. For one-off exceptions prefer [inline suppression comments](/guide/suppressions).
