@@ -91,5 +91,10 @@
     "vue-doctor/require-input-validation": "warn",
     "vue-doctor/secure-cookie-flags": "warn",
     "vue-doctor/server-no-console-in-handler": "warn"
+  },
+  "settings": {
+    "vue-doctor": {
+      "framework": "nuxt"
+    }
   }
 }

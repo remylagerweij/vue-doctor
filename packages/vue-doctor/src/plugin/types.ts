@@ -9,6 +9,8 @@ export interface RuleContext {
   filename?: string;
   /** @deprecated Removed in ESLint 10; only read when `filename` is undefined. */
   getFilename?: () => string;
+  /** Shared settings from the lint config; Vue Doctor's own live under `"vue-doctor"`. */
+  settings?: Record<string, unknown>;
 }
 
 export interface RuleVisitors {

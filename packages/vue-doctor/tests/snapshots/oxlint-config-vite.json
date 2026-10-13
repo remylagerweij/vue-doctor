@@ -73,5 +73,10 @@
     "vue-doctor/no-unsafe-html-sink": "warn",
     "vue-doctor/no-user-controlled-url": "warn",
     "vue-doctor/postmessage-origin-check": "warn"
+  },
+  "settings": {
+    "vue-doctor": {
+      "framework": "vite"
+    }
   }
 }

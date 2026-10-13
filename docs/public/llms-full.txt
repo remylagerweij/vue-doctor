@@ -101,7 +101,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Wrap the async component in `<Suspense>` with a fallback, or move the awaited work into `onMounted()` or a composable
-- Agent Guidance: A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable.
+- Agent Guidance: A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable. In Nuxt, `app.vue`, `error.vue`, pages and layouts are not reported: Nuxt renders them inside `<Suspense>`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-async-setup-without-suspense
 
 ## vue-doctor/correctness/no-direct-dom-manipulation

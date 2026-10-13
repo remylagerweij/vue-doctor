@@ -5,6 +5,7 @@ import type { DefinedRule, RuleCategory, RuleEngine, RuleMeta } from "./define-r
 import { ruleModules } from "./rules/index.js";
 import { CUSTOM_TEMPLATE_RULES, CUSTOM_TEMPLATE_PLUGIN_NAME } from "./custom-template-rules.js";
 import { TEMPLATE_RULES } from "./template-rules.js";
+import { SETTINGS_KEY, type VueDoctorSettings } from "./nuxt-files.js";
 
 /**
  * Plugin name oxlint knows the custom rules by. Oxlint sees the flat rule name (`vue-doctor/<rule>`);
@@ -97,6 +98,9 @@ export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOption
     plugins: [],
     jsPlugins: [pluginPath],
     rules,
+    settings: {
+      [SETTINGS_KEY]: { framework } satisfies VueDoctorSettings,
+    },
   };
 };
 
