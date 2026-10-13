@@ -143,7 +143,6 @@ describe("runOxlint", () => {
       "nuxt-no-window-in-ssr": { fixture: "nuxt-issues.vue", severity: "warning" },
       "nuxt-require-seo-meta": { fixture: "nuxt-issues.vue" },
       "nuxt-no-process-env-in-client": { fixture: "nuxt-issues.vue" },
-      // "nuxt-require-server-route-error-handling": { fixture: "nuxt-issues.vue" },
     },
     () => basicVueDiagnostics,
   );

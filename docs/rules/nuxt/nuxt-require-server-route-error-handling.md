@@ -1,30 +1,11 @@
-# `vue-doctor/nuxt/nuxt-require-server-route-error-handling`
+# `vue-doctor/nuxt/nuxt-require-server-route-error-handling` (removed)
 
-> Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure
+This rule was removed in 2.1. It asked every server route to wrap its body in `try/catch` and rethrow `createError({ statusCode, statusMessage })`, which Nitro does not need and which made things worse:
 
-| Property | Value |
-|---|---|
-| **Category** | Nuxt |
-| **Default Severity** | `warning` |
-| **Confidence** | medium |
-| **Fixable** | No |
-| **Engine** | `oxlint` |
-| **Since** | v1.0.0 |
-| **Frameworks** | nuxt |
+- Nitro already turns an unhandled error into a generic `500` response and logs its stack (`[request error] [unhandled]`); `createError` status codes pass through untouched.
+- A blanket `catch` that rethrows a `500` swallows the `400`/`401`/`404` thrown inside the `try` block, and stops Nitro from logging the error as unhandled.
+- It encouraged `statusMessage: error.message`, which sends driver messages and internals to the client.
 
+The ID is still accepted in `rules`, `ignore.rules` and suppression comments, with a warning, but selects nothing. Remove it from your config.
 
-## Why it matters
-
-Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure
-
-## How to fix
-
-Review the finding and update the code according to best practices below.
-
-## Agent Guidance
-
-Wrap the body of `defineEventHandler` in try/catch and rethrow failures with `createError({ statusCode, statusMessage })` so clients get a proper error response.
-
----
-
-*Rule source: [`vue-doctor/nuxt/nuxt-require-server-route-error-handling`](https://github.com/remylagerweij/vue-doctor)*
+Its replacement looks for the actual problems: [`vue-doctor/server/no-leaky-error-rethrow`](/rules/server/no-leaky-error-rethrow).

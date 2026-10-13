@@ -8,6 +8,7 @@ import { createJsonSchema } from "../src/config/schema.js";
 import { diagnose } from "../src/index.js";
 import type { Diagnostic } from "../src/types.js";
 import { filterDiagnostics, matchesRuleKey } from "../src/utils/filter-diagnostics.js";
+import { resolveRuleKey } from "../src/plugin/rule-ids.js";
 
 const PACKAGE_DIRECTORY = path.resolve(import.meta.dirname, "..");
 const BASIC_VUE_DIRECTORY = path.join(PACKAGE_DIRECTORY, "tests", "fixtures", "basic-vue");
@@ -308,6 +309,19 @@ describe("diagnose() with legacy rule IDs", () => {
       'Rule ID "vue-doctor/no-moment" is deprecated; use "vue-doctor/bundle-size/no-moment".',
       'Unknown rule ID "no-such-rule" in config "ignore.rules"; it does not match any Vue Doctor rule.',
     ]);
+  }, 60_000);
+
+  it("accepts a removed rule's ID with a warning and lets it select nothing", async () => {
+    const warnings = await captureWarnings(() =>
+      diagnose(BASIC_VUE_DIRECTORY, {
+        cache: false,
+        deadCode: false,
+        config: { rules: { "vue-doctor/nuxt/nuxt-require-server-route-error-handling": "off" } },
+      }),
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/^Rule ID "vue-doctor\/nuxt\/nuxt-require-server-route-error-handling" was removed and has no effect; delete it\./);
+    expect(resolveRuleKey("nuxt-require-server-route-error-handling").matches("vue-doctor/server/no-leaky-error-rethrow")).toBe(false);
   }, 60_000);
 
   it("warns about options given to a rule that takes none", async () => {

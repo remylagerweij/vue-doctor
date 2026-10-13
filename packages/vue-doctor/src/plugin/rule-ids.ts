@@ -45,6 +45,21 @@ const REMOVED_RULE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ),
 };
 
+/**
+ * Rules removed without a replacement, by every spelling, with the reason. They stay known IDs that
+ * select nothing, so config entries and suppression comments warn instead of being reported as unknown.
+ */
+const REMOVED_RULES: Readonly<Record<string, string>> = Object.fromEntries(
+  [
+    "nuxt-require-server-route-error-handling",
+    "vue-doctor/nuxt-require-server-route-error-handling",
+    "vue-doctor/nuxt/nuxt-require-server-route-error-handling",
+  ].map((alias) => [
+    alias,
+    "Nitro already turns an unhandled error into a logged, generic 500, and wrapping handlers in try/catch made errors leak or lose their status (see vue-doctor/server/no-leaky-error-rethrow)",
+  ]),
+);
+
 /** Lower-cased legacy spelling to the canonical IDs it stands for (a bare name can mean two rules). */
 const LEGACY_ALIASES: ReadonlyMap<string, readonly string[]> = (() => {
   const aliases = new Map<string, string[]>();
@@ -78,6 +93,8 @@ export interface RuleKeyResolution {
   replacements: readonly string[];
   /** `false` when the key selects no Vue Doctor, template or dead-code rule. */
   known: boolean;
+  /** Why the rule was removed, for a removed rule's ID (which selects nothing). */
+  removed?: string;
 }
 
 const resolutionCache = new Map<string, RuleKeyResolution>();
@@ -98,6 +115,9 @@ const resolve = (normalized: string): RuleKeyResolution => {
   if (legacy) {
     return { matches: (ruleId) => legacy.includes(ruleId), deprecated: true, replacements: legacy, known: true };
   }
+
+  const removed = REMOVED_RULES[normalized];
+  if (removed) return { matches: () => false, deprecated: true, replacements: [], known: true, removed };
 
   // Dead-code findings (`knip/<type>`) are other tools' IDs and not in the registry.
   return {
@@ -133,7 +153,10 @@ export const createRuleIdReporter = (warn: (message: string) => void) => {
       const normalized = key.trim().toLowerCase();
       if (reported.has(normalized)) return;
       const resolution = resolveRuleKey(key);
-      if (resolution.deprecated) {
+      if (resolution.removed) {
+        reported.add(normalized);
+        warn(`Rule ID "${key.trim()}" was removed and has no effect; delete it. ${resolution.removed}.`);
+      } else if (resolution.deprecated) {
         reported.add(normalized);
         warn(`Rule ID "${key.trim()}" is deprecated; use ${formatReplacements(resolution.replacements)}.`);
       } else if (!resolution.known && source) {

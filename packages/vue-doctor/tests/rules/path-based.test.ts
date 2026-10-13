@@ -1,6 +1,6 @@
 import { RuleTester } from "eslint";
 import { describe, it } from "vitest";
-import nuxtRequireServerRouteErrorHandling from "../../src/plugin/rules/nuxt/nuxt-require-server-route-error-handling.js";
+import noLeakyErrorRethrow from "../../src/plugin/rules/server/no-leaky-error-rethrow.js";
 import serverNoConsoleInHandler from "../../src/plugin/rules/server/server-no-console-in-handler.js";
 
 RuleTester.describe = describe;
@@ -31,22 +31,18 @@ ruleTester.run("server-no-console-in-handler (path-based)", serverNoConsoleInHan
   ],
 });
 
-ruleTester.run("nuxt-require-server-route-error-handling (path-based)", nuxtRequireServerRouteErrorHandling, {
+ruleTester.run("no-leaky-error-rethrow (path-based)", noLeakyErrorRethrow, {
   valid: [
     {
-      code: `export default defineEventHandler(async (event) => { try { return 1 } catch (e) { throw e } })`,
-      filename: "server/api/ok.js",
-    },
-    {
-      code: `export default defineEventHandler(async (event) => { return 1 })`,
+      code: `export const f = async () => { try { return 1 } catch (e) { throw createError({ statusMessage: e.message }) } }`,
       filename: "src\\pages\\index.js",
     },
   ],
   invalid: [
     {
-      code: `export default defineEventHandler(async (event) => { return 1 })`,
-      filename: "server\\api\\bad.js",
-      errors: [{ message: /Server route handler without try\/catch/ }],
+      code: `export const f = async () => { try { return 1 } catch (e) { throw createError({ statusMessage: e.message }) } }`,
+      filename: "server\\utils\\bad.js",
+      errors: [{ message: /sends the error's own message to the client/ }],
     },
   ],
 });
