@@ -21,12 +21,12 @@ ruleTester.run("server-no-console-in-handler (path-based)", serverNoConsoleInHan
     {
       code: `console.log("x")`,
       filename: "server/api/users.js",
-      errors: [{ message: /console\.log\(\) in server handler/ }],
+      errors: [{ message: /console\.log\(\) left in a request handler/ }],
     },
     {
-      code: `console.warn("x")`,
+      code: `console.debug("x")`,
       filename: "app\\server\\middleware\\auth.js",
-      errors: [{ message: /console\.warn\(\) in server handler/ }],
+      errors: [{ message: /console\.debug\(\) left in a request handler/ }],
     },
   ],
 });
