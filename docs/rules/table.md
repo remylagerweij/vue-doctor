@@ -2,7 +2,7 @@
 
 | Rule | Category | Default severity | Confidence | Frameworks | Engine |
 |------|----------|------------------|------------|------------|--------|
-| `vue-doctor/reactivity/no-cascading-mutations` | Reactivity | warning | low | vue, nuxt | oxlint |
+| `vue-doctor/reactivity/no-cascading-mutations` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-fetch-in-watch` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-missing-await-nextTick` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-mutation-in-computed` | Reactivity | warning | medium | vue, nuxt | oxlint |
@@ -71,7 +71,7 @@
 | `vue-doctor/correctness/no-direct-dom-manipulation` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-prevent-default` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-this-in-setup` | Correctness | error | high | vue, nuxt | oxlint |
-| `vue-doctor/correctness/prefer-defineProps-destructure` | Correctness | warning | medium | vue, nuxt | oxlint |
+| `vue-doctor/correctness/prefer-defineProps-destructure` | Correctness | warning | low | vue, nuxt | oxlint |
 | `vue-doctor/correctness/require-defineprops-types` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/require-emits-declaration` | Correctness | warning | high | vue, nuxt | oxlint |
 | `vue/no-dupe-keys` | Correctness | error | high | vue, nuxt | eslint-template |

@@ -13,6 +13,7 @@ import type { CleanedDiagnostic, Diagnostic, Framework, OxlintOutput } from "../
 import { createDefusedMirror, findFilesWithForeignDirectives } from "./defuse-inline-directives.js";
 import { normalizeRelativePath } from "./list-source-files.js";
 import { createPrivateTempDirectory } from "./private-temp.js";
+import { detectProjectCapabilities } from "./project-capabilities.js";
 import { mapWithConcurrency } from "./map-with-concurrency.js";
 import { readNuxtRenderSettings } from "./nuxt-project.js";
 import { resolveBatchConcurrency } from "./run-bounded.js";
@@ -169,7 +170,7 @@ export const runOxlint = async (
 
   const pluginPath = resolvePluginPath();
   const nuxt = framework === "nuxt" ? readNuxtRenderSettings(rootDirectory) : undefined;
-  const config = createOxlintConfig({ pluginPath, framework, nuxt });
+  const config = createOxlintConfig({ pluginPath, framework, nuxt, capabilities: detectProjectCapabilities(rootDirectory) });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;
 

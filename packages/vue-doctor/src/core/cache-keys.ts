@@ -6,6 +6,7 @@ import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
 import { listNuxtKnipInputs, readNuxtRenderSettings } from "../utils/nuxt-project.js";
 import { listProjectSourceFiles } from "../utils/list-source-files.js";
+import { detectProjectCapabilities } from "../utils/project-capabilities.js";
 import { resolvePluginPath } from "../utils/run-oxlint.js";
 import { getToolVersions } from "../utils/tool-versions.js";
 import { hashText } from "./cache.js";
@@ -66,6 +67,7 @@ export const computeCacheContexts = (directory: string, project: ProjectInfo): C
         pluginPath: "",
         framework: project.framework,
         nuxt: project.framework === "nuxt" ? readNuxtRenderSettings(directory) : undefined,
+        capabilities: detectProjectCapabilities(directory),
       }),
       tsconfig,
     }),

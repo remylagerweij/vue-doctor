@@ -25,6 +25,9 @@ export type RuleConfidence = "high" | "medium" | "low";
 
 export type RuleFramework = "vue" | "nuxt";
 
+/** Toolchain features a rule may depend on; detected per project by utils/project-capabilities.ts. */
+export type ProjectCapability = "props-destructure";
+
 /**
  * Which analyzer runs the rule: oxlint (script AST), eslint-template (template AST), fs (project
  * files, see define-fs-rule.ts) or audit (opt-in network lookup, see define-audit-rule.ts).
@@ -43,6 +46,8 @@ export interface RuleMeta {
    * Nuxt-only rules list just `["nuxt"]`.
    */
   frameworks: RuleFramework[];
+  /** Project capabilities the rule needs; it is not run on projects that lack one. */
+  requires?: ProjectCapability[];
   /** CWE identifiers, e.g. `["CWE-79"]`. */
   cwe?: string[];
   /** OWASP Top 10 category, e.g. `A03:2021`. */

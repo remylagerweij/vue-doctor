@@ -17,11 +17,14 @@ watchEffect(() => { doubled.value = count.value * 2; });
 
 // no-cascading-mutations
 const a = ref(0);
-const b = ref(0);
-const c = ref(0);
-const d = ref(0);
-watch(() => count.value, () => {
-  a.value = 1; b.value = 2; c.value = 3; d.value = 4;
+const b = ref("");
+watch(() => count.value, (next) => {
+  a.value = next + 1;
+  track(next);
+});
+watch(a, (next) => {
+  b.value = String(next);
+  track(next);
 });
 
 // no-fetch-in-watch

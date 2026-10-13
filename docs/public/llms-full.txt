@@ -119,7 +119,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use Vue's `.prevent` modifier: `@submit.prevent` instead of calling `event.preventDefault()`
-- Agent Guidance: Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers that always call `preventDefault()` on their own event argument are flagged; conditional calls and listeners registered with addEventListener are left alone.
+- Agent Guidance: Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers in `.vue` files that always call `preventDefault()` on their own event argument are flagged; calls after a guard `return`, other conditional calls and handlers registered with addEventListener/useEventListener are left alone, because `.prevent` would cancel events the handler deliberately lets through (Tab, unrelated keys).
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-prevent-default
 
 ## vue-doctor/correctness/no-this-in-setup
@@ -134,10 +134,10 @@
 ## vue-doctor/correctness/prefer-defineProps-destructure
 - Category: Correctness
 - Default Severity: warning
-- Confidence: medium
+- Confidence: low
 - Fixable: No
-- Help: Destructure props for reactive access: `const { prop1, prop2 } = defineProps<Props>()`
-- Agent Guidance: Use reactive props destructure: `const { a, b = 1 } = defineProps<Props>()`, which stays reactive in Vue 3.5+. Check the project's Vue version first.
+- Help: Destructure props with native defaults: `const { title, size = "md" } = defineProps<Props>()` (Vue 3.5+)
+- Agent Guidance: Only reported on Vue 3.5+ projects with reactive props destructure enabled, and only when the props object is used solely as `props.x`. Replace `const props = defineProps<Props>()` (or `withDefaults(defineProps<Props>(), { ... })`) with `const { a, b = 1 } = defineProps<Props>()` and rename `props.a` to `a`. Watch a destructured prop through a getter (`watch(() => a, ...)`) and pass it to composables as `toRef(() => a)` or `() => a`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/prefer-defineProps-destructure
 
 ## vue-doctor/correctness/require-defineprops-types
@@ -254,7 +254,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use `useRuntimeConfig()`; expose client values through `runtimeConfig.public` in nuxt.config
-- Agent Guidance: Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`, and do not use `process.env` in app code.
+- Agent Guidance: Only files that end up in the client bundle are checked (components, pages, layouts, composables, non-`.server` plugins, app middleware, stores, utils, `app.vue`); `server/`, `scripts/`, `shared/` and config files run in Node and may read `process.env`. Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-process-env-in-client
 
 ## vue-doctor/nuxt/nuxt-no-window-in-ssr
@@ -458,10 +458,10 @@
 ## vue-doctor/reactivity/no-cascading-mutations
 - Category: Reactivity
 - Default Severity: warning
-- Confidence: low
+- Confidence: medium
 - Fixable: No
-- Help: Combine related state into a single reactive object or use a composable to manage state transitions
-- Agent Guidance: Several state mutations in one watcher usually mean the state is split wrongly. Group the related refs into one reactive object or move the transition into a composable function, then update it in a single place.
+- Help: Derive the second value with `computed()` instead of chaining watchers, or update both values in one place
+- Agent Guidance: One watcher writes state that a second watcher watches, and the second one derives more state from it, so every change cascades through two flush cycles. Replace the derived ref of the second watcher with `computed(() => ...)` over the same source, or move both updates into the function that starts the change. Several assignments in one watcher (a form reset) are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-cascading-mutations
 
 ## vue-doctor/reactivity/no-fetch-in-watch
@@ -515,7 +515,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Remove the ref and derive inline: `const value = computed(() => transform(props.propName))`
-- Agent Guidance: Do not copy a prop into a `ref()`; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited.
+- Agent Guidance: Do not copy a prop into a `ref()` that is never updated again; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited. Copies that are written later (an editable draft, a ref re-synced by `watch(() => props.x, ...)`) and `initial*`/`default*` seed props are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop
 
 ## vue-doctor/reactivity/no-watch-for-computed
@@ -524,7 +524,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Replace the watcher with a computed property: `const value = computed(() => transform(source))`
-- Agent Guidance: The watcher only derives a value from its source. Delete the watcher and the ref it writes, and declare `const value = computed(() => ...)` using the same source.
+- Agent Guidance: The watcher only derives a ref from its source, and nothing else writes that ref. Delete the watcher and the ref, and declare `const value = computed(() => ...)` using the same source. Refs that the user or other code also writes (a page reset, an editable copy of a prop) are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed
 
 ## vue-doctor/reactivity/prefer-computed
@@ -766,8 +766,8 @@
 - Default Severity: warning
 - Confidence: low
 - Fixable: No
-- Help: Review dependencies that run code at install time; install with --ignore-scripts and allow-list the ones that need it (pnpm `onlyBuiltDependencies`)
-- Agent Guidance: Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then restrict install scripts: in pnpm add it to `onlyBuiltDependencies` and nothing else; with npm use `--ignore-scripts` in CI and rebuild only what is needed (`npm rebuild <pkg>`). Report the list to the user rather than silently changing install behaviour.
+- Help: Review dependencies that run code at install time and record the decision: npm `allowScripts` (`npm approve-scripts`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`
+- Agent Guidance: Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then record the review in the package manager's allowlist, which silences the finding: npm 11 `allowScripts` in package.json (`npm approve-scripts <pkg>`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`. Scripts that only `echo` or `exit 0` are not reported. Report the list to the user rather than silently changing install behaviour.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/no-dependency-install-scripts
 
 ## vue-doctor/supply-chain/no-remote-dependency-spec

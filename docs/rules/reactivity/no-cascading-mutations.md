@@ -1,12 +1,12 @@
 # `vue-doctor/reactivity/no-cascading-mutations`
 
-> Combine related state into a single reactive object or use a composable to manage state transitions
+> Derive the second value with `computed()` instead of chaining watchers, or update both values in one place
 
 | Property | Value |
 |---|---|
 | **Category** | Reactivity |
 | **Default Severity** | `warning` |
-| **Confidence** | low |
+| **Confidence** | medium |
 | **Fixable** | No |
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
@@ -15,7 +15,7 @@
 
 ## Why it matters
 
-Combine related state into a single reactive object or use a composable to manage state transitions
+Derive the second value with `computed()` instead of chaining watchers, or update both values in one place
 
 ## How to fix
 
@@ -23,7 +23,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Several state mutations in one watcher usually mean the state is split wrongly. Group the related refs into one reactive object or move the transition into a composable function, then update it in a single place.
+One watcher writes state that a second watcher watches, and the second one derives more state from it, so every change cascades through two flush cycles. Replace the derived ref of the second watcher with `computed(() => ...)` over the same source, or move both updates into the function that starts the change. Several assignments in one watcher (a form reset) are not reported.
 
 ---
 

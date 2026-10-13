@@ -9,6 +9,9 @@ import type { EsTreeNode } from "./types.js";
 export const JAVASCRIPT_URL_MESSAGE =
   "a `javascript:` URL runs code when it is followed (XSS) and is blocked by a strict CSP; use a button with a click handler, or a real URL";
 
+export const JAVASCRIPT_PLACEHOLDER_MESSAGE =
+  "a `javascript:void(0)` placeholder is a link that goes nowhere: assistive tech announces it as a link, open-in-new-tab breaks and a strict CSP blocks it; use `<button type=\"button\" @click>` instead";
+
 export const USER_CONTROLLED_URL_MESSAGE =
   "a user-controlled value as a URL allows `javascript:` XSS and open redirects; validate it first (`new URL(x, location.origin)` and check `protocol`/`origin`, or an allowlist)";
 
@@ -28,6 +31,21 @@ const JAVASCRIPT_SCHEME = new RegExp(
 
 /** Whether a string is a `javascript:` URL with a body (`javascript:void(0)`); a bare `"javascript:"` blocklist entry is not. */
 export const isJavascriptUrl = (value: string): boolean => JAVASCRIPT_SCHEME.test(value);
+
+const JAVASCRIPT_NOOP = /^\s*javascript:\s*(?:void\s*\(?\s*0\s*\)?|undefined)?\s*;?\s*$/i;
+
+/** `javascript:void(0)`, `javascript:;`: a static do-nothing placeholder rather than code. */
+export const isJavascriptNoopUrl = (value: string): boolean => JAVASCRIPT_NOOP.test(value);
+
+/** Whether every `javascript:` literal found in an expression is a static do-nothing placeholder. */
+export const isStaticJavascriptPlaceholder = (literals: EsTreeNode[]): boolean =>
+  literals.length > 0 &&
+  literals.every((literal) => {
+    if (literal.type === "Literal") return typeof literal.value === "string" && isJavascriptNoopUrl(literal.value);
+    if (literal.type !== "TemplateLiteral" || literal.expressions.length > 0) return false;
+    const text: string | undefined = literal.quasis?.[0]?.value?.cooked ?? literal.quasis?.[0]?.value?.raw;
+    return text !== undefined && isJavascriptNoopUrl(text);
+  });
 
 /** Wrappers that do not change the value: `(x)`, `x as string`, `x!`, `x?.y`. */
 const TRANSPARENT_WRAPPERS = new Set([

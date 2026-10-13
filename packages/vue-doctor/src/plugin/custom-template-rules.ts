@@ -3,10 +3,13 @@ import { getStaticKeyName } from "./helpers.js";
 import { HTML_INJECTION_PROPERTIES, UNSAFE_HTML_MESSAGE, isKnownSafeHtml } from "./rules/security/helpers.js";
 import type { EsTreeNode } from "./types.js";
 import {
+  JAVASCRIPT_PLACEHOLDER_MESSAGE,
   JAVASCRIPT_URL_MESSAGE,
   USER_CONTROLLED_URL_MESSAGE,
   findJavascriptUrlLiterals,
+  isJavascriptNoopUrl,
   isJavascriptUrl,
+  isStaticJavascriptPlaceholder,
   isUrlAttributeName,
   isUserControlledUrl,
 } from "./url-sinks.js";
@@ -120,12 +123,21 @@ const noJavascriptUrl = urlAttributeRule("Disallow javascript: URLs in URL attri
     const name: string = attribute.key.rawName ?? attribute.key.name;
     const value: unknown = attribute.value?.value;
     if (isUrlAttributeName(name) && typeof value === "string" && isJavascriptUrl(value)) {
-      report(`\`${name}="javascript:…"\` — ${JAVASCRIPT_URL_MESSAGE}`);
+      report(
+        isJavascriptNoopUrl(value)
+          ? `\`${name}="${value.trim()}"\` — ${JAVASCRIPT_PLACEHOLDER_MESSAGE}`
+          : `\`${name}="javascript:…"\` — ${JAVASCRIPT_URL_MESSAGE}`,
+      );
     }
   } else if (attribute.key.name.name === "bind") {
     // `<a :href="'javascript:void(0)'">`, `` :href="`javascript:${code}`" ``
-    if (boundUrlExpressions(attribute).some((expression) => findJavascriptUrlLiterals(expression).length > 0)) {
-      report(`bound \`javascript:\` URL — ${JAVASCRIPT_URL_MESSAGE}`);
+    const literals = boundUrlExpressions(attribute).flatMap((expression) => findJavascriptUrlLiterals(expression));
+    if (literals.length > 0) {
+      report(
+        isStaticJavascriptPlaceholder(literals)
+          ? `bound \`javascript:void(0)\` placeholder — ${JAVASCRIPT_PLACEHOLDER_MESSAGE}`
+          : `bound \`javascript:\` URL — ${JAVASCRIPT_URL_MESSAGE}`,
+      );
     }
   }
 });

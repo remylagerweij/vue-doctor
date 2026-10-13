@@ -1,5 +1,4 @@
 export const GIANT_COMPONENT_LINE_THRESHOLD = 300;
-export const CASCADING_MUTATION_THRESHOLD = 3;
 export const SEQUENTIAL_AWAIT_THRESHOLD = 3;
 
 export const LAYOUT_PROPERTIES = new Set([
