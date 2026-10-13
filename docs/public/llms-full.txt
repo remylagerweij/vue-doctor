@@ -275,15 +275,6 @@
 - Agent Guidance: Replace `useHead({ meta: [...] })` with `useSeoMeta({ title, description, ogTitle, ... })` for type-safe SEO tags.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-seo-meta
 
-## vue-doctor/nuxt/nuxt-require-server-route-error-handling
-- Category: Nuxt
-- Default Severity: warning
-- Confidence: medium
-- Fixable: No
-- Help: Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure
-- Agent Guidance: Wrap the body of `defineEventHandler` in try/catch and rethrow failures with `createError({ statusCode, statusMessage })` so clients get a proper error response.
-- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-server-route-error-handling
-
 ## vue-doctor/nuxt/security-headers
 - Category: Nuxt
 - Default Severity: warning
@@ -686,7 +677,7 @@
 - Confidence: low
 - Fixable: No
 - Help: Ensure sensitive, admin, or mutating server routes verify authentication or authorization
-- Agent Guidance: Admin routes (`server/api/admin/**`) and mutating endpoints (`.post`, `.put`, `.delete`, `.patch`) should enforce an authentication check (e.g. `await requireUserSession(event)`, `await getServerSession(event)`, or custom middleware setting `event.context.auth`). If the endpoint is intentionally public (such as `login.post.ts` or `register.post.ts`), suppress this advisory with `// vue-doctor-disable-next-line`.
+- Agent Guidance: Admin routes (`server/api/admin/**`) and mutating endpoints (`.post`, `.put`, `.delete`, `.patch`) should enforce an authentication check (e.g. `await requireUserSession(event)`, `await getServerSession(event)`, or custom middleware setting `event.context.auth`). Guards named like `requireAdmin`/`ensureUser`/`assertOrgMember`, and `server/utils` functions that read the session and throw a 401/403, are recognised; list other project guards in the rule's `authFunctions` option. If the endpoint is intentionally public (such as `login.post.ts` or `register.post.ts`), suppress this advisory with `// vue-doctor-disable-next-line`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/auth-missing
 
 ## vue-doctor/server/csrf-on-mutating-routes
@@ -694,9 +685,18 @@
 - Default Severity: warning
 - Confidence: low
 - Fixable: No
-- Help: Protect state-changing (mutating) API endpoints against Cross-Site Request Forgery (CSRF)
-- Agent Guidance: Mutating endpoints (`.post`, `.put`, `.patch`, `.delete`) that authenticate via cookies are vulnerable to CSRF if requests from third-party sites are accepted. Verify the `Origin` / `Referer` header matches your site origin, use a CSRF token (or `nuxt-csurf` / `nuxt-security`), or ensure session cookies use `SameSite: Strict` or `Lax`.
+- Help: Protect state-changing (mutating) API endpoints that authenticate with a session cookie against Cross-Site Request Forgery (CSRF)
+- Agent Guidance: A mutating endpoint (`.post`, `.put`, `.patch`, `.delete`) that authenticates with an ambient session cookie can be called from another site with the user's cookies: h3's `readBody` also parses form-encoded and untyped bodies, which a cross-site form can send without a preflight, so a JSON API is not protected by being JSON. Prefer one guard for all routes: a `server/middleware` that rejects non-GET `/api/**` requests whose `Sec-Fetch-Site` is present and not `same-origin`/`none` (or whose `Origin` is not your site), or `nuxt-security` / `nuxt-csurf`. Per route, compare `getRequestHeader(event, 'origin')` with the expected origin, require `content-type: application/json`, or verify a CSRF token. A session cookie with `SameSite=Lax` or `Strict` already blocks cross-site requests (not those from same-site subdomains); the rule reads that from the auth module's config.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/csrf-on-mutating-routes
+
+## vue-doctor/server/no-leaky-error-rethrow
+- Category: Server
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Do not send a caught error's message to the client, and let HTTP errors through a catch block instead of turning them into a 500
+- Agent Guidance: Nitro already turns an unhandled error into a generic 500 and logs its stack, so a handler does not need a try/catch to be safe. When it has one: (1) never put `error.message` of a caught error or of a Supabase/Prisma `{ error }` result into `createError({ statusMessage | message })`, because the client receives it and it can name tables, constraints or internal hosts; log it with `console.error("[Tag] ...", error)` and throw a fixed, generic `statusMessage`. (2) Rethrow HTTP errors before wrapping: `throw isError(error) ? error : createError({ statusCode: 500, statusMessage: "..." })` (h3 `isError`), so a 400/401/403/404 thrown in the try block keeps its status.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/no-leaky-error-rethrow
 
 ## vue-doctor/server/require-input-validation
 - Category: Server
@@ -704,7 +704,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Validate request input with `getValidatedQuery`/`readValidatedBody`/`getValidatedRouterParams` and a schema (zod, valibot), or run `schema.parse()` on it before use
-- Agent Guidance: Replace `getQuery(event)` with `getValidatedQuery(event, schema.parse)`, `readBody(event)` with `readValidatedBody(event, schema.parse)` and `getRouterParam(event, 'id')` with `getValidatedRouterParams(event, schema.parse)` (zod, valibot or arktype schema; a TypeScript generic like `readBody<Foo>(event)` is not validation, it only asserts a type). Or keep the raw read and pass the result through `schema.parse(...)` / `safeParse` before using it, throwing `createError({ statusCode: 400 })` on failure. A single header read for authentication or forwarding can be compared against the expected value instead.
+- Agent Guidance: Replace `getQuery(event)` with `getValidatedQuery(event, schema.parse)`, `readBody(event)` with `readValidatedBody(event, schema.parse)` and `getRouterParam(event, 'id')` with `getValidatedRouterParams(event, schema.parse)` (zod, valibot or arktype schema; a TypeScript generic like `readBody<Foo>(event)` or a cast like `body as Foo` is not validation, it only asserts a type). Or keep the raw read and pass the result through `schema.parse(...)` / `safeParse` before using it, throwing `createError({ statusCode: 400 })` on failure. A route param only needs a presence check that throws (`if (!id) throw createError({ statusCode: 400 })`), since it is always a string. A single header read for authentication or forwarding can be compared against the expected value instead. If the project validates through its own helper (`parseBody(event, schema)`), list it in the rule's `validators` option.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/require-input-validation
 
 ## vue-doctor/server/secure-cookie-flags
@@ -721,8 +721,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`
-- Agent Guidance: Replace `console.log/info/warn` in server handlers with a structured logger such as `consola` or `pino`; keep the message and add context as fields.
+- Help: Remove debug `console.log/debug/trace` calls from request handlers; they flood production logs and can leak request data
+- Agent Guidance: Delete leftover `console.log`, `console.debug` and `console.trace` calls in `server/api`, `server/routes` and `server/middleware` handlers, especially ones that print request data, user ids, emails or addresses (PII). If the message reports a degraded path or a failure someone must act on, keep it as `console.warn` or `console.error` with a fixed prefix and no personal data. Do not add a logging library just for this.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/server-no-console-in-handler
 
 ## vue-doctor/nuxt/no-sensitive-public-file
