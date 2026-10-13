@@ -5,6 +5,7 @@ import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleC
 import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
 import { listProjectSourceFiles } from "../utils/list-source-files.js";
+import { detectProjectCapabilities } from "../utils/project-capabilities.js";
 import { resolvePluginPath } from "../utils/run-oxlint.js";
 import { getToolVersions } from "../utils/tool-versions.js";
 import { hashText } from "./cache.js";
@@ -61,7 +62,11 @@ export const computeCacheContexts = (directory: string, project: ProjectInfo): C
     JSON.stringify({
       ownCode,
       oxlint: tools.oxlint,
-      config: createOxlintConfig({ pluginPath: "", framework: project.framework }),
+      config: createOxlintConfig({
+        pluginPath: "",
+        framework: project.framework,
+        capabilities: detectProjectCapabilities(directory),
+      }),
       tsconfig,
     }),
   );

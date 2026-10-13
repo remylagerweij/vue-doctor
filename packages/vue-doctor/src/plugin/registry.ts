@@ -1,7 +1,7 @@
 import type { Framework } from "../types.js";
 import { isAuditRule, type DefinedAuditRule } from "./define-audit-rule.js";
 import { isFsRule, type DefinedFsRule } from "./define-fs-rule.js";
-import type { DefinedRule, RuleCategory, RuleEngine, RuleMeta } from "./define-rule.js";
+import type { DefinedRule, ProjectCapability, RuleCategory, RuleEngine, RuleMeta } from "./define-rule.js";
 import { ruleModules } from "./rules/index.js";
 import { CUSTOM_TEMPLATE_RULES, CUSTOM_TEMPLATE_PLUGIN_NAME } from "./custom-template-rules.js";
 import { TEMPLATE_RULES } from "./template-rules.js";
@@ -75,12 +75,17 @@ const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
 interface OxlintConfigOptions {
   pluginPath: string;
   framework: Framework;
+  /** The project's capabilities; when omitted, rules that require one are kept. */
+  capabilities?: ReadonlySet<ProjectCapability>;
 }
 
-export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOptions) => {
+const hasRequiredCapabilities = (meta: RuleMeta, capabilities: ReadonlySet<ProjectCapability> | undefined): boolean =>
+  !capabilities || (meta.requires ?? []).every((capability) => capabilities.has(capability));
+
+export const createOxlintConfig = ({ pluginPath, framework, capabilities }: OxlintConfigOptions) => {
   const rules: Record<string, "error" | "warn"> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
-    if (!isEnabled(meta, framework)) continue;
+    if (!isEnabled(meta, framework) || !hasRequiredCapabilities(meta, capabilities)) continue;
     rules[`${PLUGIN_NAME}/${meta.id}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
   }
 

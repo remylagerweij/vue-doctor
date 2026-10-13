@@ -136,7 +136,7 @@ describe("watch callbacks", () => {
     expect(getCallbackStatements({ type: "ArrowFunctionExpression" })).toEqual([]);
   });
 
-  it("detects fetch calls (identifier and member callees) and counts .value assignments and setter calls", () => {
+  it("detects fetch calls (identifier and member callees)", () => {
     const analysis = analyzeWatchCallback(
       arrow(
         block(
@@ -150,13 +150,13 @@ describe("watch callbacks", () => {
         ),
       ),
     );
-    expect(analysis).toEqual({ hasFetchCall: true, mutationCount: 3 });
+    expect(analysis).toEqual({ hasFetchCall: true });
   });
 
   it("reports no fetch for ordinary calls and memoizes the analysis per callback node", () => {
     const callback = arrow(block(statement(call(member("console", "log")))));
     const first = analyzeWatchCallback(callback);
-    expect(first).toEqual({ hasFetchCall: false, mutationCount: 0 });
+    expect(first).toEqual({ hasFetchCall: false });
     expect(analyzeWatchCallback(callback)).toBe(first);
   });
 });

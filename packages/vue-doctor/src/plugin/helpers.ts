@@ -7,8 +7,6 @@ import {
 import type { EsTreeNode, RuleContext, RuleVisitors } from "./types.js";
 import { VISITOR_KEYS } from "./visitor-keys.js";
 
-const SETTER_CALL_PATTERN = /^set[A-Z]/;
-
 // Path of the file being linted, with forward slashes on every platform. Throws instead of
 // returning "" so a host without a filename API fails loudly rather than silently disabling
 // every path-based rule (server/, .vue, test files).
@@ -97,20 +95,16 @@ export const getCallbackStatements = (callback: EsTreeNode): EsTreeNode[] => {
 
 export interface WatchCallbackAnalysis {
   hasFetchCall: boolean;
-  mutationCount: number;
 }
 
-// Everything the watcher rules need to know about a callback, gathered in ONE walk and
-// memoized per callback node, so no-fetch-in-watch and no-cascading-mutations (and any future
-// watcher rule) never re-walk the same subtree. Nodes are per-file ASTs, so the WeakMap
-// entries disappear together with the file.
+// What the watcher rules need to know about a callback, gathered in one walk and memoized per callback node.
 const watchCallbackAnalyses = new WeakMap<EsTreeNode, WatchCallbackAnalysis>();
 
 export const analyzeWatchCallback = (callback: EsTreeNode): WatchCallbackAnalysis => {
   const cached = watchCallbackAnalyses.get(callback);
   if (cached) return cached;
 
-  const analysis: WatchCallbackAnalysis = { hasFetchCall: false, mutationCount: 0 };
+  const analysis: WatchCallbackAnalysis = { hasFetchCall: false };
   walkAst(callback, (child) => {
     if (child.type === "CallExpression" && !analysis.hasFetchCall) {
       const callee = child.callee;
@@ -123,37 +117,9 @@ export const analyzeWatchCallback = (callback: EsTreeNode): WatchCallbackAnalysi
         analysis.hasFetchCall = true;
       }
     }
-    if (child.type === "ExpressionStatement") analysis.mutationCount += countStatementMutations(child);
   });
   watchCallbackAnalyses.set(callback, analysis);
   return analysis;
-};
-
-// 1 when the statement is `x.value = ...` or a `setXxx()` call, else 0.
-const countStatementMutations = (statement: EsTreeNode): number => {
-  const expression = statement.expression;
-  if (!expression) return 0;
-  let count = 0;
-
-  // .value = ...
-  if (
-    expression.type === "AssignmentExpression" &&
-    expression.left?.type === "MemberExpression" &&
-    expression.left.property?.type === "Identifier" &&
-    expression.left.property.name === "value"
-  ) {
-    count++;
-  }
-
-  // setXxx() style calls
-  if (
-    expression.type === "CallExpression" &&
-    expression.callee?.type === "Identifier" &&
-    SETTER_CALL_PATTERN.test(expression.callee.name)
-  ) {
-    count++;
-  }
-  return count;
 };
 
 export const createLoopAwareVisitors = (

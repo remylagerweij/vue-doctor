@@ -4,8 +4,25 @@ import type { EsTreeNode, RuleContext } from "../../types.js";
 
 const MUTATING_ARRAY_METHODS = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]);
 
-// Array methods that return a new array, so mutating their result never touches reactive state.
-const FRESH_ARRAY_METHODS = new Set(["slice", "filter", "map", "concat", "flat", "flatMap", "toSorted", "toReversed"]);
+// Methods whose result is a new array or string list, so mutating it never touches reactive state.
+const FRESH_RESULT_METHODS = new Set([
+  "slice", "filter", "map", "concat", "flat", "flatMap", "toSorted", "toReversed", "toSpliced", "with", "split", "match", "matchAll",
+]);
+const FRESH_STATIC_CALLS: Record<string, ReadonlySet<string>> = {
+  Object: new Set(["keys", "values", "entries", "fromEntries", "groupBy"]),
+  Array: new Set(["from", "of"]),
+  JSON: new Set(["parse"]),
+  Map: new Set(["groupBy"]),
+};
+const FRESH_CONSTRUCTORS = new Set(["Map", "Set", "Array", "WeakMap", "WeakSet", "URLSearchParams", "FormData"]);
+const FRESH_FUNCTIONS = new Set(["structuredClone"]);
+const TRANSPARENT_WRAPPERS = new Set(["TSAsExpression", "TSNonNullExpression", "TSSatisfiesExpression", "TSTypeAssertion", "ParenthesizedExpression", "ChainExpression"]);
+
+const peel = (node: EsTreeNode): EsTreeNode => {
+  let current = node;
+  while (TRANSPARENT_WRAPPERS.has(current.type) && current.expression) current = current.expression;
+  return current;
+};
 
 export default defineRule({
   meta: {
@@ -35,21 +52,40 @@ export default defineRule({
 
       const checkForMutations = (astNode: EsTreeNode): boolean => {
         let hasMutation = false;
-        // Arrays created inside the getter (`const out = []`) may be mutated freely.
+        // Values created inside the getter (`const out = []`, `new Map()`, `x.filter()`) may be mutated freely.
         const freshLocals = new Set<string>();
-        const isFreshArray = (target: EsTreeNode | null | undefined): boolean => {
-          if (!target) return false;
-          if (target.type === "ArrayExpression") return true;
-          if (target.type === "Identifier") return freshLocals.has(target.name);
-          if (target.type !== "CallExpression" || target.callee?.type !== "MemberExpression") return false;
-          const method = target.callee.property?.name;
-          if (FRESH_ARRAY_METHODS.has(method)) return true;
-          // `sort`/`reverse` return their (possibly fresh) receiver.
-          return (method === "sort" || method === "reverse") && isFreshArray(target.callee.object);
+        const isFresh = (node: EsTreeNode | null | undefined): boolean => {
+          if (!node) return false;
+          const target = peel(node);
+          switch (target.type) {
+            case "ArrayExpression":
+            case "ObjectExpression":
+              return true;
+            case "Identifier":
+              return freshLocals.has(target.name);
+            case "ConditionalExpression":
+              return isFresh(target.consequent) && isFresh(target.alternate);
+            case "LogicalExpression":
+              return isFresh(target.left) && isFresh(target.right);
+            case "NewExpression":
+              return target.callee?.type === "Identifier" && FRESH_CONSTRUCTORS.has(target.callee.name);
+            case "CallExpression":
+              break;
+            default:
+              return false;
+          }
+          const callee = target.callee;
+          if (callee?.type === "Identifier") return FRESH_FUNCTIONS.has(callee.name);
+          if (callee?.type !== "MemberExpression" || callee.computed) return false;
+          const method: string = callee.property?.name;
+          if (callee.object?.type === "Identifier" && FRESH_STATIC_CALLS[callee.object.name]?.has(method)) return true;
+          if (FRESH_RESULT_METHODS.has(method)) return true;
+          // `sort`/`reverse` return their receiver; `.get()` of a getter-local Map returns what the getter put there.
+          return (method === "sort" || method === "reverse" || method === "get") && isFresh(callee.object);
         };
 
         walkAst(astNode, (child) => {
-          if (child.type === "VariableDeclarator" && child.id?.type === "Identifier" && isFreshArray(child.init)) {
+          if (child.type === "VariableDeclarator" && child.id?.type === "Identifier" && isFresh(child.init)) {
             freshLocals.add(child.id.name);
           }
           // Check for `.value = ...` assignments and `.value++` / `.value--` updates
@@ -74,7 +110,7 @@ export default defineRule({
             child.callee.property?.type === "Identifier"
           ) {
             const method = child.callee.property.name;
-            if (MUTATING_ARRAY_METHODS.has(method) && !isFreshArray(child.callee.object)) {
+            if (MUTATING_ARRAY_METHODS.has(method) && !isFresh(child.callee.object)) {
               hasMutation = true;
               return WALK_STOP;
             }

@@ -13,6 +13,7 @@ import type { CleanedDiagnostic, Diagnostic, Framework, OxlintOutput } from "../
 import { createDefusedMirror, findFilesWithForeignDirectives } from "./defuse-inline-directives.js";
 import { normalizeRelativePath } from "./list-source-files.js";
 import { createPrivateTempDirectory } from "./private-temp.js";
+import { detectProjectCapabilities } from "./project-capabilities.js";
 import { mapWithConcurrency } from "./map-with-concurrency.js";
 import { resolveBatchConcurrency } from "./run-bounded.js";
 
@@ -167,7 +168,7 @@ export const runOxlint = async (
   }
 
   const pluginPath = resolvePluginPath();
-  const config = createOxlintConfig({ pluginPath, framework });
+  const config = createOxlintConfig({ pluginPath, framework, capabilities: detectProjectCapabilities(rootDirectory) });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;
 

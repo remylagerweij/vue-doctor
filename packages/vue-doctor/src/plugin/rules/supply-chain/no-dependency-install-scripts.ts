@@ -1,12 +1,8 @@
 import { defineFsRule } from "../../define-fs-rule.js";
+import { hasOnlyTrivialInstallScripts, readInstallScriptPolicy } from "../../supply-chain/install-scripts.js";
 import { findKeyLine, findLockfiles, readLockfiles, readManifest } from "../../supply-chain/project.js";
 
-/**
- * Decision: only direct dependencies are reported (the ones the team chose and can review); the
- * information comes from the lockfile (`hasInstallScript` in npm lockfiles v2/v3, `requiresBuild`
- * in pnpm). Install scripts of well-known native packages (esbuild, sharp) are legitimate, which is
- * why this is a low-confidence warning: the point is to know which dependencies run code at install.
- */
+// Direct dependencies only, from the lockfile; reviewed (allow-listed) and do-nothing scripts are skipped.
 export default defineFsRule({
   meta: {
     id: "no-dependency-install-scripts",
@@ -18,9 +14,9 @@ export default defineFsRule({
     owasp: "A08:2021",
     fixable: false,
     since: "2.0.0",
-    help: "Review dependencies that run code at install time; install with --ignore-scripts and allow-list the ones that need it (pnpm `onlyBuiltDependencies`)",
+    help: "Review dependencies that run code at install time and record the decision: npm `allowScripts` (`npm approve-scripts`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`",
     agentGuidance:
-      "Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then restrict install scripts: in pnpm add it to `onlyBuiltDependencies` and nothing else; with npm use `--ignore-scripts` in CI and rebuild only what is needed (`npm rebuild <pkg>`). Report the list to the user rather than silently changing install behaviour.",
+      "Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then record the review in the package manager's allowlist, which silences the finding: npm 11 `allowScripts` in package.json (`npm approve-scripts <pkg>`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`. Scripts that only `echo` or `exit 0` are not reported. Report the list to the user rather than silently changing install behaviour.",
   },
   check: (context) => {
     const manifest = readManifest(context);
@@ -28,12 +24,15 @@ export default defineFsRule({
     const location = findLockfiles(context);
     if (!location) return;
 
+    const policy = readInstallScriptPolicy(context, location);
+    if (policy.allowlistOnly) return;
+
     const withScripts = new Set<string>();
     for (const lockfile of readLockfiles(context, location)) {
       for (const entry of lockfile.packages) {
-        if (entry.hasInstallScript && entry.topLevel && manifest.dependencies.has(entry.name)) {
-          withScripts.add(entry.name);
-        }
+        if (!entry.hasInstallScript || !entry.topLevel || !manifest.dependencies.has(entry.name)) continue;
+        if (policy.reviewed.has(entry.name) || hasOnlyTrivialInstallScripts(context, location, entry.name)) continue;
+        withScripts.add(entry.name);
       }
     }
 
