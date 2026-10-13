@@ -73,6 +73,9 @@ export const isEnabled = (meta: RuleMeta, framework: Framework): boolean => {
 const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
   severity === "error" ? "error" : "warn";
 
+/** Options per own rule, keyed by the rule's flat name (`require-input-validation`). */
+export type RuleOptionsById = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+
 interface OxlintConfigOptions {
   pluginPath: string;
   framework: Framework;
@@ -80,16 +83,22 @@ interface OxlintConfigOptions {
   nuxt?: VueDoctorSettings["nuxt"];
   /** The project's capabilities; when omitted, rules that require one are kept. */
   capabilities?: ReadonlySet<ProjectCapability>;
+  /** Options for rules that declare `options`; entries for other rules are ignored. */
+  ruleOptions?: RuleOptionsById;
 }
+
+type OxlintRuleEntry = "error" | "warn" | ["error" | "warn", Readonly<Record<string, unknown>>];
 
 const hasRequiredCapabilities = (meta: RuleMeta, capabilities: ReadonlySet<ProjectCapability> | undefined): boolean =>
   !capabilities || (meta.requires ?? []).every((capability) => capabilities.has(capability));
 
-export const createOxlintConfig = ({ pluginPath, framework, nuxt, capabilities }: OxlintConfigOptions) => {
-  const rules: Record<string, "error" | "warn"> = {};
+export const createOxlintConfig = ({ pluginPath, framework, nuxt, capabilities, ruleOptions = {} }: OxlintConfigOptions) => {
+  const rules: Record<string, OxlintRuleEntry> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
     if (!isEnabled(meta, framework) || !hasRequiredCapabilities(meta, capabilities)) continue;
-    rules[`${PLUGIN_NAME}/${meta.id}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const severity = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const options = meta.options ? ruleOptions[meta.id] : undefined;
+    rules[`${PLUGIN_NAME}/${meta.id}`] = options && Object.keys(options).length > 0 ? [severity, options] : severity;
   }
 
   return {

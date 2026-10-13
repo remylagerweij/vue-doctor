@@ -31,7 +31,6 @@ import nuxtNuxtNoImgElement from "./nuxt/nuxt-no-img-element.js";
 import nuxtNuxtNoProcessEnvInClient from "./nuxt/nuxt-no-process-env-in-client.js";
 import nuxtNuxtNoWindowInSsr from "./nuxt/nuxt-no-window-in-ssr.js";
 import nuxtNuxtRequireSeoMeta from "./nuxt/nuxt-require-seo-meta.js";
-import nuxtNuxtRequireServerRouteErrorHandling from "./nuxt/nuxt-require-server-route-error-handling.js";
 import nuxtSecurityHeaders from "./nuxt/security-headers.js";
 import performanceAsyncParallel from "./performance/async-parallel.js";
 import performanceClientPassiveEventListeners from "./performance/client-passive-event-listeners.js";
@@ -80,6 +79,7 @@ import securityNoUserControlledUrl from "./security/no-user-controlled-url.js";
 import securityPostmessageOriginCheck from "./security/postmessage-origin-check.js";
 import serverAuthMissing from "./server/auth-missing.js";
 import serverCsrfOnMutatingRoutes from "./server/csrf-on-mutating-routes.js";
+import serverNoLeakyErrorRethrow from "./server/no-leaky-error-rethrow.js";
 import serverRequireInputValidation from "./server/require-input-validation.js";
 import serverSecureCookieFlags from "./server/secure-cookie-flags.js";
 import serverServerNoConsoleInHandler from "./server/server-no-console-in-handler.js";
@@ -118,7 +118,6 @@ export const ruleModules: readonly (DefinedRule | DefinedFsRule | DefinedAuditRu
   nuxtNuxtNoProcessEnvInClient,
   nuxtNuxtNoWindowInSsr,
   nuxtNuxtRequireSeoMeta,
-  nuxtNuxtRequireServerRouteErrorHandling,
   nuxtSecurityHeaders,
   performanceAsyncParallel,
   performanceClientPassiveEventListeners,
@@ -167,6 +166,7 @@ export const ruleModules: readonly (DefinedRule | DefinedFsRule | DefinedAuditRu
   securityPostmessageOriginCheck,
   serverAuthMissing,
   serverCsrfOnMutatingRoutes,
+  serverNoLeakyErrorRethrow,
   serverRequireInputValidation,
   serverSecureCookieFlags,
   serverServerNoConsoleInHandler,

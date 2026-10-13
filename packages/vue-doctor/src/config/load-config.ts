@@ -64,7 +64,14 @@ export const validateConfig = async (value: unknown, filePath: string): Promise<
   if (!result.success) {
     throw new ConfigError(filePath, result.error.issues.flatMap(formatIssue));
   }
-  return value as VueDoctorConfig;
+  const config = value as VueDoctorConfig;
+  // The rule registry is only loaded when some rule is given options.
+  if (Object.values(config.rules ?? {}).some((entry) => Array.isArray(entry) && entry.length === 2)) {
+    const { validateRuleOptions } = await import("./validate-rule-options.js");
+    const issues = validateRuleOptions(config);
+    if (issues.length > 0) throw new ConfigError(filePath, issues);
+  }
+  return config;
 };
 
 const readJson = (filePath: string): unknown => {

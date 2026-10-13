@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleConfig, getEnabledFsRules } from "../plugin/registry.js";
+import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleConfig, getEnabledFsRules, type RuleOptionsById } from "../plugin/registry.js";
 import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
 import { listNuxtKnipInputs, readNuxtRenderSettings } from "../utils/nuxt-project.js";
@@ -54,7 +54,12 @@ export interface CacheContexts {
   project: string;
 }
 
-export const computeCacheContexts = (directory: string, project: ProjectInfo): CacheContexts => {
+export const computeCacheContexts = (
+  directory: string,
+  project: ProjectInfo,
+  /** Lint rule options (configured and inferred); a change re-lints every file. */
+  ruleOptions?: RuleOptionsById,
+): CacheContexts => {
   const tools = getToolVersions();
   const ownCode = hashOwnCode();
   const tsconfig = project.hasTypeScript ? hashFileOrMissing(path.join(directory, "tsconfig.json")) : "none";
@@ -68,6 +73,7 @@ export const computeCacheContexts = (directory: string, project: ProjectInfo): C
         framework: project.framework,
         nuxt: project.framework === "nuxt" ? readNuxtRenderSettings(directory) : undefined,
         capabilities: detectProjectCapabilities(directory),
+        ruleOptions,
       }),
       tsconfig,
     }),

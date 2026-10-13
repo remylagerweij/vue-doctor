@@ -41,7 +41,6 @@
     "vue-doctor/nuxt-no-process-env-in-client": "warn",
     "vue-doctor/nuxt-no-window-in-ssr": "warn",
     "vue-doctor/nuxt-require-seo-meta": "warn",
-    "vue-doctor/nuxt-require-server-route-error-handling": "warn",
     "vue-doctor/security-headers": "warn",
     "vue-doctor/async-parallel": "warn",
     "vue-doctor/client-passive-event-listeners": "warn",
@@ -88,6 +87,7 @@
     "vue-doctor/postmessage-origin-check": "warn",
     "vue-doctor/auth-missing": "warn",
     "vue-doctor/csrf-on-mutating-routes": "warn",
+    "vue-doctor/no-leaky-error-rethrow": "warn",
     "vue-doctor/require-input-validation": "warn",
     "vue-doctor/secure-cookie-flags": "warn",
     "vue-doctor/server-no-console-in-handler": "warn"

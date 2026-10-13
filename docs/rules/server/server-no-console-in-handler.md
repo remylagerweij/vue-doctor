@@ -1,6 +1,6 @@
 # `vue-doctor/server/server-no-console-in-handler`
 
-> Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`
+> Remove debug `console.log/debug/trace` calls from request handlers; they flood production logs and can leak request data
 
 | Property | Value |
 |---|---|
@@ -16,7 +16,7 @@
 
 ## Why it matters
 
-Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`
+Remove debug `console.log/debug/trace` calls from request handlers; they flood production logs and can leak request data
 
 ## How to fix
 
@@ -24,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Replace `console.log/info/warn` in server handlers with a structured logger such as `consola` or `pino`; keep the message and add context as fields.
+Delete leftover `console.log`, `console.debug` and `console.trace` calls in `server/api`, `server/routes` and `server/middleware` handlers, especially ones that print request data, user ids, emails or addresses (PII). If the message reports a degraded path or a failure someone must act on, keep it as `console.warn` or `console.error` with a fixed prefix and no personal data. Do not add a logging library just for this.
 
 ---
 

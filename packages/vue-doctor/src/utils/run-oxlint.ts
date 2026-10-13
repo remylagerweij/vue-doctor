@@ -8,7 +8,7 @@ import {
   VUE_FILE_PATTERN,
   SPAWN_ARGS_MAX_LENGTH_CHARS,
 } from "../constants.js";
-import { createOxlintConfig, getRuleMeta, toDiagnosticRule } from "../plugin/registry.js";
+import { createOxlintConfig, getRuleMeta, toDiagnosticRule, type RuleOptionsById } from "../plugin/registry.js";
 import type { CleanedDiagnostic, Diagnostic, Framework, OxlintOutput } from "../types.js";
 import { createDefusedMirror, findFilesWithForeignDirectives } from "./defuse-inline-directives.js";
 import { normalizeRelativePath } from "./list-source-files.js";
@@ -163,6 +163,7 @@ export const runOxlint = async (
   includePaths?: string[],
   nodeBinaryPath: string = process.execPath,
   onCommand?: CommandListener,
+  ruleOptions?: RuleOptionsById,
 ): Promise<Diagnostic[]> => {
   if (includePaths !== undefined && includePaths.length === 0) {
     return [];
@@ -170,7 +171,13 @@ export const runOxlint = async (
 
   const pluginPath = resolvePluginPath();
   const nuxt = framework === "nuxt" ? readNuxtRenderSettings(rootDirectory) : undefined;
-  const config = createOxlintConfig({ pluginPath, framework, nuxt, capabilities: detectProjectCapabilities(rootDirectory) });
+  const config = createOxlintConfig({
+    pluginPath,
+    framework,
+    nuxt,
+    capabilities: detectProjectCapabilities(rootDirectory),
+    ruleOptions,
+  });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;
 

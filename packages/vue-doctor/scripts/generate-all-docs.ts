@@ -42,6 +42,23 @@ for (const meta of RULE_REGISTRY) {
     secRows.push(`| **OWASP** | ${meta.owasp} |`);
   }
 
+  const optionsSection = meta.options
+    ? `## Options
+
+Set options next to the severity: \`"${canonicalId}": ["warn", { ... }]\`.
+
+| Option | Type | Description |
+|---|---|---|
+${Object.entries(meta.options.properties)
+  .map(([name, option]) => {
+    const type = option.type === "array" ? "string[]" : option.enum ? option.enum.map((value) => `\`"${value}"\``).join(" \\| ") : option.type;
+    return `| \`${name}\` | ${type} | ${option.description} |`;
+  })
+  .join("\n")}
+
+`
+    : "";
+
   const content = `# \`${canonicalId}\`
 
 > ${meta.help}
@@ -65,7 +82,7 @@ ${meta.help}
 
 ${meta.fixable ? "This rule is automatically fixable. Run `npx @remylagerweij/vue-doctor@latest . --fix` to apply the codemod." : "Review the finding and update the code according to best practices below."}
 
-## Agent Guidance
+${optionsSection}## Agent Guidance
 
 ${meta.agentGuidance}
 
