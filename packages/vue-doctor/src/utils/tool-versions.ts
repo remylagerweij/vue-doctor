@@ -5,7 +5,15 @@ import path from "node:path";
 const require = createRequire(import.meta.url);
 
 /** Analyzer packages whose versions affect findings; reported by `--debug`. */
-const TOOL_PACKAGES = ["oxlint", "eslint", "eslint-plugin-vue", "vue-eslint-parser", "knip"] as const;
+const TOOL_PACKAGES = [
+  "oxlint",
+  "eslint",
+  "eslint-plugin-vue",
+  "vue-eslint-parser",
+  "@typescript-eslint/parser",
+  "typescript",
+  "knip",
+] as const;
 
 /**
  * Finds a dependency's version without relying on `<name>/package.json` being exported: resolve

@@ -59,7 +59,8 @@
     "vue-doctor/reactivity/no-reactive-replace": 1,
     "vue-doctor/reactivity/no-ref-from-prop": 1,
     "vue-doctor/reactivity/no-watch-for-computed": 3,
-    "vue-doctor/reactivity/prefer-computed": 1
+    "vue-doctor/reactivity/prefer-computed": 1,
+    "vue/no-side-effects-in-computed-properties": 1
   },
   "Security": {
     "vue-doctor/security/no-eval": 1,

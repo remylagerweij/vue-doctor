@@ -9,7 +9,9 @@ import {
   getRuleMeta,
   toDiagnosticRule,
 } from "../plugin/registry.js";
+import { SCRIPT_DEPENDENT_TEMPLATE_RULES } from "../plugin/template-rules.js";
 import type { Diagnostic } from "../types.js";
+import { loadTypescriptParser } from "./load-typescript-parser.js";
 
 // Directory-form patterns so ESLint prunes these trees instead of walking them.
 const ALWAYS_IGNORED_PATTERNS = [
@@ -83,10 +85,27 @@ export const runEslintVue = async (
   }
 
   // Lazy-loaded: ESLint and its plugin are heavy and unused when template checks are off.
-  const [{ ESLint: EslintClass }, { default: pluginVue }] = await Promise.all([
+  const [{ ESLint: EslintClass }, { default: pluginVue }, espree] = await Promise.all([
     import("eslint"),
     import("eslint-plugin-vue"),
+    import("espree"),
   ]);
+
+  const typescriptParser = loadTypescriptParser();
+  // Template expressions are nearly always plain JS, which espree parses far faster than TypeScript.
+  const templateExpressionParser = {
+    parse: (code: string, options: Linter.ParserOptions) => {
+      try {
+        return espree.parse(code, options as Parameters<typeof espree.parse>[1]);
+      } catch {
+        return typescriptParser.parse(code, options);
+      }
+    },
+  };
+  const templateRules = createTemplateRuleConfig();
+  const templateOnlyRules = Object.fromEntries(
+    Object.entries(templateRules).filter(([ruleId]) => !SCRIPT_DEPENDENT_TEMPLATE_RULES.has(ruleId)),
+  );
 
   const createEslint = (skipScriptParsing: boolean): ESLint =>
     new EslintClass({
@@ -103,15 +122,24 @@ export const runEslintVue = async (
           languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
-            // `false` makes vue-eslint-parser skip <script>, keeping template rules working
-            // for languages the default parser cannot read (e.g. lang="ts").
-            ...(skipScriptParsing ? { parserOptions: { parser: false } } : {}),
+            parserOptions: {
+              // `false` skips <script> so template rules survive a script that does not parse.
+              parser: skipScriptParsing
+                ? false
+                : {
+                    "<template>": templateExpressionParser,
+                    ts: typescriptParser,
+                    tsx: typescriptParser,
+                    js: "espree",
+                    jsx: "espree",
+                  },
+            },
           },
           linterOptions: { reportUnusedDisableDirectives: "off" },
           // Vue Doctor's own template rules (e.g. `v-html`), next to eslint-plugin-vue's.
           plugins: { [CUSTOM_TEMPLATE_PLUGIN_NAME]: { rules: CUSTOM_TEMPLATE_RULES } },
           rules: {
-            ...createTemplateRuleConfig(),
+            ...(skipScriptParsing ? templateOnlyRules : templateRules),
             ...createCustomTemplateRuleConfig(),
             // eslint-plugin-vue applies <!-- eslint-disable --> template comments through this rule,
             // independently of allowInlineConfig. Off, so only vue-doctor-disable suppresses.
@@ -132,8 +160,7 @@ export const runEslintVue = async (
   try {
     results = await createEslint(false).lintFiles(patterns);
 
-    // <script lang="ts"> cannot be read by the default parser, which would drop every template
-    // finding in that file. Retry those files with script parsing disabled.
+    // A script syntax error would drop every template finding in the file: retry without the script.
     const unparsableFiles = results.filter(hasFatalMessage).map((result) => result.filePath);
     if (unparsableFiles.length > 0) {
       const retried = await createEslint(true).lintFiles(unparsableFiles);

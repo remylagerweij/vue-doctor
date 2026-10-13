@@ -1,14 +1,14 @@
 ## 🩺 Vue Doctor: 🟠 **50/100** (Needs work)
 
-> **Score capped at 50** (60 before the cap) because of a high-confidence security error in `vue-doctor/security/no-eval`.
+> **Score capped at 50** (59 before the cap) because of a high-confidence security error in `vue-doctor/security/no-eval`.
 
-3 errors · 64 warnings
+3 errors · 65 warnings
 
 | Category | Score | Errors | Warnings |
 | --- | ---: | ---: | ---: |
 | Performance | 🟡 87 | 0 | 25 |
 | Correctness | 🟢 91 | 2 | 14 |
-| Reactivity | 🟢 93 | 0 | 11 |
+| Reactivity | 🟢 93 | 0 | 12 |
 | Security | 🟢 96 | 1 | 4 |
 | Bundle Size | 🟢 97 | 0 | 4 |
 | Ecosystem | 🟢 97 | 0 | 4 |
@@ -16,7 +16,7 @@
 
 **Biggest improvements**
 
-- Fixing [`vue-doctor/security/no-eval`](https://remylagerweij.github.io/vue-doctor/rules/security/no-eval) gains **+11**
+- Fixing [`vue-doctor/security/no-eval`](https://remylagerweij.github.io/vue-doctor/rules/security/no-eval) gains **+10**
 
 ---
 
@@ -250,4 +250,4 @@ List specific properties: \`transition: "opacity 200ms, transform 200ms"\` — o
 
 - `performance-issues.vue:11`: transition: "all" animates every CSS property — list specific properties instead
 
-_… and 17 more findings not shown. Use `--format json` for the complete list._
+_… and 18 more findings not shown. Use `--format json` for the complete list._

@@ -10,6 +10,9 @@ const vue = (script: string, template: string): string =>
 
 const optionsApi = (options: string): string => `<script>\nexport default {\n${options}\n};\n</script>\n<template><div /></template>\n`;
 
+const typedVue = (template: string, script: string): string =>
+  `<template>\n${template}\n</template>\n<script setup lang="ts">\n${script}\n</script>\n`;
+
 const FILENAME = "src/Comp.vue";
 
 const cases: Record<string, RuleCases> = {
@@ -30,8 +33,14 @@ const cases: Record<string, RuleCases> = {
     invalid: [{ name: "v-slot on a plain element", filename: FILENAME, code: vue("", `<div v-slot="props">{{ props }}</div>`) }],
   },
   "vue/require-explicit-emits": {
-    valid: [{ name: "event declared with defineEmits", filename: FILENAME, code: vue("defineEmits(['save'])", `<button @click="$emit('save')">Save</button>`) }],
-    invalid: [{ name: "emit of an undeclared event", filename: FILENAME, code: vue("defineProps(['label'])", `<button @click="$emit('save')">Save</button>`) }],
+    valid: [
+      { name: "event declared with defineEmits", filename: FILENAME, code: vue("defineEmits(['save'])", `<button @click="$emit('save')">Save</button>`) },
+      { name: "event declared with a typed defineEmits after the template", filename: FILENAME, code: typedVue(`<button @click="$emit('save')">Save</button>`, "defineEmits<{ (e: 'save'): void }>()") },
+    ],
+    invalid: [
+      { name: "emit of an undeclared event", filename: FILENAME, code: vue("defineProps(['label'])", `<button @click="$emit('save')">Save</button>`) },
+      { name: "emit missing from a typed defineEmits", filename: FILENAME, code: typedVue(`<button @click="$emit('save')">Save</button>`, "defineEmits<{ (e: 'close'): void }>()") },
+    ],
   },
   "vue/component-name-in-template-casing": {
     valid: [{ name: "PascalCase component tag", filename: FILENAME, code: vue("import MyButton from './MyButton.vue'", `<MyButton />`) }],
@@ -63,7 +72,10 @@ const cases: Record<string, RuleCases> = {
   },
   "vue/no-ref-as-operand": {
     valid: [{ name: "ref accessed through .value", filename: FILENAME, code: vue("import { ref } from 'vue'\nconst n = ref(0)\nn.value++", `<p>{{ n }}</p>`) }],
-    invalid: [{ name: "ref incremented directly", filename: FILENAME, code: vue("import { ref } from 'vue'\nconst n = ref(0)\nn++", `<p>{{ n }}</p>`) }],
+    invalid: [
+      { name: "ref incremented directly", filename: FILENAME, code: vue("import { ref } from 'vue'\nconst n = ref(0)\nn++", `<p>{{ n }}</p>`) },
+      { name: "typed ref incremented directly", filename: FILENAME, code: typedVue(`<p>{{ n }}</p>`, "import { ref } from 'vue'\nconst n = ref<number>(0)\nn++") },
+    ],
   },
   "vue/valid-v-bind": {
     valid: [{ name: "v-bind with a value", filename: FILENAME, code: vue("", `<div :id="uid"></div>`) }],
