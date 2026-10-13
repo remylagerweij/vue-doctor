@@ -76,9 +76,11 @@ const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
 interface OxlintConfigOptions {
   pluginPath: string;
   framework: Framework;
+  /** How the Nuxt app renders (see `readNuxtRenderSettings`); only meaningful for Nuxt. */
+  nuxt?: VueDoctorSettings["nuxt"];
 }
 
-export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOptions) => {
+export const createOxlintConfig = ({ pluginPath, framework, nuxt }: OxlintConfigOptions) => {
   const rules: Record<string, "error" | "warn"> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
     if (!isEnabled(meta, framework)) continue;
@@ -99,7 +101,7 @@ export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOption
     jsPlugins: [pluginPath],
     rules,
     settings: {
-      [SETTINGS_KEY]: { framework } satisfies VueDoctorSettings,
+      [SETTINGS_KEY]: { framework, ...(framework === "nuxt" && nuxt ? { nuxt } : {}) } satisfies VueDoctorSettings,
     },
   };
 };

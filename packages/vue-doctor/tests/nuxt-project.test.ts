@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { diagnose } from "../src/index.js";
-import { isUnpreparedNuxtProject, listNuxtKnipInputs } from "../src/utils/nuxt-project.js";
+import { isUnpreparedNuxtProject, listNuxtKnipInputs, readNuxtRenderSettings } from "../src/utils/nuxt-project.js";
 
 const temporaryDirectories: string[] = [];
 const makeTree = (files: Record<string, string | object>): string => {
@@ -19,6 +19,51 @@ const makeTree = (files: Record<string, string | object>): string => {
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
+});
+
+describe("readNuxtRenderSettings", () => {
+  it("reads the routeRules that set ssr, ignoring everything else in the config", () => {
+    const root = makeTree({
+      "nuxt.config.ts": `import { defineNuxtConfig } from "nuxt/config"
+const isDev = process.env.NODE_ENV !== "production"
+
+export default defineNuxtConfig({
+  modules: ["@pinia/nuxt", ["@nuxtjs/supabase", { redirect: false }]],
+  // ssr: false would make the whole app client-rendered
+  ssr: true,
+  runtimeConfig: { public: { siteUrl: process.env.SITE_URL || "https://example.test" } },
+  routeRules: {
+    "/": { prerender: true },
+    "/motoren": { ssr: false },
+    '/account/**': { ssr: false, headers: { "cache-control": "no-store" } },
+    "/merk/**": { isr: 3600, ssr: true },
+    [\`/dynamic/\${"x"}\`]: { ssr: false },
+    "/api/**": { cors: true },
+    ...(isDev ? { "/dev/**": { ssr: false } } : {}),
+  } as const,
+  vite: { plugins: [] },
+})
+`,
+    });
+    expect(readNuxtRenderSettings(root)).toEqual({
+      ssr: true,
+      routeRules: [
+        { path: "/motoren", ssr: false },
+        { path: "/account/**", ssr: false },
+        { path: "/merk/**", ssr: true },
+      ],
+    });
+  });
+
+  it("reads a top-level ssr: false and plain object exports", () => {
+    const root = makeTree({ "nuxt.config.js": `export default { ssr: false, app: { head: { title: "SPA" } } }\n` });
+    expect(readNuxtRenderSettings(root)).toEqual({ ssr: false });
+  });
+
+  it("returns nothing for a missing or unreadable config", () => {
+    expect(readNuxtRenderSettings(makeTree({ "package.json": {} }))).toEqual({});
+    expect(readNuxtRenderSettings(makeTree({ "nuxt.config.ts": "export default createConfig()\n" }))).toEqual({});
+  });
 });
 
 describe("Nuxt preparation", () => {

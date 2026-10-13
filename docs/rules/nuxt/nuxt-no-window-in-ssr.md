@@ -24,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`.
+Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`. Code that only runs from client-only places is already fine: lifecycle hooks other than setup, template event handlers, DOM event listeners, `watch` callbacks without `immediate`, post-flush effects, `*.client.*` files and pages with `ssr: false` in `routeRules`. A function that is exported or returned from a composable cannot be traced to its callers; guard it inside.
 
 ---
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleConfig, getEnabledFsRules } from "../plugin/registry.js";
 import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
-import { listNuxtKnipInputs } from "../utils/nuxt-project.js";
+import { listNuxtKnipInputs, readNuxtRenderSettings } from "../utils/nuxt-project.js";
 import { listProjectSourceFiles } from "../utils/list-source-files.js";
 import { resolvePluginPath } from "../utils/run-oxlint.js";
 import { getToolVersions } from "../utils/tool-versions.js";
@@ -62,7 +62,11 @@ export const computeCacheContexts = (directory: string, project: ProjectInfo): C
     JSON.stringify({
       ownCode,
       oxlint: tools.oxlint,
-      config: createOxlintConfig({ pluginPath: "", framework: project.framework }),
+      config: createOxlintConfig({
+        pluginPath: "",
+        framework: project.framework,
+        nuxt: project.framework === "nuxt" ? readNuxtRenderSettings(directory) : undefined,
+      }),
       tsconfig,
     }),
   );
