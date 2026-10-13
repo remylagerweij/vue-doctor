@@ -36,6 +36,44 @@ const cases: RuleCases = {
 });
 `,
     },
+    {
+      name: "project guard named like ensureAdmin",
+      filename: "server/api/admin/premium/[id].delete.ts",
+      code: `export default defineEventHandler(async (event) => {
+  await ensureAdmin(event);
+  return deletePlan(getRouterParam(event, "id"));
+});
+`,
+    },
+    {
+      name: "project guards named requirePlatformOperator and requireOrganizationContext",
+      filename: "server/api/operator/organizations/index.post.ts",
+      code: `export default defineEventHandler(async (event) => {
+  const { client } = await requirePlatformOperator(event);
+  const { organizationId } = await requireOrganizationContext(event);
+  return createOrganization(client, organizationId);
+});
+`,
+    },
+    {
+      name: "guard listed in the authFunctions option",
+      filename: "server/api/admin/stats.get.ts",
+      options: { authFunctions: ["gatekeeper"] },
+      code: `export default defineEventHandler(async (event) => {
+  await gatekeeper(event);
+  return loadStats();
+});
+`,
+    },
+    {
+      name: "session set on the event by a server middleware",
+      filename: "server/api/notes.post.ts",
+      code: `export default defineEventHandler(async (event) => {
+  if (!event.context.user) throw createError({ statusCode: 401 });
+  return addNote(event.context.user.id);
+});
+`,
+    },
   ],
   invalid: [
     {
@@ -60,6 +98,25 @@ const cases: RuleCases = {
       filename: "server/api/account.delete.ts",
       code: `export default defineEventHandler((event) => {
   return deleteAccount();
+});
+`,
+    },
+    {
+      name: "a userId member name is not an auth check",
+      filename: "server/api/admin/premium/index.post.ts",
+      code: `export default defineEventHandler(async (event) => {
+  const body = await readBody(event);
+  return createPlan({ ownerId: body.userId, token: body.token });
+});
+`,
+    },
+    {
+      name: "admin route calling a non-guard helper",
+      filename: "server/api/admin/tco/index.post.ts",
+      options: { authFunctions: ["ensureAdmin"] },
+      code: `export default defineEventHandler(async (event) => {
+  await loadPlans(event);
+  return { ok: true };
 });
 `,
     },

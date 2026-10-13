@@ -110,6 +110,36 @@ describe("loadConfig", () => {
     await expectConfigError(directory, "gate.minScore", "rules.no-moment");
   });
 
+  it("reports unknown and mistyped options of rules that take options", async () => {
+    const directory = makeProject({
+      "vue-doctor.config.json": JSON.stringify({
+        rules: {
+          "vue-doctor/server/require-input-validation": ["warn", { validators: "parseBody", strict: true }],
+          "vue-doctor/server/csrf-on-mutating-routes": ["warn", { sessionCookieSameSite: "loose" }],
+        },
+      }),
+    });
+    const error = await expectConfigError(
+      directory,
+      'option "validators" must be an array of strings',
+      'unknown option "strict" (accepted: validators)',
+      'option "sessionCookieSameSite" must be one of "strict", "lax", "none"',
+    );
+    expect(error.issues).toHaveLength(3);
+  });
+
+  it("accepts valid rule options, also under a 1.x rule ID", async () => {
+    const config = {
+      rules: {
+        "vue-doctor/server/auth-missing": ["warn", { authFunctions: ["ensureAdmin"] }],
+        "require-input-validation": ["error", { validators: ["parseBody"] }],
+        "vue-doctor/performance/no-deep-watch": ["warn", {}],
+      },
+    };
+    const loaded = await loadConfig(makeProject({ "vue-doctor.config.json": JSON.stringify(config) }));
+    expect(loaded?.config).toEqual(config);
+  });
+
   it("reports invalid JSON instead of silently ignoring it", async () => {
     await expectConfigError(makeProject({ "vue-doctor.config.json": "{ nope" }), "vue-doctor.config.json");
     await expectConfigError(makeProject({ "package.json": "{ nope" }), "package.json");
