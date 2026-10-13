@@ -19,22 +19,56 @@ const cases: RuleCases = {
       code: `export const names = users.sort(byName).map((user) => user.name);\n`,
     },
     {
-      name: "separate statements on separate arrays",
-      code: `export const a = xs.map((x) => x + 1);\nexport const b = ys.filter((y) => y > 1);\n`,
+      name: "a single two-step chain outside any loop",
+      code: `export const names = users.filter((user) => user.active).map((user) => user.name);\n`,
+    },
+    {
+      name: "trimming a small array literal of recipients",
+      code: `export const recipients = [to, cc, bcc].map((address) => address?.trim()).filter(Boolean);\n`,
+    },
+    {
+      name: "map then filter(Boolean) inside a loop only compacts",
+      code: `export const run = (groups) => { for (const group of groups) { send(group.items.map(toId).filter(Boolean)); } };\n`,
+    },
+    {
+      name: "map then a type-guard filter keeps the narrowed type",
+      code: `export const ids = (rows: Row[]) => rows.map((row) => row.organizationId).filter((id): id is number => typeof id === "number");\n`,
+    },
+    {
+      name: "chain in a for-of head runs once",
+      code: `export const run = (rows) => { for (const id of rows.filter(isActive).map(toId)) use(id); };\n`,
+    },
+    {
+      name: "chain inside a computed getter is not a loop",
+      filename: "src/Comp.vue",
+      code: `<script setup>\nconst visible = computed(() => lineStyles.value.filter((style) => style.visible).map((style) => style.key));\n</script>\n`,
     },
   ],
   invalid: [
     {
-      name: "filter then map",
-      code: `export const names = users.filter((user) => user.active).map((user) => user.name);\n`,
+      name: "three iteration methods in one chain",
+      code: `export const names = users.filter((user) => user.active).map((user) => user.profile).filter((profile) => profile.public);\n`,
     },
     {
-      name: "map then filter",
-      code: `export const positives = values.map((value) => value * 2).filter((value) => value > 0);\n`,
+      name: "map, filter(Boolean) and another map",
+      code: `export const names = rows.filter(isVisible).map(toLabel).filter(Boolean).map((label) => label.trim());\n`,
     },
     {
-      name: "map then forEach",
-      code: `rows.map((row) => normalize(row)).forEach((row) => render(row));\n`,
+      name: "filter then map inside a for-of loop",
+      code: `export const run = (groups) => { for (const group of groups) { send(group.items.filter((item) => item.active).map((item) => item.id)); } };\n`,
+    },
+    {
+      name: "map then filter inside a map callback",
+      code: `export const grid = rows.map((row) => row.cells.map((cell) => cell.value).filter((value) => value > 0));\n`,
+    },
+    {
+      name: "map then forEach inside a while loop",
+      code: `export const drain = (queue) => { while (queue.length) { queue.pop().map((row) => normalize(row)).forEach((row) => render(row)); } };\n`,
+    },
+    {
+      name: "long chain in script setup",
+      filename: "src/Comp.vue",
+      code: `<script setup>\nconst tags = computed(() => posts.value.flatMap((post) => post.tags).filter((tag) => tag.length).map((tag) => tag.toLowerCase()));\n</script>\n`,
     },
   ],
 };

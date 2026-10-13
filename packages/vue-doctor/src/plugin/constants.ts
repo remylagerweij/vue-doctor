@@ -52,13 +52,8 @@ export const BARREL_INDEX_SUFFIXES = [
   "/index.vue",
   "/index.mjs",
 ];
-export const PASSIVE_EVENT_NAMES = new Set([
-  "scroll",
-  "wheel",
-  "touchstart",
-  "touchmove",
-  "touchend",
-]);
+// Only cancelable events whose listeners can block scrolling; `scroll` and `touchend` cannot.
+export const PASSIVE_EVENT_NAMES = new Set(["touchstart", "touchmove", "wheel", "mousewheel"]);
 
 export const LOOP_TYPES = [
   "ForStatement",

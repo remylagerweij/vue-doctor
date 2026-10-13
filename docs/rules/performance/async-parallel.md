@@ -23,7 +23,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result.
+Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result, where an auth, rate-limit or validation guard must finish first, or where writes must land in order.
 
 ---
 

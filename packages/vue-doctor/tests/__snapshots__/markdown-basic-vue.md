@@ -2,11 +2,11 @@
 
 > **Score capped at 50** (60 before the cap) because of a high-confidence security error in `vue-doctor/security/no-eval`.
 
-3 errors · 64 warnings
+3 errors · 63 warnings
 
 | Category | Score | Errors | Warnings |
 | --- | ---: | ---: | ---: |
-| Performance | 🟡 87 | 0 | 25 |
+| Performance | 🟡 87 | 0 | 24 |
 | Correctness | 🟢 91 | 2 | 14 |
 | Reactivity | 🟢 93 | 0 | 11 |
 | Security | 🟢 96 | 1 | 4 |
@@ -43,7 +43,7 @@ Add a unique \`:key\` attribute to every \`v-for\` iteration element
 Use template refs: \`const el = ref&lt;HTMLElement&gt;\(\)\` with \`ref="el"\` instead of \`document.querySelector\(\)\`
 
 - `correctness-issues.vue:26`: document.querySelector\(\) — use template refs instead of direct DOM manipulation in Vue
-- `js-perf-issues.ts:35`: document.createElement\(\) — use template refs instead of direct DOM manipulation in Vue
+- `js-perf-issues.ts:37`: document.createElement\(\) — use template refs instead of direct DOM manipulation in Vue
 - `js-perf-issues.vue:30`: document.createElement\(\) — use template refs instead of direct DOM manipulation in Vue
 
 ### ⚠️ [`vue-doctor/correctness/prefer-defineProps-destructure`](https://remylagerweij.github.io/vue-doctor/rules/correctness/prefer-defineProps-destructure) (3)
@@ -56,11 +56,11 @@ Destructure props for reactive access: \`const { prop1, prop2 } = defineProps&lt
 
 ### ⚠️ [`vue-doctor/performance/js-tosorted-immutable`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable) (3)
 
-Use \`array.toSorted\(\)\` \(ES2023\) instead of \`\[...array\].sort\(\)\` for cleaner immutable sorting
+Use \`array.toSorted\(\)\` instead of \`\[...array\].sort\(\)\`: same cost, clearer intent. Requires an ES2023 build target
 
-- `architecture-issues.vue:22`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
-- `js-perf-issues.ts:16`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
-- `js-perf-issues.vue:9`: \[...array\].sort\(\) — use array.toSorted\(\) for immutable sorting \(ES2023\)
+- `architecture-issues.vue:22`: \[...array\].sort\(\) — array.toSorted\(\) states the copy-and-sort intent directly \(ES2023\)
+- `js-perf-issues.ts:17`: \[...array\].sort\(\) — array.toSorted\(\) states the copy-and-sort intent directly \(ES2023\)
+- `js-perf-issues.vue:9`: \[...array\].sort\(\) — array.toSorted\(\) states the copy-and-sort intent directly \(ES2023\)
 
 ### ⚠️ [`vue-doctor/reactivity/no-watch-for-computed`](https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed) (3)
 
@@ -87,36 +87,29 @@ Declare props with a type argument: \`defineProps&lt;{ title: string }&gt;\(\)\`
 
 Cache \`localStorage.getItem\(\)\` result in a variable to avoid redundant reads
 
-- `js-perf-issues.ts:50`: localStorage.getItem\("key"\) called multiple times — cache the result in a variable
+- `js-perf-issues.ts:52`: localStorage.getItem\("key"\) called multiple times — cache the result in a variable
 - `js-perf-issues.vue:27`: localStorage.getItem\("token"\) called multiple times — cache the result in a variable
-
-### ⚠️ [`vue-doctor/performance/js-combine-iterations`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-combine-iterations) (2)
-
-Combine chained \`.map\(\).filter\(\)\` into a single \`.reduce\(\)\` or \`for...of\` loop
-
-- `js-perf-issues.ts:10`: .filter\(\).map\(\) iterates the array twice — combine into a single loop with .reduce\(\) or for...of
-- `js-perf-issues.vue:6`: .filter\(\).map\(\) iterates the array twice — combine into a single loop with .reduce\(\) or for...of
 
 ### ⚠️ [`vue-doctor/performance/js-early-exit`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-early-exit) (2)
 
 Use early returns to flatten deeply nested conditions for better readability
 
-- `js-perf-issues.ts:55`: 4 levels of nested if statements — use early returns to flatten
+- `js-perf-issues.ts:57`: 4 levels of nested if statements — use early returns to flatten
 - `js-perf-issues.vue:13`: 4 levels of nested if statements — use early returns to flatten
 
 ### ⚠️ [`vue-doctor/performance/js-min-max-loop`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-min-max-loop) (2)
 
 Use \`Math.min\(...array\)\` or \`Math.max\(...array\)\` — O\(n\) instead of O\(n log n\) with sort
 
-- `js-perf-issues.ts:25`: array.sort\(\)\[0\] for min/max — use Math.min\(...array\) instead \(O\(n\) vs O\(n log n\)\)
-- `js-perf-issues.ts:26`: array.sort\(\)\[length-1\] for min/max — use Math.max\(...array\) instead \(O\(n\) vs O\(n log n\)\)
+- `js-perf-issues.ts:26`: array.sort\(\)\[0\] for min/max — use Math.min\(...array\) instead \(O\(n\) vs O\(n log n\)\)
+- `js-perf-issues.ts:27`: array.sort\(\)\[length-1\] for min/max — use Math.max\(...array\) instead \(O\(n\) vs O\(n log n\)\)
 
 ### ⚠️ [`vue-doctor/performance/no-deep-watch`](https://remylagerweij.github.io/vue-doctor/rules/performance/no-deep-watch) (2)
 
-Watch the specific properties you need \(\`\(\) =&gt; state.user.name\`\) or use \`watchEffect\(\)\` instead of \`{ deep: true }\`
+Watch the specific properties you need \(\`\(\) =&gt; state.user.name\`\), limit the traversal with \`deep: 1\` \(Vue 3.5+\), or drop \`deep\` when the source is replaced rather than mutated
 
-- `ecosystem-issues.vue:17`: watch\(\) with { deep: true } traverses the entire object tree on every change — watch specific properties or use watchEffect\(\)
-- `performance-issues.vue:30`: watch\(\) with { deep: true } traverses the entire object tree on every change — watch specific properties or use watchEffect\(\)
+- `ecosystem-issues.vue:17`: watch\(\) with { deep: true } traverses the entire source on every change — watch specific properties, use deep: 1 \(Vue 3.5+\), or drop deep if the source is replaced
+- `performance-issues.vue:30`: watch\(\) with { deep: true } traverses the entire source on every change — watch specific properties, use deep: 1 \(Vue 3.5+\), or drop deep if the source is replaced
 
 ### ⚠️ [`vue-doctor/architecture/no-giant-component`](https://remylagerweij.github.io/vue-doctor/rules/architecture/no-giant-component) (1)
 
@@ -186,33 +179,39 @@ Use \`const \[a, b\] = await Promise.all\(\[fetchA\(\), fetchB\(\)\]\)\` to run 
 
 ### ⚠️ [`vue-doctor/performance/client-passive-event-listeners`](https://remylagerweij.github.io/vue-doctor/rules/performance/client-passive-event-listeners) (1)
 
-Add \`{ passive: true }\` as the third argument: \`addEventListener\('scroll', handler, { passive: true }\)\`
+Add \`{ passive: true }\` as the third argument: \`addEventListener\('touchmove', handler, { passive: true }\)\`
 
-- `performance-issues.vue:23`: addEventListener\("scroll"\) without { passive: true } — blocks scrolling performance
+- `performance-issues.vue:23`: addEventListener\("touchmove"\) without { passive: true } — the browser waits for the handler before scrolling
 
 ### ⚠️ [`vue-doctor/performance/js-batch-dom-css`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-batch-dom-css) (1)
 
-Batch style changes with \`el.style.cssText\` or \`el.classList.add\(\)\` to avoid multiple reflows
+Read layout \(\`offsetHeight\`, \`getBoundingClientRect\(\)\`\) before writing styles, not between style writes
 
-- `js-perf-issues.ts:37`: Multiple sequential element.style assignments — batch with cssText or classList for fewer reflows
+- `js-perf-issues.ts:39`: Layout read between style writes forces a synchronous reflow — read layout first, then write styles
+
+### ⚠️ [`vue-doctor/performance/js-combine-iterations`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-combine-iterations) (1)
+
+Fuse long \`.filter\(\).map\(\).filter\(\)\` chains, or chains that run inside a loop, into one \`.reduce\(\)\` or \`for...of\` pass
+
+- `js-perf-issues.ts:11`: .filter\(\).map\(\).filter\(\) walks the array 3 times — fuse it into a single for...of or .reduce\(\) pass
 
 ### ⚠️ [`vue-doctor/performance/js-hoist-regexp`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-hoist-regexp) (1)
 
-Hoist \`new RegExp\(\)\` to a module-level constant to avoid re-compilation on every iteration
+Hoist a \`new RegExp\(\)\` whose pattern does not change out of the loop so it is compiled once
 
-- `js-perf-issues.ts:20`: new RegExp\(\) inside a loop — hoist to a module-level constant
+- `js-perf-issues.ts:21`: new RegExp\(\) with a loop-invariant pattern is recompiled on every iteration — hoist it above the loop
 
 ### ⚠️ [`vue-doctor/performance/js-index-maps`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-index-maps) (1)
 
 Build a \`Map\` indexed by the search key before the loop for O\(1\) lookups
 
-- `js-perf-issues.ts:44`: array.find\(\) in a loop is O\(n\*m\) — build a Map for O\(1\) lookups
+- `js-perf-issues.ts:46`: array.find\(\) by key inside a loop is O\(n\*m\) — build a Map keyed by that field before the loop
 
 ### ⚠️ [`vue-doctor/performance/js-set-map-lookups`](https://remylagerweij.github.io/vue-doctor/rules/performance/js-set-map-lookups) (1)
 
 Convert the array to a \`Set\` before the loop for O\(1\) lookups instead of O\(n\)
 
-- `js-perf-issues.ts:30`: array.includes\(\) in a loop is O\(n\) per call — convert to a Set for O\(1\) lookups
+- `js-perf-issues.ts:32`: array.includes\(\) in a loop is O\(n\) per call — convert to a Set for O\(1\) lookups
 
 ### ⚠️ [`vue-doctor/performance/no-global-css-variable-animation`](https://remylagerweij.github.io/vue-doctor/rules/performance/no-global-css-variable-animation) (1)
 
@@ -250,4 +249,10 @@ List specific properties: \`transition: "opacity 200ms, transform 200ms"\` — o
 
 - `performance-issues.vue:11`: transition: "all" animates every CSS property — list specific properties instead
 
-_… and 17 more findings not shown. Use `--format json` for the complete list._
+### ⚠️ [`vue-doctor/reactivity/no-ref-from-prop`](https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop) (1)
+
+Remove the ref and derive inline: \`const value = computed\(\(\) =&gt; transform\(props.propName\)\)\`
+
+- `reactivity-issues.vue:7`: ref\(\) initialized from props.modelValue — this creates a copy that won't stay in sync. Use computed\(\) or toRef\(props, 'modelValue'\) instead
+
+_… and 16 more findings not shown. Use `--format json` for the complete list._

@@ -20,7 +20,7 @@ const layoutStyle = {
 }
 
 // client-passive-event-listeners
-window.addEventListener("scroll", () => {
+window.addEventListener("touchmove", () => {
   // nuxt-no-window-in-ssr (using window)
 });
 
