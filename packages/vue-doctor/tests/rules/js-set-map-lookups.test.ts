@@ -25,13 +25,15 @@ ruleTester.run("js-set-map-lookups", rule, {
     { code: `const v = [1]; function g() { const v = "str"; for (const x of xs) { v.includes(x) } }` },
     // A ref is only an array through .value
     { code: `const r = ref([]); for (const x of xs) { r.includes(x) }` },
+    // Small constant literal lists
+    { code: `const items = [1, 2, 3]; for (const i of xs) { if (items.includes(i)) {} }` },
   ],
   invalid: [
-    { code: `const items = [1, 2, 3]; for (const i of xs) { if (items.includes(i)) {} }`, errors: [{ message }] },
+    { code: `const seen = []; for (const i of xs) { if (!seen.includes(i)) seen.push(i) }`, errors: [{ message }] },
     { code: `for (const i of xs) { [1, 2, 3].indexOf(i) }`, errors: [{ message }] },
     { code: `const ids = rows.map((r) => r.id); while (go()) { ids.includes(next()) }`, errors: [{ message }] },
     {
-      code: `const selected = ref([]); for (const x of xs) { selected.value.includes(x) }`,
+      code: `const selected = ref([]); selected.value = load(); for (const x of xs) { selected.value.includes(x) }`,
       errors: [{ message }],
     },
   ],

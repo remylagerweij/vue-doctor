@@ -7,7 +7,8 @@ async function badAsync() {
 
 // js-combine-iterations
 const items = [1, 2, 3];
-items.filter(i => i > 0).map(i => i * 2);
+const rows = Array.from({ length: 100 }, (_, i) => i);
+rows.filter(i => i > 0).map(i => i * 2).filter(i => i < 50);
 
 // js-tosorted-immutable
 items.sort(); // Wait, rule checks [...arr].sort() or just .sort()?
@@ -26,16 +27,17 @@ items.sort()[0]; // Min
 items.sort()[items.length - 1]; // Max
 
 // js-set-map-lookups
-for (const i of items) {
-  if (items.includes(i)) {} // O(n) in loop
+const seen: number[] = [];
+for (const i of rows) {
+  if (!seen.includes(i)) seen.push(i); // O(n) in loop
 }
 
 // js-batch-dom-css
 function updateStyle() {
   const el = document.createElement("div");
   el.style.width = "100px";
-  el.style.height = "100px"; // Should trigger
-  // console.log(el.offsetWidth);
+  const width = el.offsetWidth; // Should trigger: forced reflow between writes
+  el.style.height = `${width}px`;
 }
 
 // js-index-maps

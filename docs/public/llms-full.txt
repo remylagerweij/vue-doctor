@@ -299,7 +299,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use `const [a, b] = await Promise.all([fetchA(), fetchB()])` to run independent operations concurrently
-- Agent Guidance: Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result.
+- Agent Guidance: Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result, where an auth, rate-limit or validation guard must finish first, or where writes must land in order.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/async-parallel
 
 ## vue-doctor/performance/client-passive-event-listeners
@@ -307,8 +307,8 @@
 - Default Severity: warning
 - Confidence: high
 - Fixable: No
-- Help: Add `{ passive: true }` as the third argument: `addEventListener('scroll', handler, { passive: true })`
-- Agent Guidance: Pass `{ passive: true }` as the third argument of `addEventListener` for scroll, touch and wheel events, unless the handler must call `preventDefault()`.
+- Help: Add `{ passive: true }` as the third argument: `addEventListener('touchmove', handler, { passive: true })`
+- Agent Guidance: Pass `{ passive: true }` as the third argument of `addEventListener` for `touchstart`, `touchmove` and `wheel`, so the browser can scroll without waiting for the handler. If the handler must call `preventDefault()`, pass `{ passive: false }` explicitly instead. `scroll` and `touchend` cannot block scrolling and are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/client-passive-event-listeners
 
 ## vue-doctor/performance/js-batch-dom-css
@@ -316,8 +316,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Batch style changes with `el.style.cssText` or `el.classList.add()` to avoid multiple reflows
-- Agent Guidance: Batch consecutive `el.style.x = ...` writes into one `el.style.cssText`/`Object.assign(el.style, {...})` or toggle a CSS class, so the browser lays out once.
+- Help: Read layout (`offsetHeight`, `getBoundingClientRect()`) before writing styles, not between style writes
+- Agent Guidance: Reported when a layout read sits between style writes in the same block, or a loop body both writes styles and reads layout: each read forces a synchronous reflow (layout thrashing). Do all reads first and all writes after, or move the writes into `requestAnimationFrame`. Consecutive style writes alone are fine: the browser batches them until the next read. A bare `el.offsetHeight;` used to restart a transition is deliberate and not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-batch-dom-css
 
 ## vue-doctor/performance/js-cache-storage
@@ -334,8 +334,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Combine chained `.map().filter()` into a single `.reduce()` or `for...of` loop
-- Agent Guidance: Fuse chained `.map().filter()` calls into one pass with `for...of` or `.reduce()` so the array is iterated once. Preserve the order of side effects.
+- Help: Fuse long `.filter().map().filter()` chains, or chains that run inside a loop, into one `.reduce()` or `for...of` pass
+- Agent Guidance: Only chains of three or more iteration methods, or chains evaluated on every iteration of a loop or array callback, are reported. Fuse them into one pass with `for...of` or `.reduce()`, preserving the order of side effects. A single `.map().filter()` over a small array costs microseconds and is better left readable.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-combine-iterations
 
 ## vue-doctor/performance/js-early-exit
@@ -352,8 +352,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration
-- Agent Guidance: Move the `new RegExp(...)` with a constant pattern out of the loop or function into a module-level constant so it is compiled once.
+- Help: Hoist a `new RegExp()` whose pattern does not change out of the loop so it is compiled once
+- Agent Guidance: Only reported when every argument is a literal or a value that does not change inside the loop. Move the `new RegExp(...)` above the loop, or to a module-level constant when its arguments are all literals. A pattern built from the loop variable cannot be hoisted and is not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-hoist-regexp
 
 ## vue-doctor/performance/js-index-maps
@@ -362,7 +362,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Build a `Map` indexed by the search key before the loop for O(1) lookups
-- Agent Guidance: Build a `Map` keyed by the lookup field once before the loop and use `map.get(key)` instead of calling `find`/`filter` for each item.
+- Agent Guidance: Reported when a loop searches the same array on every iteration with a key-equality predicate (`find(x => x.id === id)`). Build a `Map` keyed by that field once before the loop and use `map.get(key)` instead. Searches whose array changes per iteration, or whose predicate is not a key comparison, are left alone.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-index-maps
 
 ## vue-doctor/performance/js-min-max-loop
@@ -380,7 +380,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Convert the array to a `Set` before the loop for O(1) lookups instead of O(n)
-- Agent Guidance: Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop.
+- Agent Guidance: Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop. Small constant lists (an array literal of up to 16 elements that is never grown) are not reported: a linear scan over them is as fast as hashing.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-set-map-lookups
 
 ## vue-doctor/performance/js-tosorted-immutable
@@ -388,8 +388,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Use `array.toSorted()` (ES2023) instead of `[...array].sort()` for cleaner immutable sorting
-- Agent Guidance: Replace `[...array].sort(compare)` with `array.toSorted(compare)`; check that the project's target supports ES2023 first.
+- Help: Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent. Requires an ES2023 build target
+- Agent Guidance: This is a readability rewrite, not a speed-up: `toSorted` copies the array just like the spread does. Replace `[...array].sort(compare)` with `array.toSorted(compare)` only when the receiver is a real array (Sets, Maps and iterators have no `toSorted`) and the build target supports ES2023 (Chrome 110, Firefox 115, Safari 16); Vite does not polyfill it. Leave the spread when either is not the case.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable
 
 ## vue-doctor/performance/no-deep-watch
@@ -397,8 +397,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`
-- Agent Guidance: Replace `{ deep: true }` with a watch on the specific properties you need, such as `watch(() => state.user.name, ...)`, or use `watchEffect` which tracks only what it reads.
+- Help: Watch the specific properties you need (`() => state.user.name`), limit the traversal with `deep: 1` (Vue 3.5+), or drop `deep` when the source is replaced rather than mutated
+- Agent Guidance: `{ deep: true }` traverses the whole source on every trigger, which matters for large arrays or nested objects. Watch the specific properties you need, use a numeric depth such as `deep: 1` (Vue 3.5+), or drop `deep` entirely when the parent replaces the array or object instead of mutating it. Deep watches on primitive sources or on getters that return a literal of plain reads are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-deep-watch
 
 ## vue-doctor/performance/no-global-css-variable-animation

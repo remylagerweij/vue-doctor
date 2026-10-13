@@ -21,7 +21,7 @@
   "vue-doctor/performance/client-passive-event-listeners": 1,
   "vue-doctor/performance/js-batch-dom-css": 1,
   "vue-doctor/performance/js-cache-storage": 2,
-  "vue-doctor/performance/js-combine-iterations": 2,
+  "vue-doctor/performance/js-combine-iterations": 1,
   "vue-doctor/performance/js-early-exit": 2,
   "vue-doctor/performance/js-hoist-regexp": 1,
   "vue-doctor/performance/js-index-maps": 1,
