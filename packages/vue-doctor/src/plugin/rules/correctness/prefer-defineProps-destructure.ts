@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Destructure props for reactive access: `const { prop1, prop2 } = defineProps<Props>()`",
     agentGuidance: "Use reactive props destructure: `const { a, b = 1 } = defineProps<Props>()`, which stays reactive in Vue 3.5+. Check the project's Vue version first.",

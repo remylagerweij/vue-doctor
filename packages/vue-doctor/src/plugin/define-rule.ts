@@ -1,3 +1,5 @@
+import { getFilename } from "./helpers.js";
+import { isTestFile } from "./test-files.js";
 import type { Rule, RuleContext, RuleVisitors } from "./types.js";
 
 /** Display categories, in the order findings are grouped in reports. */
@@ -58,6 +60,8 @@ export interface RuleMeta {
   /** Instructions for an AI coding agent on how to fix a finding correctly. */
   agentGuidance: string;
   engine: RuleEngine;
+  /** Not run on test files and test-runner config (see test-files.ts): the code never ships. */
+  skipTestFiles?: boolean;
 }
 
 /** What a rule file passes to `defineRule`; the engine is implied. */
@@ -88,6 +92,8 @@ export const defineRule = ({ meta, create }: RuleDefinition): DefinedRule => ({
     docs: { description: meta.help },
     schema: [],
   },
-  create,
+  create: meta.skipTestFiles
+    ? (context) => (isTestFile(getFilename(context)) ? {} : create(context))
+    : create,
   ruleMeta: { ...meta, engine: "oxlint" },
 });

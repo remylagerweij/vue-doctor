@@ -28,6 +28,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useRuntimeConfig()`; expose client values through `runtimeConfig.public` in nuxt.config",
     agentGuidance: "Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`, and do not use `process.env` in app code.",

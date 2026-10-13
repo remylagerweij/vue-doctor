@@ -129,6 +129,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Guard browser globals with `if (import.meta.client)` or access them inside `onMounted()`",
     agentGuidance: "Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`.",

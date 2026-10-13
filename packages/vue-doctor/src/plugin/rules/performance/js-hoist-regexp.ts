@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration",
     agentGuidance: "Move the `new RegExp(...)` with a constant pattern out of the loop or function into a module-level constant so it is compiled once.",

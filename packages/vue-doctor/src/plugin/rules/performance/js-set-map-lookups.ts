@@ -42,6 +42,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Convert the array to a `Set` before the loop for O(1) lookups instead of O(n)",
     agentGuidance: "Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop.",

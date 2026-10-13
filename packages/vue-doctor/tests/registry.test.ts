@@ -125,6 +125,26 @@ describe("rule registry", () => {
   });
 });
 
+describe("test files", () => {
+  const skipping = (category: string) =>
+    OXLINT_RULES.filter((rule) => rule.ruleMeta.category === category).map((rule) => [rule.ruleMeta.id, rule.ruleMeta.skipTestFiles === true]);
+
+  it("skips them for every performance and bundle-size rule", () => {
+    for (const category of ["Performance", "Bundle Size"]) {
+      expect(skipping(category).filter(([, skips]) => !skips)).toEqual([]);
+    }
+  });
+
+  it("skips them for the Nuxt rendering rules but keeps the Nuxt security checks", () => {
+    const keptOnTests = skipping("Nuxt").filter(([, skips]) => !skips).map(([id]) => id);
+    expect(keptOnTests.sort()).toEqual(["no-secret-in-public-runtime-config", "security-headers"]);
+  });
+
+  it("never skips them for a security rule", () => {
+    expect(skipping("Security").filter(([, skips]) => skips)).toEqual([]);
+  });
+});
+
 describe("severity policy", () => {
   // Owner decision (2.0 analysis, decision log): error = security + correctness only.
   it("defaults to error only for high-confidence security and correctness rules", () => {

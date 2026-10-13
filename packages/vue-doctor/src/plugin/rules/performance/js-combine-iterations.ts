@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Combine chained `.map().filter()` into a single `.reduce()` or `for...of` loop",
     agentGuidance: "Fuse chained `.map().filter()` calls into one pass with `for...of` or `.reduce()` so the array is iterated once. Preserve the order of side effects.",

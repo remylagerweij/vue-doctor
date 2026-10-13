@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Add `{ passive: true }` as the third argument: `addEventListener('scroll', handler, { passive: true })`",
     agentGuidance: "Pass `{ passive: true }` as the third argument of `addEventListener` for scroll, touch and wheel events, unless the handler must call `preventDefault()`.",

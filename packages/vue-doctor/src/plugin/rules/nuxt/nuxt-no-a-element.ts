@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `<NuxtLink>` — enables client-side navigation and prefetching",
     agentGuidance: "Replace internal `<a href>` links with `<NuxtLink to=\"...\">`; keep plain `<a>` only for external URLs.",

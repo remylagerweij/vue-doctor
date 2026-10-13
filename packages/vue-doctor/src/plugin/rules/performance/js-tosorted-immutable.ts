@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `array.toSorted()` (ES2023) instead of `[...array].sort()` for cleaner immutable sorting",
     agentGuidance: "Replace `[...array].sort(compare)` with `array.toSorted(compare)`; check that the project's target supports ES2023 first.",

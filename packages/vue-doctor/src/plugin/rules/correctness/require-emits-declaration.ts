@@ -34,6 +34,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Declare events with `const emit = defineEmits<{ change: [value: string] }>()` and call `emit('change', value)` instead of `$emit`",
     agentGuidance: "Declare events with `const emit = defineEmits<{ change: [value: string] }>()` and call `emit('change', value)` instead of `$emit`.",

@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Build a `Map` indexed by the search key before the loop for O(1) lookups",
     agentGuidance: "Build a `Map` keyed by the lookup field once before the loop and use `map.get(key)` instead of calling `find`/`filter` for each item.",

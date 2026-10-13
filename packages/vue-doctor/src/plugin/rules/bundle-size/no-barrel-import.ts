@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Import from the direct path: `import { Button } from './components/Button'` instead of `./components`",
     agentGuidance: "Import from the module that defines the symbol, for example `./components/Button`, instead of the folder `index` barrel, so unused exports can be tree-shaken.",

@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`",
     agentGuidance: "Replace `console.log/info/warn` in server handlers with a structured logger such as `consola` or `pino`; keep the message and add context as fields.",

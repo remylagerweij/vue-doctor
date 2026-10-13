@@ -33,6 +33,16 @@ const cases: RuleCases = {
       name: "event listener hook runs in the browser only",
       code: `useEventListener(window, "resize", () => { size.value = document.body.clientWidth; });\n`,
     },
+    {
+      name: "browser-run test file",
+      filename: "tests/e2e/helpers/scroll.ts",
+      code: `export async function scrollToBottom() {\n  window.scrollTo(0, document.body.scrollHeight);\n}\n`,
+    },
+    {
+      name: "component spec",
+      filename: "app/components/Modal.spec.ts",
+      code: `it("focuses the dialog", () => {\n  expect(document.activeElement).toBe(dialog);\n});\n`,
+    },
   ],
   invalid: [
     {

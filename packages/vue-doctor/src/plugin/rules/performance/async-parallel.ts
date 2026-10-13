@@ -1,9 +1,7 @@
 import { SEQUENTIAL_AWAIT_THRESHOLD } from "../../constants.js";
-import { getFilename, WALK_STOP, walkAst } from "../../helpers.js";
+import { WALK_STOP, walkAst } from "../../helpers.js";
 import { defineRule } from "../../define-rule.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
-
-const TEST_FILE_PATTERN = /\.(test|spec|cy)\.(ts|js|vue)$/;
 
 const reportIfIndependent = (statements: EsTreeNode[], context: RuleContext): void => {
   const declaredNames = new Set<string>();
@@ -42,17 +40,14 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `const [a, b] = await Promise.all([fetchA(), fetchB()])` to run independent operations concurrently",
     agentGuidance: "Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result.",
   },
   create: (context: RuleContext) => {
-    const filename = getFilename(context);
-    const isTestFile = TEST_FILE_PATTERN.test(filename);
-
     return {
       BlockStatement(node: EsTreeNode) {
-        if (isTestFile) return;
         const consecutiveAwaitStatements: EsTreeNode[] = [];
 
         const flushConsecutiveAwaits = (): void => {

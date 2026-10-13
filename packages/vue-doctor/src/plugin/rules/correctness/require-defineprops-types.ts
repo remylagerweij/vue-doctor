@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Declare props with a type argument: `defineProps<{ title: string }>()`",
     agentGuidance: "Declare props with a type argument, for example `defineProps<{ title: string; count?: number }>()`, instead of an untyped call or a string array.",

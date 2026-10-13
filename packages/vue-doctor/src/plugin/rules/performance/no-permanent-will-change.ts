@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Add will-change on animation start and remove on end. Permanent promotion wastes GPU memory",
     agentGuidance: "Remove the static `will-change`. Apply it just before the animation starts (for example on hover or via a class added in JS) and remove it when the animation ends.",

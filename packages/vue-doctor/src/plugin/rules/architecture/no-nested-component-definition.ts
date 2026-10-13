@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Move to a separate .vue file or to a composable",
     agentGuidance: "A component defined inside another component is recreated on every render and loses state. Move it to its own `.vue` file or to module scope and import it.",

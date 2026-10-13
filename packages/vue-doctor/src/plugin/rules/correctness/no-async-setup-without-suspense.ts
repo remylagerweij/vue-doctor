@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Wrap the async component in `<Suspense>` with a fallback, or move the awaited work into `onMounted()` or a composable",
     agentGuidance: "A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable.",

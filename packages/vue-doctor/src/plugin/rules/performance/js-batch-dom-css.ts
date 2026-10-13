@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Batch style changes with `el.style.cssText` or `el.classList.add()` to avoid multiple reflows",
     agentGuidance: "Batch consecutive `el.style.x = ...` writes into one `el.style.cssText`/`Object.assign(el.style, {...})` or toggle a CSS class, so the browser lays out once.",

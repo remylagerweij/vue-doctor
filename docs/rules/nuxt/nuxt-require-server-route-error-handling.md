@@ -11,6 +11,7 @@
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | nuxt |
+| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |
 
 
 ## Why it matters

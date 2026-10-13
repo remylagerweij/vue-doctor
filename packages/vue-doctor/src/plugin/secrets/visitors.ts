@@ -1,4 +1,5 @@
 import { getFilename } from "../helpers.js";
+import { isTestFile } from "../test-files.js";
 import type { EsTreeNode, RuleContext, RuleVisitors } from "../types.js";
 import { classifySecretName, looksLikeSecretValue } from "./heuristics.js";
 import { findProviderSecret } from "./providers.js";
@@ -15,10 +16,10 @@ import { findProviderSecret } from "./providers.js";
 export type FileContext = "client" | "server" | "test";
 
 const SERVER_FILE_PATTERN = /(?:^|\/)server\/|\.server\.[cm]?[jt]sx?$|(?:^|\/)[\w.-]+\.config\.[cm]?[jt]s$/;
-const TEST_FILE_PATTERN = /\.(?:test|spec|stories)\.[cm]?[jt]sx?$|(?:^|\/)__(?:tests|mocks)__\//;
+const STORY_FILE_PATTERN = /\.stories\.[cm]?[jt]sx?$/;
 
 export const classifyFile = (filename: string): FileContext => {
-  if (TEST_FILE_PATTERN.test(filename)) return "test";
+  if (isTestFile(filename) || STORY_FILE_PATTERN.test(filename)) return "test";
   if (SERVER_FILE_PATTERN.test(filename)) return "server";
   return "client";
 };

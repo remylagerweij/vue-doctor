@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`",
     agentGuidance: "Replace `{ deep: true }` with a watch on the specific properties you need, such as `watch(() => state.user.name, ...)`, or use `watchEffect` which tracks only what it reads.",

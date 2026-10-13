@@ -55,7 +55,7 @@ for (const meta of RULE_REGISTRY) {
 | **Engine** | \`${meta.engine}\` |
 | **Since** | v${meta.since} |
 | **Frameworks** | ${meta.frameworks.join(", ")} |
-${secRows.join("\n")}
+${meta.skipTestFiles ? "| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |\n" : ""}${secRows.join("\n")}
 
 ## Why it matters
 

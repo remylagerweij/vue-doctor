@@ -3,6 +3,11 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "chained iterations in a test assertion",
+      filename: "src/utils/prices.test.ts",
+      code: `expect(rows.filter((row) => row.sold).map((row) => row.price)).toEqual([100]);\n`,
+    },
+    {
       name: "single pass with reduce",
       code: `export const names = users.reduce((out, user) => (user.active ? [...out, user.name] : out), []);\n`,
     },

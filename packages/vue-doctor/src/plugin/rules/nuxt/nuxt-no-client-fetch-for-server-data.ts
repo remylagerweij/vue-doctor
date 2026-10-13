@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useFetch()` or `useAsyncData()` in Nuxt — data is fetched on the server and avoids client round-trip",
     agentGuidance: "Fetch page data with `useFetch()` or `useAsyncData()` so it is loaded during SSR and not duplicated on the client; do not call `fetch`/`axios` in `onMounted` for initial data.",

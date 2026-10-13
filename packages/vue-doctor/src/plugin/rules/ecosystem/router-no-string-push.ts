@@ -35,6 +35,7 @@ export default defineRule({
     confidence: "low",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.1.0",
     help: "Pass a route object (e.g. `{ name: 'user', params: { id } }`) instead of a path built with string interpolation to router.push/replace.",
     agentGuidance: "Replace a path assembled with a template literal or `+` in `router.push`/`replace` by a route location object, such as `{ name: 'user', params: { id } }`, so params are encoded. Static paths like `'/login'` are fine.",

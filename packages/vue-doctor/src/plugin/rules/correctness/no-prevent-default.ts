@@ -34,6 +34,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use Vue's `.prevent` modifier: `@submit.prevent` instead of calling `event.preventDefault()`",
     agentGuidance: "Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers that always call `preventDefault()` on their own event argument are flagged; conditional calls and listeners registered with addEventListener are left alone.",

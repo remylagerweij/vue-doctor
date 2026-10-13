@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useHead()` composable or `definePageMeta()` instead of importing head utilities",
     agentGuidance: "Remove the import from `@vueuse/head` or `@unhead/vue`; Nuxt auto-imports `useHead()` and `useSeoMeta()`, so call them without an import.",

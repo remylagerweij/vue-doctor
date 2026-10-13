@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Replace with `import { format } from 'date-fns'` (tree-shakeable) or `import dayjs from 'dayjs'` (2kb)",
     agentGuidance: "Replace Moment.js with `date-fns` or `dayjs` (or `Intl`/`Temporal` where possible) and update the call sites accordingly.",

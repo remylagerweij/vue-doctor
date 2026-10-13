@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure",
     agentGuidance: "Wrap the body of `defineEventHandler` in try/catch and rethrow failures with `createError({ statusCode, statusMessage })` so clients get a proper error response.",
