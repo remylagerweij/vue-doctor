@@ -1,5 +1,11 @@
 # @remylagerweij/vue-doctor
 
+## 2.0.4
+
+### Patch Changes
+
+- docs: improve package discoverability, description, README, and npm keywords.
+
 ## 2.0.3
 
 ### Patch Changes

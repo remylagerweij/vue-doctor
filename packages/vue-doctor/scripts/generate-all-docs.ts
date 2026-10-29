@@ -311,4 +311,5 @@ const updateFileCounts = (file: string) => {
 };
 
 updateFileCounts(path.join(repoRoot, "README.md"));
+updateFileCounts(path.join(repoRoot, "packages", "vue-doctor", "README.md"));
 updateFileCounts(path.join(repoRoot, "AGENTS.md"));

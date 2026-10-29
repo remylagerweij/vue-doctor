@@ -1,7 +1,12 @@
 {
   "name": "vue-doctor",
   "private": true,
-  "homepage": "https://github.com/remylagerweij/vue-doctor#readme",
+  "description": "Production-grade diagnostics, performance optimization, security guardrails, and dead-code detection for Vue.js and Nuxt applications.",
+  "author": {
+    "name": "Remy Martin Lagerweij",
+    "url": "https://github.com/remylagerweij"
+  },
+  "homepage": "https://remylagerweij.github.io/vue-doctor/",
   "bugs": {
     "url": "https://github.com/remylagerweij/vue-doctor/issues"
   },

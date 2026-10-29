@@ -1,17 +1,47 @@
 {
   "name": "@remylagerweij/vue-doctor",
-  "version": "2.0.3",
-  "description": "Diagnose and fix performance issues in your Vue.js app",
+  "version": "2.0.4",
+  "description": "Production-grade diagnostics, performance optimization, security auditing, and dead-code detection for Vue.js and Nuxt applications. Features automated codemods, CI quality gates, and AI agent integration (MCP).",
   "keywords": [
-    "diagnostics",
-    "linter",
+    "vue",
+    "vue3",
+    "vuejs",
     "nuxt",
+    "nuxt3",
+    "vue-doctor",
+    "linter",
+    "diagnostics",
     "performance",
-    "vue"
+    "security",
+    "security-audit",
+    "dead-code",
+    "unused-exports",
+    "knip",
+    "oxlint",
+    "eslint-plugin-vue",
+    "bundle-size",
+    "health-score",
+    "static-analysis",
+    "code-quality",
+    "codemod",
+    "autofix",
+    "mcp",
+    "mcp-server",
+    "ai-agents",
+    "ci-cd",
+    "github-action",
+    "reactivity",
+    "pinia",
+    "vue-router",
+    "ast"
   ],
-  "homepage": "https://github.com/remylagerweij/vue-doctor#readme",
+  "homepage": "https://remylagerweij.github.io/vue-doctor/",
   "bugs": {
     "url": "https://github.com/remylagerweij/vue-doctor/issues"
+  },
+  "author": {
+    "name": "Remy Martin Lagerweij",
+    "url": "https://github.com/remylagerweij"
   },
   "license": "MIT",
   "repository": {
