@@ -22,7 +22,7 @@ permissions:
   id-token: write # Required for NPM Provenance (OIDC)
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -117,10 +117,21 @@ jobs:
           npm run build
 
           # 6. Publish to NPM with provenance
-          npm publish --workspace=@remylagerweij/vue-doctor --provenance --access public
-
-          echo "published=true" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm publish --workspace=@remylagerweij/vue-doctor --provenance --access public; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            # Check if package version was published concurrently or staged
+            sleep 5
+            if npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
+              echo "Version $VERSION of @remylagerweij/vue-doctor is confirmed on npm."
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::npm publish failed for version $VERSION"
+              exit 1
+            fi
+          fi
         env:
           NPM_CONFIG_PROVENANCE: true
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
