@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -152,10 +153,11 @@ jobs:
           git tag -fa "v$MAJOR" -m "Release v$VERSION"
           git push origin "v$MAJOR" --force
 
-          # Ensure the exact immutable semver tag (e.g. v2.0.3) exists
-          if ! git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            git tag -a "v$VERSION" -m "Release v$VERSION"
-            git push origin "v$VERSION"
+          # Ensure the exact immutable semver tag (e.g. v2.0.4) exists
+          git fetch origin --tags 2>/dev/null || true
+          if ! git rev-parse "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            git tag -a "v$VERSION" -m "Release v$VERSION" || true
+            git push origin "v$VERSION" || true
           fi
 
           # Ensure a GitHub Release exists for this version
