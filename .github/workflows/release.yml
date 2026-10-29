@@ -3,6 +3,18 @@ name: Release
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
+      - '[0-9]*'
+      - '@remylagerweij/vue-doctor@*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag or version to publish (leave blank to auto-detect latest tag)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -11,7 +23,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -20,6 +32,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -38,6 +52,7 @@ jobs:
 
       - name: Create Release PR or Publish
         id: changesets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -49,19 +64,96 @@ jobs:
           # npm trusted publishing (OIDC) — no NPM_TOKEN needed with changesets/action v2.
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Push SemVer Tags for GitHub Actions
-        if: steps.changesets.outputs.published == 'true'
+      - name: Publish Tagged Release to NPM
+        id: publish_tag
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         run: |
-          VERSION=$(node -p "require('./packages/vue-doctor/package.json').version")
-          MAJOR=$(node -p "require('./packages/vue-doctor/package.json').version.split('.')[0]")
+          # 1. Resolve raw tag name
+          RAW_TAG="${{ inputs.tag }}"
+          if [ -z "$RAW_TAG" ] && [ "${{ github.event_name }}" = "release" ]; then
+            RAW_TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$RAW_TAG" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            RAW_TAG="${{ github.ref_name }}"
+          fi
+          if [ -z "$RAW_TAG" ]; then
+            RAW_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+          fi
+          if [ -z "$RAW_TAG" ]; then
+            RAW_TAG=$(git describe --tags --abbrev=0 --match "v*" --match "[0-9]*" --match "@remylagerweij/vue-doctor@*" 2>/dev/null || git tag -l | sort -V | tail -n1)
+          fi
+
+          echo "Resolved raw tag: $RAW_TAG"
+          if [ -z "$RAW_TAG" ]; then
+            echo "::error::No tag found or provided to publish."
+            exit 1
+          fi
+
+          # 2. Extract clean SemVer
+          VERSION=$(echo "$RAW_TAG" | sed -E 's/^.*@//' | sed -E 's/^v//')
+          echo "Normalized version: $VERSION"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Tag '$RAW_TAG' (normalized: '$VERSION') is not a valid semver version. Skipping publish."
+            exit 0
+          fi
+
+          # 3. Check if already published on npm
+          if npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor is already published on npm. Skipping publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 4. Synchronize packages/vue-doctor/package.json version if needed
+          CURRENT_VERSION=$(node -p "require('./packages/vue-doctor/package.json').version")
+          if [ "$CURRENT_VERSION" != "$VERSION" ]; then
+            echo "Updating packages/vue-doctor/package.json from $CURRENT_VERSION to $VERSION"
+            npm --no-git-tag-version version "$VERSION" --workspace=@remylagerweij/vue-doctor
+          fi
+
+          # 5. Rebuild with the updated version
+          npm run build
+
+          # 6. Publish to NPM with provenance
+          npm publish --workspace=@remylagerweij/vue-doctor --provenance --access public
+
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          NPM_CONFIG_PROVENANCE: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push SemVer Tags for GitHub Actions
+        if: steps.changesets.outputs.published == 'true' || steps.publish_tag.outputs.published == 'true'
+        run: |
+          VERSION="${{ steps.publish_tag.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(node -p "require('./packages/vue-doctor/package.json').version")
+          fi
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Force update the major vX tag (e.g. v1) to point to this release
+          # Force update the major vX tag (e.g. v2) to point to this release
           git tag -fa "v$MAJOR" -m "Release v$VERSION"
           git push origin "v$MAJOR" --force
 
-          # The exact version tag (e.g. v2.0.1) is immutable: never force-move it.
-          git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
+          # Ensure the exact immutable semver tag (e.g. v2.0.3) exists
+          if ! git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            git tag -a "v$VERSION" -m "Release v$VERSION"
+            git push origin "v$VERSION"
+          fi
+
+          # Ensure a GitHub Release exists for this version
+          TAG_FOR_RELEASE="v$VERSION"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            TAG_FOR_RELEASE="$VERSION"
+          fi
+          if ! gh release view "$TAG_FOR_RELEASE" >/dev/null 2>&1 && ! gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release create "v$VERSION" --generate-notes --title "v$VERSION"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
