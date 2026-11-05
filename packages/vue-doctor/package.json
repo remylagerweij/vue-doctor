@@ -1,6 +1,6 @@
 {
   "name": "@remylagerweij/vue-doctor",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Production-grade diagnostics, performance optimization, security auditing, and dead-code detection for Vue.js and Nuxt applications. Features automated codemods, CI quality gates, and AI agent integration (MCP).",
   "keywords": [
     "vue",
