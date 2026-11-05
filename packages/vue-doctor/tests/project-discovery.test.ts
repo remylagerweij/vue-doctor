@@ -11,6 +11,7 @@ import {
   listNestedWorkspaceDirectories,
   listWorkspaceDirectories,
   listWorkspacePackages,
+  resolveTsconfigPath,
 } from "../src/utils/discover-project.js";
 import { findMonorepoRoot, isMonorepoRoot } from "../src/utils/find-monorepo-root.js";
 import { relativeToSourceRoot } from "../src/utils/find-source-root.js";
@@ -180,6 +181,12 @@ describe("workspace discovery", () => {
     expect(info.framework).toBe("nuxt");
   });
 
+  it("does not infer sibling workspace's framework when package has its own Vue dependency", () => {
+    const info = discoverProject(path.join(monorepo(), "packages", "app"));
+    expect(info.vueVersion).toBe("^3.5.0");
+    expect(info.framework).toBe("unknown");
+  });
+
   it.each([
     ["nuxt.config.ts", "nuxt"],
     ["quasar.config.js", "quasar"],
@@ -196,6 +203,27 @@ describe("workspace discovery", () => {
     expect(info.framework).toBe("quasar");
     expect(info.hasTypeScript).toBe(false);
     expect(info.projectName).toBe(path.basename(root));
+  });
+
+  it("resolves tsconfig.app.json for solution-style tsconfig.json", () => {
+    const solutionRoot = makeTree({
+      "tsconfig.json": '{\n  "files": [],\n  "references": [\n    { "path": "./tsconfig.app.json" }\n  ]\n}',
+      "tsconfig.app.json": '{\n  "compilerOptions": { "strict": true }\n}',
+    });
+    expect(resolveTsconfigPath(solutionRoot)).toBe("tsconfig.app.json");
+
+    const standardRoot = makeTree({
+      "tsconfig.json": '{\n  "compilerOptions": { "strict": true }\n}',
+    });
+    expect(resolveTsconfigPath(standardRoot)).toBe("tsconfig.json");
+
+    const appOnlyRoot = makeTree({
+      "tsconfig.app.json": '{\n  "compilerOptions": { "strict": true }\n}',
+    });
+    expect(resolveTsconfigPath(appOnlyRoot)).toBe("tsconfig.app.json");
+
+    const noTsRoot = makeTree({});
+    expect(resolveTsconfigPath(noTsRoot)).toBeNull();
   });
 
   it("counts the source files git lists, excluding nested workspaces", () => {

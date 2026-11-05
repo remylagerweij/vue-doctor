@@ -1,5 +1,11 @@
 import { defineRule } from "../../define-rule.js";
-import { JAVASCRIPT_URL_MESSAGE, findJavascriptUrlLiterals, isJavascriptUrl } from "../../url-sinks.js";
+import {
+  JAVASCRIPT_PLACEHOLDER_MESSAGE,
+  JAVASCRIPT_URL_MESSAGE,
+  findJavascriptUrlLiterals,
+  isJavascriptUrl,
+  isStaticJavascriptPlaceholder,
+} from "../../url-sinks.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 /** Methods that test or compare a string: `url.startsWith("javascript:")` is a blocklist, not a URL. */
@@ -12,8 +18,7 @@ export default defineRule({
   meta: {
     id: "no-javascript-url",
     category: "Security",
-    // Warning, not error: `javascript:void(0)` placeholders are common and mostly harmless, but they
-    // are still an XSS vector the moment anything is appended, and they break a strict CSP.
+    // Warning: static `javascript:void(0)` placeholders are reported as an a11y/CSP problem, not as XSS.
     defaultSeverity: "warning",
     confidence: "high",
     frameworks: ["vue", "nuxt"],
@@ -34,9 +39,12 @@ export default defineRule({
       for (const node of nodes) if (node) exempt.add(node);
     };
 
-    const report = (node: EsTreeNode): void => {
+    const report = (node: EsTreeNode, literals: EsTreeNode[] = []): void => {
       if (exempt.has(node)) return;
-      context.report({ node, message: `\`javascript:\` URL — ${JAVASCRIPT_URL_MESSAGE}` });
+      const message = isStaticJavascriptPlaceholder(literals)
+        ? `\`javascript:void(0)\` placeholder — ${JAVASCRIPT_PLACEHOLDER_MESSAGE}`
+        : `\`javascript:\` URL — ${JAVASCRIPT_URL_MESSAGE}`;
+      context.report({ node, message });
     };
 
     return {
@@ -65,10 +73,12 @@ export default defineRule({
         if (method && STRING_TEST_METHODS.has(method)) exemptAll(node.arguments);
       },
       Literal(node: EsTreeNode) {
-        if (findJavascriptUrlLiterals(node).length > 0) report(node);
+        const literals = findJavascriptUrlLiterals(node);
+        if (literals.length > 0) report(node, literals);
       },
       TemplateLiteral(node: EsTreeNode) {
-        if (findJavascriptUrlLiterals(node).length > 0) report(node);
+        const literals = findJavascriptUrlLiterals(node);
+        if (literals.length > 0) report(node, literals);
       },
     };
   },

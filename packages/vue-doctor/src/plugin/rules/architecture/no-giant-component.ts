@@ -11,6 +11,7 @@ export default defineRule({
     confidence: "low",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Extract logical sections into focused components or composables",
     agentGuidance: "Split the component by responsibility. Extract self-contained template sections into child components and stateful logic into composables; keep behaviour and props/emits of the public component unchanged.",

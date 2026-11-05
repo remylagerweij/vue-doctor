@@ -94,6 +94,7 @@ interface Job {
   index: number;
   filename: string;
   code: string;
+  options?: Record<string, unknown>;
 }
 
 const jobs: Job[] = loadedRules.flatMap(({ id, cases }) => [
@@ -103,6 +104,7 @@ const jobs: Job[] = loadedRules.flatMap(({ id, cases }) => [
     index,
     filename: testCase.filename ?? DEFAULT_CASE_FILENAME,
     code: testCase.code,
+    options: testCase.options,
   })),
   ...cases.invalid.map((testCase, index) => ({
     ruleId: id,
@@ -110,15 +112,32 @@ const jobs: Job[] = loadedRules.flatMap(({ id, cases }) => [
     index,
     filename: testCase.filename ?? DEFAULT_CASE_FILENAME,
     code: testCase.code,
+    options: testCase.options,
   })),
 ]);
 
 describe("rule cases (oxlint + built plugin)", () => {
   let results: FileResult[] = [];
 
-  // One oxlint run for all cases of all rules keeps the whole suite to a few seconds.
+  // One oxlint run for all cases without options keeps the whole suite to a few seconds; options
+  // are per rule in the oxlint config, so each distinct options object gets a run of its own.
   beforeAll(async () => {
-    results = await runOxlintOnFiles(jobs.map(({ filename, code }) => ({ filename, code })));
+    const groups = new Map<string, number[]>();
+    jobs.forEach((job, index) => {
+      const key = job.options ? JSON.stringify([job.ruleId, job.options]) : "";
+      groups.set(key, [...(groups.get(key) ?? []), index]);
+    });
+    results = Array.from<FileResult>({ length: jobs.length });
+    await Promise.all(
+      [...groups.values()].map(async (indexes) => {
+        const { ruleId, options } = jobs[indexes[0]];
+        const groupResults = await runOxlintOnFiles(
+          indexes.map((index) => ({ filename: jobs[index].filename, code: jobs[index].code })),
+          options ? { [ruleId]: options } : undefined,
+        );
+        indexes.forEach((jobIndex, position) => (results[jobIndex] = groupResults[position]));
+      }),
+    );
   }, 120_000);
 
   for (const { id, cases } of loadedRules) {

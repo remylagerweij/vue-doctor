@@ -20,9 +20,13 @@ import { runEslintVue } from "../utils/run-eslint-vue.js";
 import { runAudit } from "../utils/run-audit.js";
 import type { FetchImplementation } from "../utils/osv.js";
 import { runKnip, type KnipSession } from "../utils/run-knip.js";
+import { isUnpreparedNuxtProject } from "../utils/nuxt-project.js";
 import { isInsideAnyDirectory, listProjectSourceFiles, normalizeRelativePath } from "../utils/list-source-files.js";
 import { runOxlint } from "../utils/run-oxlint.js";
 import { applySuppressions, type SuppressedSummary } from "../utils/suppressions.js";
+import { readProjectLinterConfig, resolveEffectiveLinterConfig } from "../utils/project-linter-config.js";
+import { inferServerRuleOptions } from "../utils/server-project-facts.js";
+import { mergeRuleOptions, resolveConfiguredRuleOptions } from "../config/rule-options.js";
 
 export type AnalyzerName = "lint" | "template" | "dead-code" | "project" | "audit";
 
@@ -140,6 +144,12 @@ const loadBaselineReference = (directory: string, baselineOption: string) => {
   return { baselinePath, fingerprints: readBaseline(baselinePath) };
 };
 
+// Without `.nuxt/`, knip cannot resolve Nuxt's auto-imports and aliases, so these report used code as unused.
+const NUXT_TYPES_DEPENDENT_KNIP_RULES = new Set(["files", "exports", "types"]);
+
+const UNPREPARED_NUXT_REASON =
+  "unused files, exports and types were not checked: this Nuxt project has no .nuxt/ directory, so knip cannot see its auto-imports and aliases. Run `nuxi prepare` first";
+
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
@@ -233,7 +243,34 @@ export const diagnose = async (
   const shouldTemplateLint = options.templateLint ?? shouldLint;
   const shouldDeadCode = (options.deadCode ?? config?.deadCode) !== false && !isDiffMode;
 
-  const cacheContexts = (options.cache ?? config?.cache) === false ? null : computeCacheContexts(directory, project);
+  const linterConfig =
+    shouldLint || shouldTemplateLint
+      ? resolveEffectiveLinterConfig(readProjectLinterConfig(directory), config)
+      : { templateRules: {}, disabledOwnRules: new Set<string>(), sources: [] };
+  if (linterConfig.sources.length > 0) {
+    debug("config", `project linter settings from ${linterConfig.sources.join(", ")}`);
+  }
+
+  // Rule options: `[severity, { ... }]` config entries on top of what the server rules need to know
+  // about the rest of the project (auth helpers in server/utils, the session cookie's SameSite).
+  const ruleOptions = shouldLint
+    ? mergeRuleOptions(
+        project.framework === "nuxt" ? inferServerRuleOptions(directory) : {},
+        resolveConfiguredRuleOptions(config, logger.warn),
+      )
+    : {};
+  if (Object.keys(ruleOptions).length > 0) debug("lint", `rule options ${JSON.stringify(ruleOptions)}`);
+
+  const cacheContexts =
+    (options.cache ?? config?.cache) === false
+      ? null
+      : computeCacheContexts(
+          directory,
+          project,
+          ruleOptions,
+          linterConfig.disabledOwnRules,
+          linterConfig.templateRules,
+        );
   const cache = cacheContexts
     ? openAnalysisCache(directory, cacheContexts, (message) => debug("cache", message))
     : null;
@@ -263,7 +300,16 @@ export const diagnose = async (
           );
         }
         const lint = (paths: string[] | undefined) =>
-          runOxlint(directory, project.hasTypeScript, project.framework, paths, nodeBinaryPath, logCommand("lint"));
+          runOxlint(
+            directory,
+            project.hasTypeScript,
+            project.framework,
+            paths,
+            nodeBinaryPath,
+            logCommand("lint"),
+            ruleOptions,
+            linterConfig.disabledOwnRules,
+          );
         if (!cache) return lint(isDiffMode ? vueIncludePaths : hasNestedWorkspaces ? getCacheTargets() : undefined);
         return cache.analyzeFiles("lint", getCacheTargets(), lint);
       })
@@ -271,16 +317,24 @@ export const diagnose = async (
 
   const templatePromise = shouldTemplateLint
     ? runAnalyzer("template", () => {
-        if (!cache && !hasNestedWorkspaces) return runEslintVue(directory, isDiffMode ? vueIncludePaths : undefined);
+        const lintTemplates = (paths: string[] | undefined) =>
+          runEslintVue(directory, paths, project.framework, linterConfig.templateRules);
+        if (!cache && !hasNestedWorkspaces) return lintTemplates(isDiffMode ? vueIncludePaths : undefined);
         const vueFiles = getCacheTargets().filter((filePath) => filePath.endsWith(".vue"));
-        if (!cache) return runEslintVue(directory, vueFiles);
-        return cache.analyzeFiles("template", vueFiles, (paths) => runEslintVue(directory, paths));
+        if (!cache) return lintTemplates(vueFiles);
+        return cache.analyzeFiles("template", vueFiles, lintTemplates);
       })
     : Promise.resolve([]);
 
   const deadCodePromise = shouldDeadCode
-    ? runAnalyzer("dead-code", () => {
+    ? runAnalyzer("dead-code", async () => {
         const deadCode = () => runKnip(directory, logCommand("dead-code"), options.knipSession);
+        if (project.framework === "nuxt" && isUnpreparedNuxtProject(directory)) {
+          // Never cached: once `nuxi prepare` has run, the next scan must analyse again.
+          const found = await deadCode();
+          skipped.push({ analyzer: "dead-code", reason: UNPREPARED_NUXT_REASON });
+          return found.filter((diagnostic) => !NUXT_TYPES_DEPENDENT_KNIP_RULES.has(diagnostic.rule));
+        }
         if (!cache || !cacheContexts) return deadCode();
         // The cached entry is this project's share of the monorepo run; its key covers every file
         // the run reads, so a warm cache skips knip (and the shared run is never started) for all

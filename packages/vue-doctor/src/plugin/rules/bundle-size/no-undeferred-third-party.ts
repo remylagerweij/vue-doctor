@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useHead` with `defer: true` or add the `defer` attribute to third-party scripts",
     agentGuidance: "Add `defer: true` (or `async: true`) to every script entry with a `src` passed to `useHead({ script: [...] })` so third-party scripts do not block rendering.",

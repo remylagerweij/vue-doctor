@@ -23,7 +23,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-The watcher only derives a value from its source. Delete the watcher and the ref it writes, and declare `const value = computed(() => ...)` using the same source.
+The watcher only derives a ref from its source, and nothing else writes that ref. Delete the watcher and the ref, and declare `const value = computed(() => ...)` using the same source. Refs that the user or other code also writes (a page reset, an editable copy of a prop) are not reported.
 
 ---
 

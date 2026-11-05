@@ -1,6 +1,6 @@
 # `vue-doctor/performance/js-hoist-regexp`
 
-> Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration
+> Hoist a `new RegExp()` whose pattern does not change out of the loop so it is compiled once
 
 | Property | Value |
 |---|---|
@@ -11,11 +11,12 @@
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
+| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |
 
 
 ## Why it matters
 
-Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration
+Hoist a `new RegExp()` whose pattern does not change out of the loop so it is compiled once
 
 ## How to fix
 
@@ -23,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Move the `new RegExp(...)` with a constant pattern out of the loop or function into a module-level constant so it is compiled once.
+Only reported when every argument is a literal or a value that does not change inside the loop. Move the `new RegExp(...)` above the loop, or to a module-level constant when its arguments are all literals. A pattern built from the loop variable cannot be hoisted and is not reported.
 
 ---
 

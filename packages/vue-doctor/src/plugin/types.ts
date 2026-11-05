@@ -7,8 +7,12 @@ export interface RuleContext {
   report: (descriptor: ReportDescriptor) => void;
   /** Path of the linted file (ESLint 9+ / oxlint). */
   filename?: string;
+  /** The rule's configured options (`[severity, options]` minus the severity); empty or absent without options. */
+  options?: readonly unknown[];
   /** @deprecated Removed in ESLint 10; only read when `filename` is undefined. */
   getFilename?: () => string;
+  /** Shared settings from the lint config; Vue Doctor's own live under `"vue-doctor"`. */
+  settings?: Record<string, unknown>;
 }
 
 export interface RuleVisitors {

@@ -11,6 +11,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "List specific properties: `transition: \"opacity 200ms, transform 200ms\"` — or in Tailwind use `transition-colors`, `transition-opacity`, or `transition-transform`",
     agentGuidance: "Replace `transition: all` with an explicit property list, for example `transition: opacity 200ms, transform 200ms`, naming only the properties that actually change.",

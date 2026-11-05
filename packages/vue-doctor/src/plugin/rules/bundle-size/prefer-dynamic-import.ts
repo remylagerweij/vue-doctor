@@ -1,5 +1,6 @@
 import { HEAVY_LIBRARIES } from "../../constants.js";
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -10,12 +11,14 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `defineAsyncComponent(() => import('./HeavyComponent.vue'))` for heavy components",
     agentGuidance: "Load heavy libraries or components lazily: `defineAsyncComponent(() => import('./Heavy.vue'))` for components, `await import('lib')` where the code is first needed.",
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       const source = node.source?.value;
       if (typeof source !== "string") return;
 

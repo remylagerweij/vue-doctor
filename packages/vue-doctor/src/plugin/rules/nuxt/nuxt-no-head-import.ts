@@ -1,4 +1,5 @@
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -9,12 +10,14 @@ export default defineRule({
     confidence: "high",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useHead()` composable or `definePageMeta()` instead of importing head utilities",
     agentGuidance: "Remove the import from `@vueuse/head` or `@unhead/vue`; Nuxt auto-imports `useHead()` and `useSeoMeta()`, so call them without an import.",
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       const source = node.source?.value;
       if (
         typeof source === "string" &&

@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `Math.min(...array)` or `Math.max(...array)` — O(n) instead of O(n log n) with sort",
     agentGuidance: "Do not sort a whole array just to read the smallest or largest item. Use `Math.min(...values)`/`Math.max(...values)` or a single reduce pass.",

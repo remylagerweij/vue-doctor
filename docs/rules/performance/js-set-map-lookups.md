@@ -11,6 +11,7 @@
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
+| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |
 
 
 ## Why it matters
@@ -23,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop.
+Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop. Small constant lists (an array literal of up to 16 elements that is never grown) are not reported: a linear scan over them is as fast as hashing.
 
 ---
 

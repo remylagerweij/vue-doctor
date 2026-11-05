@@ -11,6 +11,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Cache `localStorage.getItem()` result in a variable to avoid redundant reads",
     agentGuidance: "Read `localStorage`/`sessionStorage` once into a local variable and reuse it; storage access is synchronous and slow.",

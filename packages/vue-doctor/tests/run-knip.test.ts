@@ -45,4 +45,18 @@ describe("runKnip", () => {
     expect(inRepo.length).toBeGreaterThan(0);
     expect(outside).toEqual(inRepo);
   });
+
+  it("does not report .d.ts declaration files as unused files", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vdoc-knip-dts-"));
+    try {
+      fs.cpSync(BASIC_VUE_DIRECTORY, dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "auto-imports.d.ts"), "export {};\n");
+      fs.writeFileSync(path.join(dir, "env.d.ts"), "/// <reference types='vite/client' />\n");
+      const diagnostics = await runKnip(dir);
+      const dtsIssues = diagnostics.filter((d) => d.filePath.endsWith(".d.ts"));
+      expect(dtsIssues).toHaveLength(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

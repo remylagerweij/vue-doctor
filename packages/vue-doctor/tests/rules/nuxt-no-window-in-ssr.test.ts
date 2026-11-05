@@ -11,6 +11,21 @@ const ruleTester = new RuleTester({
 
 const message = /is not available during SSR/;
 
+const nuxtSettings = (nuxt: Record<string, unknown>) => ({ "vue-doctor": { framework: "nuxt", nuxt } });
+const mwFeRouteRules = nuxtSettings({
+  routeRules: [
+    { path: "/motoren", ssr: false },
+    { path: "/account/**", ssr: false },
+  ],
+});
+const spaWithPublicPages = nuxtSettings({
+  routeRules: [
+    { path: "/**", ssr: false },
+    { path: "/", ssr: true },
+    { path: "/privacy", ssr: true },
+  ],
+});
+
 ruleTester.run("nuxt-no-window-in-ssr", rule, {
   valid: [
     // Previously flagged: inside onMounted and other client-only hooks
@@ -27,6 +42,14 @@ ruleTester.run("nuxt-no-window-in-ssr", rule, {
     { code: `if (process.client) { document.title = "x" }`, filename: "app.vue" },
     // Client-only files never run on the server
     { code: `window.foo()`, filename: "plugins/analytics.client.ts" },
+    // Pages whose route has `ssr: false` in nuxt.config routeRules
+    { code: `const w = window.innerWidth`, filename: "app/pages/motoren.vue", settings: mwFeRouteRules },
+    { code: `const w = window.innerWidth`, filename: "app/pages/motoren/index.vue", settings: mwFeRouteRules },
+    { code: `localStorage.getItem("t")`, filename: "app/pages/account/index.vue", settings: mwFeRouteRules },
+    { code: `localStorage.getItem("t")`, filename: "app/pages/account/[id]/edit.vue", settings: mwFeRouteRules },
+    { code: `localStorage.getItem("t")`, filename: "pages/dashboard/(admin)/keys.vue", settings: spaWithPublicPages },
+    // The whole app is client-rendered
+    { code: `window.foo()`, filename: "app/components/Chart.vue", settings: nuxtSettings({ ssr: false }) },
   ],
   invalid: [
     { code: `window.location.href`, filename: "app.vue", errors: [{ message }] },
@@ -41,5 +64,14 @@ ruleTester.run("nuxt-no-window-in-ssr", rule, {
     { code: `useAsyncData("k", () => navigator.userAgent)`, filename: "app.vue", errors: [{ message }] },
     // Unrelated condition
     { code: `if (ready) { window.foo() }`, filename: "app.vue", errors: [{ message }] },
+    // An exact rule does not cover the dynamic child route
+    { code: `window.foo()`, filename: "app/pages/motoren/[slug].vue", settings: mwFeRouteRules, errors: [{ message }] },
+    // The more specific `ssr: true` rule wins over `/**`
+    { code: `window.foo()`, filename: "app/pages/index.vue", settings: spaWithPublicPages, errors: [{ message }] },
+    { code: `window.foo()`, filename: "app/pages/privacy.vue", settings: spaWithPublicPages, errors: [{ message }] },
+    // Components are rendered on SSR routes too, whatever the route rules say
+    { code: `window.foo()`, filename: "app/components/pages/AccountCard.vue", settings: mwFeRouteRules, errors: [{ message }] },
+    // routeRules only apply to Nuxt projects
+    { code: `window.foo()`, filename: "app/pages/motoren.vue", errors: [{ message }] },
   ],
 });

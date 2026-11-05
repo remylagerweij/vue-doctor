@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Keep blur radius under 10px, or apply blur to a smaller element",
     agentGuidance: "Reduce the animated blur radius to 10px or less, or apply the blur to a smaller element. Large animated blurs are expensive on the GPU.",

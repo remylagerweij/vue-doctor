@@ -11,6 +11,7 @@
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
+| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |
 
 
 ## Why it matters
@@ -23,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Build a `Map` keyed by the lookup field once before the loop and use `map.get(key)` instead of calling `find`/`filter` for each item.
+Reported when a loop searches the same array on every iteration with a key-equality predicate (`find(x => x.id === id)`). Build a `Map` keyed by that field once before the loop and use `map.get(key)` instead. Searches whose array changes per iteration, or whose predicate is not a key comparison, are left alone.
 
 ---
 

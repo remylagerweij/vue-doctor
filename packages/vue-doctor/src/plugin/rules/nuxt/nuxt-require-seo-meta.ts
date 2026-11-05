@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useSeoMeta({ title, description })` instead of passing `meta` tags to `useHead()`",
     agentGuidance: "Replace `useHead({ meta: [...] })` with `useSeoMeta({ title, description, ogTitle, ... })` for type-safe SEO tags.",

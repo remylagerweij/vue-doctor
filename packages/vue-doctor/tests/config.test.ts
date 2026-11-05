@@ -8,6 +8,7 @@ import { createJsonSchema } from "../src/config/schema.js";
 import { diagnose } from "../src/index.js";
 import type { Diagnostic } from "../src/types.js";
 import { filterDiagnostics, matchesRuleKey } from "../src/utils/filter-diagnostics.js";
+import { resolveRuleKey } from "../src/plugin/rule-ids.js";
 
 const PACKAGE_DIRECTORY = path.resolve(import.meta.dirname, "..");
 const BASIC_VUE_DIRECTORY = path.join(PACKAGE_DIRECTORY, "tests", "fixtures", "basic-vue");
@@ -108,6 +109,36 @@ describe("loadConfig", () => {
       "vue-doctor.config.json": JSON.stringify({ gate: { minScore: 120 }, rules: { "no-moment": "fatal" } }),
     });
     await expectConfigError(directory, "gate.minScore", "rules.no-moment");
+  });
+
+  it("reports unknown and mistyped options of rules that take options", async () => {
+    const directory = makeProject({
+      "vue-doctor.config.json": JSON.stringify({
+        rules: {
+          "vue-doctor/server/require-input-validation": ["warn", { validators: "parseBody", strict: true }],
+          "vue-doctor/server/csrf-on-mutating-routes": ["warn", { sessionCookieSameSite: "loose" }],
+        },
+      }),
+    });
+    const error = await expectConfigError(
+      directory,
+      'option "validators" must be an array of strings',
+      'unknown option "strict" (accepted: validators)',
+      'option "sessionCookieSameSite" must be one of "strict", "lax", "none"',
+    );
+    expect(error.issues).toHaveLength(3);
+  });
+
+  it("accepts valid rule options, also under a 1.x rule ID", async () => {
+    const config = {
+      rules: {
+        "vue-doctor/server/auth-missing": ["warn", { authFunctions: ["ensureAdmin"] }],
+        "require-input-validation": ["error", { validators: ["parseBody"] }],
+        "vue-doctor/performance/no-deep-watch": ["warn", {}],
+      },
+    };
+    const loaded = await loadConfig(makeProject({ "vue-doctor.config.json": JSON.stringify(config) }));
+    expect(loaded?.config).toEqual(config);
   });
 
   it("reports invalid JSON instead of silently ignoring it", async () => {
@@ -277,6 +308,32 @@ describe("diagnose() with legacy rule IDs", () => {
       'Rule ID "no-moment" is deprecated; use "vue-doctor/bundle-size/no-moment".',
       'Rule ID "vue-doctor/no-moment" is deprecated; use "vue-doctor/bundle-size/no-moment".',
       'Unknown rule ID "no-such-rule" in config "ignore.rules"; it does not match any Vue Doctor rule.',
+    ]);
+  }, 60_000);
+
+  it("accepts a removed rule's ID with a warning and lets it select nothing", async () => {
+    const warnings = await captureWarnings(() =>
+      diagnose(BASIC_VUE_DIRECTORY, {
+        cache: false,
+        deadCode: false,
+        config: { rules: { "vue-doctor/nuxt/nuxt-require-server-route-error-handling": "off" } },
+      }),
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/^Rule ID "vue-doctor\/nuxt\/nuxt-require-server-route-error-handling" was removed and has no effect; delete it\./);
+    expect(resolveRuleKey("nuxt-require-server-route-error-handling").matches("vue-doctor/server/no-leaky-error-rethrow")).toBe(false);
+  }, 60_000);
+
+  it("warns about options given to a rule that takes none", async () => {
+    const warnings = await captureWarnings(() =>
+      diagnose(BASIC_VUE_DIRECTORY, {
+        cache: false,
+        deadCode: false,
+        config: { rules: { "vue-doctor/performance/no-deep-watch": ["warn", { depth: 2 }] } },
+      }),
+    );
+    expect(warnings).toEqual([
+      'Options for "vue-doctor/performance/no-deep-watch" are ignored: only single rules that document options accept them.',
     ]);
   }, 60_000);
 

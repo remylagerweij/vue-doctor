@@ -1,4 +1,5 @@
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -9,12 +10,14 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Import the specific function: `import debounce from 'lodash/debounce'` — saves ~70kb",
     agentGuidance: "Import the single function (`import debounce from 'lodash/debounce'`) or switch to `lodash-es`/native code instead of importing the full library.",
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       if (node.source?.value === "lodash" && node.specifiers?.length > 0) {
         context.report({
           node,

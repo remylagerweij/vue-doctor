@@ -1,4 +1,5 @@
 import { getFilename } from "../helpers.js";
+import { isTestFile } from "../test-files.js";
 import type { EsTreeNode, RuleContext, RuleVisitors } from "../types.js";
 import { classifySecretName, looksLikeSecretValue } from "./heuristics.js";
 import { findProviderSecret } from "./providers.js";
@@ -15,10 +16,19 @@ import { findProviderSecret } from "./providers.js";
 export type FileContext = "client" | "server" | "test";
 
 const SERVER_FILE_PATTERN = /(?:^|\/)server\/|\.server\.[cm]?[jt]sx?$|(?:^|\/)[\w.-]+\.config\.[cm]?[jt]s$/;
-const TEST_FILE_PATTERN = /\.(?:test|spec|stories)\.[cm]?[jt]sx?$|(?:^|\/)__(?:tests|mocks)__\//;
+const STORY_FILE_PATTERN = /\.stories\.[cm]?[jt]sx?$/;
+
+// Node-only locations that are not server/test by the patterns above (scripts, e2e support files).
+const NODE_DIRECTORY_PATTERN = /(?:^|\/)(?:scripts|bin|tests?|e2e|cypress|playwright)\//;
+
+/** Whether a `client` file is known to reach the browser, so a message may say "client code". */
+const isKnownBrowserFile = (filename: string): boolean => filename.endsWith(".vue") || !NODE_DIRECTORY_PATTERN.test(filename);
+
+// `B2B_E2E_OPERATOR_PASSWORD`: the name of an environment variable, not its value.
+const ENV_VAR_NAME = /^[A-Z][A-Z0-9_]{2,}$/;
 
 export const classifyFile = (filename: string): FileContext => {
-  if (TEST_FILE_PATTERN.test(filename)) return "test";
+  if (isTestFile(filename) || STORY_FILE_PATTERN.test(filename)) return "test";
   if (SERVER_FILE_PATTERN.test(filename)) return "server";
   return "client";
 };
@@ -49,15 +59,14 @@ const reportProvider = (
   context: RuleContext,
   node: EsTreeNode,
   description: string,
-  fileContext: FileContext,
+  inBrowserCode: boolean,
   name: string | undefined,
 ): void => {
   const where = name ? ` assigned to "${name}"` : "";
   // Messages name the provider and the variable, never the value.
-  const message =
-    fileContext === "client"
-      ? `Hardcoded ${description}${where} in client code — revoke it and load it from a server-side environment variable`
-      : `Hardcoded ${description}${where} committed to source — revoke it and load it from an environment variable or secret store`;
+  const message = inBrowserCode
+    ? `Hardcoded ${description}${where} in client code — revoke it and load it from a server-side environment variable`
+    : `Hardcoded ${description}${where} committed to source — revoke it and load it from an environment variable or secret store`;
   context.report({ node, message });
 };
 
@@ -67,27 +76,31 @@ const reportProvider = (
  * client code, and provider-format credentials in server/test code (committed, but not shipped).
  */
 export const createSecretVisitors = (context: RuleContext, mode: SecretRuleMode): RuleVisitors => {
-  const fileContext = classifyFile(getFilename(context));
+  const filename = getFilename(context);
+  const fileContext = classifyFile(filename);
+  const inBrowserCode = fileContext === "client" && isKnownBrowserFile(filename);
   const reportsProviders = mode === "provider" ? fileContext === "client" : fileContext !== "client";
   const reportsNames = mode === "heuristic" && fileContext === "client";
 
   const checkProvider = (node: EsTreeNode, value: string | undefined, name?: string): void => {
     if (value === undefined) return;
     const match = findProviderSecret(value);
-    if (match) reportProvider(context, node, match.pattern.description, fileContext, name);
+    if (match) reportProvider(context, node, match.pattern.description, inBrowserCode, name);
   };
 
   /** Secret-named assignment of a literal: `apiKey = "..."`, `{ "x-api-key": "..." }`, `(token = "...") =>`. */
   const checkNamed = (node: EsTreeNode, name: string | undefined, valueNode: EsTreeNode | null | undefined): void => {
     if (!reportsNames || !name) return;
     const value = stringValue(valueNode);
-    if (value === undefined) return;
+    if (value === undefined || ENV_VAR_NAME.test(value.trim())) return;
     const kind = classifySecretName(name);
     // A provider-format value belongs to the `provider` rule; never report one literal twice.
     if (!kind || findProviderSecret(value) || !looksLikeSecretValue(value, kind)) return;
     context.report({
       node,
-      message: `Possible hardcoded secret in "${name}" in client code — load it from a server-side environment variable instead`,
+      message: inBrowserCode
+        ? `Possible hardcoded secret in "${name}" in client code — load it from a server-side environment variable instead`
+        : `Possible hardcoded secret in "${name}" committed to source — load it from an environment variable instead`,
     });
   };
 
@@ -100,7 +113,7 @@ export const createSecretVisitors = (context: RuleContext, mode: SecretRuleMode)
     if (!match) return;
     named.add(valueNode);
     if (valueNode.type === "TemplateLiteral") named.add(valueNode.quasis[0]);
-    reportProvider(context, node, match.pattern.description, fileContext, name);
+    reportProvider(context, node, match.pattern.description, inBrowserCode, name);
   };
 
   const visitors: RuleVisitors = {

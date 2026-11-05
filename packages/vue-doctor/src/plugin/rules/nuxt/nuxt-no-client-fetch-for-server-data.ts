@@ -1,5 +1,6 @@
 import { defineRule } from "../../define-rule.js";
-import type { EsTreeNode, RuleContext } from "../../types.js";
+import { isClientRenderedPage } from "../../nuxt-files.js";
+import type { EsTreeNode, RuleContext, RuleVisitors } from "../../types.js";
 
 export default defineRule({
   meta: {
@@ -9,12 +10,16 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `useFetch()` or `useAsyncData()` in Nuxt — data is fetched on the server and avoids client round-trip",
     agentGuidance: "Fetch page data with `useFetch()` or `useAsyncData()` so it is loaded during SSR and not duplicated on the client; do not call `fetch`/`axios` in `onMounted` for initial data.",
   },
-  create: (context: RuleContext) => ({
-    CallExpression(node: EsTreeNode) {
+  create: (context: RuleContext): RuleVisitors => {
+    if (isClientRenderedPage(context)) return {};
+
+    return {
+      CallExpression(node: EsTreeNode) {
       if (
         node.callee?.type === "Identifier" &&
         (node.callee.name === "onMounted" || node.callee.name === "onBeforeMount")
@@ -47,5 +52,6 @@ export default defineRule({
         }
       }
     },
-  }),
+  };
+},
 });

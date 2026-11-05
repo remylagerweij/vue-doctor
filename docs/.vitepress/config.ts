@@ -499,10 +499,6 @@ export default defineConfig({
         "link": "/rules/nuxt/nuxt-require-seo-meta"
       },
       {
-        "text": "nuxt-require-server-route-error-handling",
-        "link": "/rules/nuxt/nuxt-require-server-route-error-handling"
-      },
-      {
         "text": "security-headers",
         "link": "/rules/nuxt/security-headers"
       },
@@ -523,6 +519,10 @@ export default defineConfig({
       {
         "text": "csrf-on-mutating-routes",
         "link": "/rules/server/csrf-on-mutating-routes"
+      },
+      {
+        "text": "no-leaky-error-rethrow",
+        "link": "/rules/server/no-leaky-error-rethrow"
       },
       {
         "text": "require-input-validation",

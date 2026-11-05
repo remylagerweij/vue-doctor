@@ -267,7 +267,15 @@ describe("Node version support", () => {
 describe("getToolVersions", () => {
   it("reports the version of every analyzer package", () => {
     const versions = getToolVersions();
-    expect(Object.keys(versions).sort()).toEqual(["eslint", "eslint-plugin-vue", "knip", "oxlint", "vue-eslint-parser"]);
+    expect(Object.keys(versions).sort()).toEqual([
+      "@typescript-eslint/parser",
+      "eslint",
+      "eslint-plugin-vue",
+      "knip",
+      "oxlint",
+      "typescript",
+      "vue-eslint-parser",
+    ]);
     for (const version of Object.values(versions)) expect(version).toMatch(/^\d+\.\d+\.\d+/);
   });
 });

@@ -1,6 +1,6 @@
 # `vue-doctor/performance/no-deep-watch`
 
-> Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`
+> Watch the specific properties you need (`() => state.user.name`), limit the traversal with `deep: 1` (Vue 3.5+), or drop `deep` when the source is replaced rather than mutated
 
 | Property | Value |
 |---|---|
@@ -11,11 +11,12 @@
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
+| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |
 
 
 ## Why it matters
 
-Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`
+Watch the specific properties you need (`() => state.user.name`), limit the traversal with `deep: 1` (Vue 3.5+), or drop `deep` when the source is replaced rather than mutated
 
 ## How to fix
 
@@ -23,7 +24,7 @@ Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 
-Replace `{ deep: true }` with a watch on the specific properties you need, such as `watch(() => state.user.name, ...)`, or use `watchEffect` which tracks only what it reads.
+`{ deep: true }` traverses the whole source on every trigger, which matters for large arrays or nested objects. Watch the specific properties you need, use a numeric depth such as `deep: 1` (Vue 3.5+), or drop `deep` entirely when the parent replaces the array or object instead of mutating it. Deep watches on primitive sources or on getters that return a literal of plain reads are not reported.
 
 ---
 

@@ -101,7 +101,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Wrap the async component in `<Suspense>` with a fallback, or move the awaited work into `onMounted()` or a composable
-- Agent Guidance: A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable.
+- Agent Guidance: A top-level `await` in `<script setup>` (or an `async setup()`) makes the component async. Ensure a parent renders it inside `<Suspense>` with a fallback, or move the awaited work into `onMounted` or a composable. In Nuxt, `app.vue`, `error.vue`, pages and layouts are not reported: Nuxt renders them inside `<Suspense>`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-async-setup-without-suspense
 
 ## vue-doctor/correctness/no-direct-dom-manipulation
@@ -119,7 +119,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use Vue's `.prevent` modifier: `@submit.prevent` instead of calling `event.preventDefault()`
-- Agent Guidance: Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers that always call `preventDefault()` on their own event argument are flagged; conditional calls and listeners registered with addEventListener are left alone.
+- Agent Guidance: Use Vue's event modifier in the template, such as `@submit.prevent`, instead of calling `event.preventDefault()` in the handler. Only handlers in `.vue` files that always call `preventDefault()` on their own event argument are flagged; calls after a guard `return`, other conditional calls and handlers registered with addEventListener/useEventListener are left alone, because `.prevent` would cancel events the handler deliberately lets through (Tab, unrelated keys).
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-prevent-default
 
 ## vue-doctor/correctness/no-this-in-setup
@@ -134,10 +134,10 @@
 ## vue-doctor/correctness/prefer-defineProps-destructure
 - Category: Correctness
 - Default Severity: warning
-- Confidence: medium
+- Confidence: low
 - Fixable: No
-- Help: Destructure props for reactive access: `const { prop1, prop2 } = defineProps<Props>()`
-- Agent Guidance: Use reactive props destructure: `const { a, b = 1 } = defineProps<Props>()`, which stays reactive in Vue 3.5+. Check the project's Vue version first.
+- Help: Destructure props with native defaults: `const { title, size = "md" } = defineProps<Props>()` (Vue 3.5+)
+- Agent Guidance: Only reported on Vue 3.5+ projects with reactive props destructure enabled, and only when the props object is used solely as `props.x`. Replace `const props = defineProps<Props>()` (or `withDefaults(defineProps<Props>(), { ... })`) with `const { a, b = 1 } = defineProps<Props>()` and rename `props.a` to `a`. Watch a destructured prop through a getter (`watch(() => a, ...)`) and pass it to composables as `toRef(() => a)` or `() => a`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/prefer-defineProps-destructure
 
 ## vue-doctor/correctness/require-defineprops-types
@@ -254,7 +254,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use `useRuntimeConfig()`; expose client values through `runtimeConfig.public` in nuxt.config
-- Agent Guidance: Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`, and do not use `process.env` in app code.
+- Agent Guidance: Only files that end up in the client bundle are checked (components, pages, layouts, composables, non-`.server` plugins, app middleware, stores, utils, `app.vue`); `server/`, `scripts/`, `shared/` and config files run in Node and may read `process.env`. Read configuration with `useRuntimeConfig()`. Declare values in `runtimeConfig` (server-only) or `runtimeConfig.public` (client) in `nuxt.config`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-process-env-in-client
 
 ## vue-doctor/nuxt/nuxt-no-window-in-ssr
@@ -263,7 +263,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Guard browser globals with `if (import.meta.client)` or access them inside `onMounted()`
-- Agent Guidance: Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`.
+- Agent Guidance: Browser globals do not exist during SSR. Guard access with `if (import.meta.client)` or move it into `onMounted()`. Code that only runs from client-only places is already fine: lifecycle hooks other than setup, template event handlers, DOM event listeners, `watch` callbacks without `immediate`, post-flush effects, `*.client.*` files and pages with `ssr: false` in `routeRules`. A function that is exported or returned from a composable cannot be traced to its callers; guard it inside.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-no-window-in-ssr
 
 ## vue-doctor/nuxt/nuxt-require-seo-meta
@@ -274,15 +274,6 @@
 - Help: Use `useSeoMeta({ title, description })` instead of passing `meta` tags to `useHead()`
 - Agent Guidance: Replace `useHead({ meta: [...] })` with `useSeoMeta({ title, description, ogTitle, ... })` for type-safe SEO tags.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-seo-meta
-
-## vue-doctor/nuxt/nuxt-require-server-route-error-handling
-- Category: Nuxt
-- Default Severity: warning
-- Confidence: medium
-- Fixable: No
-- Help: Wrap the handler body in try/catch and throw `createError({ statusCode, statusMessage })` on failure
-- Agent Guidance: Wrap the body of `defineEventHandler` in try/catch and rethrow failures with `createError({ statusCode, statusMessage })` so clients get a proper error response.
-- Docs: https://remylagerweij.github.io/vue-doctor/rules/nuxt/nuxt-require-server-route-error-handling
 
 ## vue-doctor/nuxt/security-headers
 - Category: Nuxt
@@ -299,7 +290,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Use `const [a, b] = await Promise.all([fetchA(), fetchB()])` to run independent operations concurrently
-- Agent Guidance: Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result.
+- Agent Guidance: Independent awaits run one after another. Start them together with `const [a, b] = await Promise.all([fetchA(), fetchB()])`; keep sequential awaits only where a later call needs an earlier result, where an auth, rate-limit or validation guard must finish first, or where writes must land in order.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/async-parallel
 
 ## vue-doctor/performance/client-passive-event-listeners
@@ -307,8 +298,8 @@
 - Default Severity: warning
 - Confidence: high
 - Fixable: No
-- Help: Add `{ passive: true }` as the third argument: `addEventListener('scroll', handler, { passive: true })`
-- Agent Guidance: Pass `{ passive: true }` as the third argument of `addEventListener` for scroll, touch and wheel events, unless the handler must call `preventDefault()`.
+- Help: Add `{ passive: true }` as the third argument: `addEventListener('touchmove', handler, { passive: true })`
+- Agent Guidance: Pass `{ passive: true }` as the third argument of `addEventListener` for `touchstart`, `touchmove` and `wheel`, so the browser can scroll without waiting for the handler. If the handler must call `preventDefault()`, pass `{ passive: false }` explicitly instead. `scroll` and `touchend` cannot block scrolling and are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/client-passive-event-listeners
 
 ## vue-doctor/performance/js-batch-dom-css
@@ -316,8 +307,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Batch style changes with `el.style.cssText` or `el.classList.add()` to avoid multiple reflows
-- Agent Guidance: Batch consecutive `el.style.x = ...` writes into one `el.style.cssText`/`Object.assign(el.style, {...})` or toggle a CSS class, so the browser lays out once.
+- Help: Read layout (`offsetHeight`, `getBoundingClientRect()`) before writing styles, not between style writes
+- Agent Guidance: Reported when a layout read sits between style writes in the same block, or a loop body both writes styles and reads layout: each read forces a synchronous reflow (layout thrashing). Do all reads first and all writes after, or move the writes into `requestAnimationFrame`. Consecutive style writes alone are fine: the browser batches them until the next read. A bare `el.offsetHeight;` used to restart a transition is deliberate and not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-batch-dom-css
 
 ## vue-doctor/performance/js-cache-storage
@@ -334,8 +325,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Combine chained `.map().filter()` into a single `.reduce()` or `for...of` loop
-- Agent Guidance: Fuse chained `.map().filter()` calls into one pass with `for...of` or `.reduce()` so the array is iterated once. Preserve the order of side effects.
+- Help: Fuse long `.filter().map().filter()` chains, or chains that run inside a loop, into one `.reduce()` or `for...of` pass
+- Agent Guidance: Only chains of three or more iteration methods, or chains evaluated on every iteration of a loop or array callback, are reported. Fuse them into one pass with `for...of` or `.reduce()`, preserving the order of side effects. A single `.map().filter()` over a small array costs microseconds and is better left readable.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-combine-iterations
 
 ## vue-doctor/performance/js-early-exit
@@ -352,8 +343,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Hoist `new RegExp()` to a module-level constant to avoid re-compilation on every iteration
-- Agent Guidance: Move the `new RegExp(...)` with a constant pattern out of the loop or function into a module-level constant so it is compiled once.
+- Help: Hoist a `new RegExp()` whose pattern does not change out of the loop so it is compiled once
+- Agent Guidance: Only reported when every argument is a literal or a value that does not change inside the loop. Move the `new RegExp(...)` above the loop, or to a module-level constant when its arguments are all literals. A pattern built from the loop variable cannot be hoisted and is not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-hoist-regexp
 
 ## vue-doctor/performance/js-index-maps
@@ -362,7 +353,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Build a `Map` indexed by the search key before the loop for O(1) lookups
-- Agent Guidance: Build a `Map` keyed by the lookup field once before the loop and use `map.get(key)` instead of calling `find`/`filter` for each item.
+- Agent Guidance: Reported when a loop searches the same array on every iteration with a key-equality predicate (`find(x => x.id === id)`). Build a `Map` keyed by that field once before the loop and use `map.get(key)` instead. Searches whose array changes per iteration, or whose predicate is not a key comparison, are left alone.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-index-maps
 
 ## vue-doctor/performance/js-min-max-loop
@@ -380,7 +371,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Convert the array to a `Set` before the loop for O(1) lookups instead of O(n)
-- Agent Guidance: Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop.
+- Agent Guidance: Convert the array used for `includes`/`indexOf` lookups inside the loop into a `Set` created once before the loop. Small constant lists (an array literal of up to 16 elements that is never grown) are not reported: a linear scan over them is as fast as hashing.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-set-map-lookups
 
 ## vue-doctor/performance/js-tosorted-immutable
@@ -388,8 +379,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Use `array.toSorted()` (ES2023) instead of `[...array].sort()` for cleaner immutable sorting
-- Agent Guidance: Replace `[...array].sort(compare)` with `array.toSorted(compare)`; check that the project's target supports ES2023 first.
+- Help: Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent. Requires an ES2023 build target
+- Agent Guidance: This is a readability rewrite, not a speed-up: `toSorted` copies the array just like the spread does. Replace `[...array].sort(compare)` with `array.toSorted(compare)` only when the receiver is a real array (Sets, Maps and iterators have no `toSorted`) and the build target supports ES2023 (Chrome 110, Firefox 115, Safari 16); Vite does not polyfill it. Leave the spread when either is not the case.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable
 
 ## vue-doctor/performance/no-deep-watch
@@ -397,8 +388,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Watch the specific properties you need (`() => state.user.name`) or use `watchEffect()` instead of `{ deep: true }`
-- Agent Guidance: Replace `{ deep: true }` with a watch on the specific properties you need, such as `watch(() => state.user.name, ...)`, or use `watchEffect` which tracks only what it reads.
+- Help: Watch the specific properties you need (`() => state.user.name`), limit the traversal with `deep: 1` (Vue 3.5+), or drop `deep` when the source is replaced rather than mutated
+- Agent Guidance: `{ deep: true }` traverses the whole source on every trigger, which matters for large arrays or nested objects. Watch the specific properties you need, use a numeric depth such as `deep: 1` (Vue 3.5+), or drop `deep` entirely when the parent replaces the array or object instead of mutating it. Deep watches on primitive sources or on getters that return a literal of plain reads are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/no-deep-watch
 
 ## vue-doctor/performance/no-global-css-variable-animation
@@ -458,10 +449,10 @@
 ## vue-doctor/reactivity/no-cascading-mutations
 - Category: Reactivity
 - Default Severity: warning
-- Confidence: low
+- Confidence: medium
 - Fixable: No
-- Help: Combine related state into a single reactive object or use a composable to manage state transitions
-- Agent Guidance: Several state mutations in one watcher usually mean the state is split wrongly. Group the related refs into one reactive object or move the transition into a composable function, then update it in a single place.
+- Help: Derive the second value with `computed()` instead of chaining watchers, or update both values in one place
+- Agent Guidance: One watcher writes state that a second watcher watches, and the second one derives more state from it, so every change cascades through two flush cycles. Replace the derived ref of the second watcher with `computed(() => ...)` over the same source, or move both updates into the function that starts the change. Several assignments in one watcher (a form reset) are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-cascading-mutations
 
 ## vue-doctor/reactivity/no-fetch-in-watch
@@ -515,7 +506,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Remove the ref and derive inline: `const value = computed(() => transform(props.propName))`
-- Agent Guidance: Do not copy a prop into a `ref()`; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited.
+- Agent Guidance: Do not copy a prop into a `ref()` that is never updated again; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited. Copies that are written later (an editable draft, a ref re-synced by `watch(() => props.x, ...)`) and `initial*`/`default*` seed props are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop
 
 ## vue-doctor/reactivity/no-watch-for-computed
@@ -524,7 +515,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Replace the watcher with a computed property: `const value = computed(() => transform(source))`
-- Agent Guidance: The watcher only derives a value from its source. Delete the watcher and the ref it writes, and declare `const value = computed(() => ...)` using the same source.
+- Agent Guidance: The watcher only derives a ref from its source, and nothing else writes that ref. Delete the watcher and the ref, and declare `const value = computed(() => ...)` using the same source. Refs that the user or other code also writes (a page reset, an editable copy of a prop) are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-watch-for-computed
 
 ## vue-doctor/reactivity/prefer-computed
@@ -686,7 +677,7 @@
 - Confidence: low
 - Fixable: No
 - Help: Ensure sensitive, admin, or mutating server routes verify authentication or authorization
-- Agent Guidance: Admin routes (`server/api/admin/**`) and mutating endpoints (`.post`, `.put`, `.delete`, `.patch`) should enforce an authentication check (e.g. `await requireUserSession(event)`, `await getServerSession(event)`, or custom middleware setting `event.context.auth`). If the endpoint is intentionally public (such as `login.post.ts` or `register.post.ts`), suppress this advisory with `// vue-doctor-disable-next-line`.
+- Agent Guidance: Admin routes (`server/api/admin/**`) and mutating endpoints (`.post`, `.put`, `.delete`, `.patch`) should enforce an authentication check (e.g. `await requireUserSession(event)`, `await getServerSession(event)`, or custom middleware setting `event.context.auth`). Guards named like `requireAdmin`/`ensureUser`/`assertOrgMember`, and `server/utils` functions that read the session and throw a 401/403, are recognised; list other project guards in the rule's `authFunctions` option. If the endpoint is intentionally public (such as `login.post.ts` or `register.post.ts`), suppress this advisory with `// vue-doctor-disable-next-line`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/auth-missing
 
 ## vue-doctor/server/csrf-on-mutating-routes
@@ -694,9 +685,18 @@
 - Default Severity: warning
 - Confidence: low
 - Fixable: No
-- Help: Protect state-changing (mutating) API endpoints against Cross-Site Request Forgery (CSRF)
-- Agent Guidance: Mutating endpoints (`.post`, `.put`, `.patch`, `.delete`) that authenticate via cookies are vulnerable to CSRF if requests from third-party sites are accepted. Verify the `Origin` / `Referer` header matches your site origin, use a CSRF token (or `nuxt-csurf` / `nuxt-security`), or ensure session cookies use `SameSite: Strict` or `Lax`.
+- Help: Protect state-changing (mutating) API endpoints that authenticate with a session cookie against Cross-Site Request Forgery (CSRF)
+- Agent Guidance: A mutating endpoint (`.post`, `.put`, `.patch`, `.delete`) that authenticates with an ambient session cookie can be called from another site with the user's cookies: h3's `readBody` also parses form-encoded and untyped bodies, which a cross-site form can send without a preflight, so a JSON API is not protected by being JSON. Prefer one guard for all routes: a `server/middleware` that rejects non-GET `/api/**` requests whose `Sec-Fetch-Site` is present and not `same-origin`/`none` (or whose `Origin` is not your site), or `nuxt-security` / `nuxt-csurf`. Per route, compare `getRequestHeader(event, 'origin')` with the expected origin, require `content-type: application/json`, or verify a CSRF token. A session cookie with `SameSite=Lax` or `Strict` already blocks cross-site requests (not those from same-site subdomains); the rule reads that from the auth module's config.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/csrf-on-mutating-routes
+
+## vue-doctor/server/no-leaky-error-rethrow
+- Category: Server
+- Default Severity: warning
+- Confidence: medium
+- Fixable: No
+- Help: Do not send a caught error's message to the client, and let HTTP errors through a catch block instead of turning them into a 500
+- Agent Guidance: Nitro already turns an unhandled error into a generic 500 and logs its stack, so a handler does not need a try/catch to be safe. When it has one: (1) never put `error.message` of a caught error or of a Supabase/Prisma `{ error }` result into `createError({ statusMessage | message })`, because the client receives it and it can name tables, constraints or internal hosts; log it with `console.error("[Tag] ...", error)` and throw a fixed, generic `statusMessage`. (2) Rethrow HTTP errors before wrapping: `throw isError(error) ? error : createError({ statusCode: 500, statusMessage: "..." })` (h3 `isError`), so a 400/401/403/404 thrown in the try block keeps its status.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/server/no-leaky-error-rethrow
 
 ## vue-doctor/server/require-input-validation
 - Category: Server
@@ -704,7 +704,7 @@
 - Confidence: medium
 - Fixable: No
 - Help: Validate request input with `getValidatedQuery`/`readValidatedBody`/`getValidatedRouterParams` and a schema (zod, valibot), or run `schema.parse()` on it before use
-- Agent Guidance: Replace `getQuery(event)` with `getValidatedQuery(event, schema.parse)`, `readBody(event)` with `readValidatedBody(event, schema.parse)` and `getRouterParam(event, 'id')` with `getValidatedRouterParams(event, schema.parse)` (zod, valibot or arktype schema; a TypeScript generic like `readBody<Foo>(event)` is not validation, it only asserts a type). Or keep the raw read and pass the result through `schema.parse(...)` / `safeParse` before using it, throwing `createError({ statusCode: 400 })` on failure. A single header read for authentication or forwarding can be compared against the expected value instead.
+- Agent Guidance: Replace `getQuery(event)` with `getValidatedQuery(event, schema.parse)`, `readBody(event)` with `readValidatedBody(event, schema.parse)` and `getRouterParam(event, 'id')` with `getValidatedRouterParams(event, schema.parse)` (zod, valibot or arktype schema; a TypeScript generic like `readBody<Foo>(event)` or a cast like `body as Foo` is not validation, it only asserts a type). Or keep the raw read and pass the result through `schema.parse(...)` / `safeParse` before using it, throwing `createError({ statusCode: 400 })` on failure. A route param only needs a presence check that throws (`if (!id) throw createError({ statusCode: 400 })`), since it is always a string. A single header read for authentication or forwarding can be compared against the expected value instead. If the project validates through its own helper (`parseBody(event, schema)`), list it in the rule's `validators` option.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/require-input-validation
 
 ## vue-doctor/server/secure-cookie-flags
@@ -721,8 +721,8 @@
 - Default Severity: warning
 - Confidence: medium
 - Fixable: No
-- Help: Use a structured logger like `consola` or `pino` for server-side logging instead of `console.log()`
-- Agent Guidance: Replace `console.log/info/warn` in server handlers with a structured logger such as `consola` or `pino`; keep the message and add context as fields.
+- Help: Remove debug `console.log/debug/trace` calls from request handlers; they flood production logs and can leak request data
+- Agent Guidance: Delete leftover `console.log`, `console.debug` and `console.trace` calls in `server/api`, `server/routes` and `server/middleware` handlers, especially ones that print request data, user ids, emails or addresses (PII). If the message reports a degraded path or a failure someone must act on, keep it as `console.warn` or `console.error` with a fixed prefix and no personal data. Do not add a logging library just for this.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/server/server-no-console-in-handler
 
 ## vue-doctor/nuxt/no-sensitive-public-file
@@ -766,8 +766,8 @@
 - Default Severity: warning
 - Confidence: low
 - Fixable: No
-- Help: Review dependencies that run code at install time; install with --ignore-scripts and allow-list the ones that need it (pnpm `onlyBuiltDependencies`)
-- Agent Guidance: Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then restrict install scripts: in pnpm add it to `onlyBuiltDependencies` and nothing else; with npm use `--ignore-scripts` in CI and rebuild only what is needed (`npm rebuild <pkg>`). Report the list to the user rather than silently changing install behaviour.
+- Help: Review dependencies that run code at install time and record the decision: npm `allowScripts` (`npm approve-scripts`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`
+- Agent Guidance: Do not remove the dependency just because it has an install script: many native packages need one. Check that the package is the one intended (name, publisher, download count), then record the review in the package manager's allowlist, which silences the finding: npm 11 `allowScripts` in package.json (`npm approve-scripts <pkg>`), pnpm `onlyBuiltDependencies`, Bun `trustedDependencies`. Scripts that only `echo` or `exit 0` are not reported. Report the list to the user rather than silently changing install behaviour.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/supply-chain/no-dependency-install-scripts
 
 ## vue-doctor/supply-chain/no-remote-dependency-spec

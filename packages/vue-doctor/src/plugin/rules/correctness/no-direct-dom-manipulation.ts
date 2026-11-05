@@ -18,6 +18,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use template refs: `const el = ref<HTMLElement>()` with `ref=\"el\"` instead of `document.querySelector()`",
     agentGuidance: "Use a template ref (`const el = ref<HTMLElement | null>(null)` with `ref=\"el\"`) and access `el.value` after mount instead of `document.querySelector`.",

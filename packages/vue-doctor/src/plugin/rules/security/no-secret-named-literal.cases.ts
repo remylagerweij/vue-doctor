@@ -40,6 +40,11 @@ const cases: RuleCases = {
       code: `export const token = "${fakeJwt({ role: "anon" }, 46)}";\n`,
     },
     {
+      name: "environment variable names under secret-like keys (e2e accounts.ts)",
+      filename: "tests/e2e/support/accounts.ts",
+      code: `export const ROLE_ENV = {\n  operator: { email: "B2B_E2E_OPERATOR_EMAIL", password: "B2B_E2E_OPERATOR_PASSWORD" },\n  admin: { email: "B2B_E2E_ADMIN_EMAIL", password: "B2B_E2E_ADMIN_PASSWORD" },\n};\nexport const apiKeyVar = "STRIPE_SECRET_KEY_2";\n`,
+    },
+    {
       name: "hardcoded secrets in server code are not guessed from names",
       filename: "server/api/hook.post.ts",
       code: `export const apiSecret = "${token(47)}";\n`,
@@ -60,6 +65,11 @@ const cases: RuleCases = {
     { name: "default parameter", code: `export const connect = (secret = "${token(57)}") => secret;\n` },
     { name: "template literal without expressions", code: `export const apiKey = \`${token(58)}\`;\n` },
     { name: "class field", code: `export class Api {\n  privateKey = "${token(59)}";\n}\n` },
+    {
+      name: "secret-named literal in a command-line script",
+      filename: "scripts/seed-users.ts",
+      code: `export const apiSecret = "${token(62)}";\n`,
+    },
     { name: "hard-coded password", code: `const password = "hunter2hunter2";\nexport { password };\n` },
     {
       name: "Authorization header with a bearer token",

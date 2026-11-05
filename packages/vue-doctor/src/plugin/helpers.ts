@@ -7,8 +7,6 @@ import {
 import type { EsTreeNode, RuleContext, RuleVisitors } from "./types.js";
 import { VISITOR_KEYS } from "./visitor-keys.js";
 
-const SETTER_CALL_PATTERN = /^set[A-Z]/;
-
 // Path of the file being linted, with forward slashes on every platform. Throws instead of
 // returning "" so a host without a filename API fails loudly rather than silently disabling
 // every path-based rule (server/, .vue, test files).
@@ -22,6 +20,18 @@ export const getFilename = (context: RuleContext): string => {
     );
   }
   return filename.replace(/\\/g, "/");
+};
+
+/** The rule's options object (`["warn", { ... }]`), or `{}` when none is configured. */
+export const getRuleOptions = (context: RuleContext): Readonly<Record<string, unknown>> => {
+  const first = context.options?.[0];
+  return first !== null && typeof first === "object" && !Array.isArray(first) ? (first as Record<string, unknown>) : {};
+};
+
+/** A string-list option, ignoring anything that is not a string. */
+export const getStringListOption = (options: Readonly<Record<string, unknown>>, key: string): string[] => {
+  const value = options[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 };
 
 // Walk protocol: a visitor may return WALK_SKIP to not descend into the current node's
@@ -70,6 +80,17 @@ export const isSpecificCall = (node: EsTreeNode, name: string | Set<string>): bo
 
 export const isUppercaseName = (name: string): boolean => UPPERCASE_PATTERN.test(name);
 
+/** True when an ImportDeclaration is type-only (`import type ...` or all specifiers are `type`). */
+export const isTypeOnlyImport = (node: EsTreeNode): boolean => {
+  if (node.importKind === "type") return true;
+  const specifiers = node.specifiers as EsTreeNode[] | undefined;
+  return Boolean(
+    specifiers &&
+      specifiers.length > 0 &&
+      specifiers.every((specifier) => specifier.importKind === "type"),
+  );
+};
+
 export const getWatchCallback = (node: EsTreeNode): EsTreeNode | null => {
   if (!node.arguments?.length || node.arguments.length < 2) return null;
   const callback = node.arguments[1];
@@ -97,20 +118,16 @@ export const getCallbackStatements = (callback: EsTreeNode): EsTreeNode[] => {
 
 export interface WatchCallbackAnalysis {
   hasFetchCall: boolean;
-  mutationCount: number;
 }
 
-// Everything the watcher rules need to know about a callback, gathered in ONE walk and
-// memoized per callback node, so no-fetch-in-watch and no-cascading-mutations (and any future
-// watcher rule) never re-walk the same subtree. Nodes are per-file ASTs, so the WeakMap
-// entries disappear together with the file.
+// What the watcher rules need to know about a callback, gathered in one walk and memoized per callback node.
 const watchCallbackAnalyses = new WeakMap<EsTreeNode, WatchCallbackAnalysis>();
 
 export const analyzeWatchCallback = (callback: EsTreeNode): WatchCallbackAnalysis => {
   const cached = watchCallbackAnalyses.get(callback);
   if (cached) return cached;
 
-  const analysis: WatchCallbackAnalysis = { hasFetchCall: false, mutationCount: 0 };
+  const analysis: WatchCallbackAnalysis = { hasFetchCall: false };
   walkAst(callback, (child) => {
     if (child.type === "CallExpression" && !analysis.hasFetchCall) {
       const callee = child.callee;
@@ -123,37 +140,9 @@ export const analyzeWatchCallback = (callback: EsTreeNode): WatchCallbackAnalysi
         analysis.hasFetchCall = true;
       }
     }
-    if (child.type === "ExpressionStatement") analysis.mutationCount += countStatementMutations(child);
   });
   watchCallbackAnalyses.set(callback, analysis);
   return analysis;
-};
-
-// 1 when the statement is `x.value = ...` or a `setXxx()` call, else 0.
-const countStatementMutations = (statement: EsTreeNode): number => {
-  const expression = statement.expression;
-  if (!expression) return 0;
-  let count = 0;
-
-  // .value = ...
-  if (
-    expression.type === "AssignmentExpression" &&
-    expression.left?.type === "MemberExpression" &&
-    expression.left.property?.type === "Identifier" &&
-    expression.left.property.name === "value"
-  ) {
-    count++;
-  }
-
-  // setXxx() style calls
-  if (
-    expression.type === "CallExpression" &&
-    expression.callee?.type === "Identifier" &&
-    SETTER_CALL_PATTERN.test(expression.callee.name)
-  ) {
-    count++;
-  }
-  return count;
 };
 
 export const createLoopAwareVisitors = (

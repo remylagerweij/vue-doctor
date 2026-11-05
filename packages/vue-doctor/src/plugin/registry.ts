@@ -1,10 +1,11 @@
 import type { Framework } from "../types.js";
 import { isAuditRule, type DefinedAuditRule } from "./define-audit-rule.js";
 import { isFsRule, type DefinedFsRule } from "./define-fs-rule.js";
-import type { DefinedRule, RuleCategory, RuleEngine, RuleMeta } from "./define-rule.js";
+import type { DefinedRule, ProjectCapability, RuleCategory, RuleEngine, RuleMeta } from "./define-rule.js";
 import { ruleModules } from "./rules/index.js";
 import { CUSTOM_TEMPLATE_RULES, CUSTOM_TEMPLATE_PLUGIN_NAME } from "./custom-template-rules.js";
 import { TEMPLATE_RULES } from "./template-rules.js";
+import { SETTINGS_KEY, type VueDoctorSettings } from "./nuxt-files.js";
 
 /**
  * Plugin name oxlint knows the custom rules by. Oxlint sees the flat rule name (`vue-doctor/<rule>`);
@@ -72,16 +73,63 @@ export const isEnabled = (meta: RuleMeta, framework: Framework): boolean => {
 const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
   severity === "error" ? "error" : "warn";
 
+/** Options per own rule, keyed by the rule's flat name (`require-input-validation`). */
+export type RuleOptionsById = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+
+/** Project linter override for a `vue/*` template rule: `"off"` or explicit rule option arguments. */
+export type TemplateRuleOverride = "off" | { readonly options: readonly unknown[] };
+
+export type TemplateRuleOverrides = Readonly<Record<string, TemplateRuleOverride>>;
+
+export type TemplateRuleConfigEntry = "error" | "warn" | ["error" | "warn", ...unknown[]];
+
+const PROTECTED_RULE_CATEGORIES: ReadonlySet<RuleCategory> = new Set(["Security", "Supply Chain", "Server"]);
+
 interface OxlintConfigOptions {
   pluginPath: string;
   framework: Framework;
+  /** How the Nuxt app renders (see `readNuxtRenderSettings`); only meaningful for Nuxt. */
+  nuxt?: VueDoctorSettings["nuxt"];
+  /** The project's capabilities; when omitted, rules that require one are kept. */
+  capabilities?: ReadonlySet<ProjectCapability>;
+  /** Options for rules that declare `options`; entries for other rules are ignored. */
+  ruleOptions?: RuleOptionsById;
+  /** Non-Security/non-Server own rules disabled in the project's ESLint/oxlint config. */
+  disabledRules?: ReadonlySet<string>;
 }
 
-export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOptions) => {
-  const rules: Record<string, "error" | "warn"> = {};
+type OxlintRuleEntry = "error" | "warn" | ["error" | "warn", Readonly<Record<string, unknown>>];
+
+const hasRequiredCapabilities = (meta: RuleMeta, capabilities: ReadonlySet<ProjectCapability> | undefined): boolean =>
+  !capabilities || (meta.requires ?? []).every((capability) => capabilities.has(capability));
+
+const isDisabledByProjectLinter = (meta: RuleMeta, disabledRules: ReadonlySet<string> | undefined): boolean =>
+  Boolean(
+    disabledRules &&
+      !PROTECTED_RULE_CATEGORIES.has(meta.category) &&
+      (disabledRules.has(meta.id) || disabledRules.has(getCanonicalRuleId(meta))),
+  );
+
+export const createOxlintConfig = ({
+  pluginPath,
+  framework,
+  nuxt,
+  capabilities,
+  ruleOptions = {},
+  disabledRules,
+}: OxlintConfigOptions) => {
+  const rules: Record<string, OxlintRuleEntry> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
-    if (!isEnabled(meta, framework)) continue;
-    rules[`${PLUGIN_NAME}/${meta.id}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    if (
+      !isEnabled(meta, framework) ||
+      !hasRequiredCapabilities(meta, capabilities) ||
+      isDisabledByProjectLinter(meta, disabledRules)
+    ) {
+      continue;
+    }
+    const severity = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const options = meta.options ? ruleOptions[meta.id] : undefined;
+    rules[`${PLUGIN_NAME}/${meta.id}`] = options && Object.keys(options).length > 0 ? [severity, options] : severity;
   }
 
   return {
@@ -97,6 +145,9 @@ export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOption
     plugins: [],
     jsPlugins: [pluginPath],
     rules,
+    settings: {
+      [SETTINGS_KEY]: { framework, ...(framework === "nuxt" && nuxt ? { nuxt } : {}) } satisfies VueDoctorSettings,
+    },
   };
 };
 
@@ -104,12 +155,29 @@ export const createOxlintConfig = ({ pluginPath, framework }: OxlintConfigOption
 export const getEnabledFsRules = (framework: Framework): DefinedFsRule[] =>
   FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework));
 
-/** ESLint `rules` record for the template rules (`vue/<rule>` to `error` or `warn`). */
-export const createTemplateRuleConfig = (): Record<string, "error" | "warn"> => {
-  const rules: Record<string, "error" | "warn"> = {};
+/**
+ * ESLint `rules` record for the template rules (`vue/<rule>` to `error` or `warn`, or
+ * `[severity, ...options]` when the project's ESLint/oxlint config specifies options).
+ * Security template rules (`vue/no-template-target-blank`) ignore foreign linter overrides.
+ */
+export const createTemplateRuleConfig = (
+  overrides?: TemplateRuleOverrides,
+  framework?: Framework,
+): Record<string, TemplateRuleConfigEntry> => {
+  const rules: Record<string, TemplateRuleConfigEntry> = {};
   for (const meta of TEMPLATE_RULES) {
     if (meta.defaultSeverity === "off") continue;
-    rules[meta.id] = toOxlintSeverity(meta.defaultSeverity);
+    const override = PROTECTED_RULE_CATEGORIES.has(meta.category) ? undefined : overrides?.[meta.id];
+    if (override === "off") continue;
+    const severity = toOxlintSeverity(meta.defaultSeverity);
+    if (meta.id === "vue/component-name-in-template-casing" && (!override || override.options.length === 0)) {
+      if (framework === "quasar") {
+        rules[meta.id] = [severity, "PascalCase", { registeredComponentsOnly: false, ignores: ["/^q-/"] }];
+        continue;
+      }
+    }
+    rules[meta.id] =
+      override && override.options.length > 0 ? [severity, ...override.options] : severity;
   }
   return rules;
 };

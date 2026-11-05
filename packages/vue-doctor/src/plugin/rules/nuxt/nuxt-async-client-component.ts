@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Avoid async setup in client components. Use `useFetch()` or `useAsyncData()` instead",
     agentGuidance: "Avoid `await` in the setup of a client-only component. Fetch with `useAsyncData()`/`useFetch()` or load in `onMounted` with a loading state.",

@@ -1,5 +1,6 @@
 import { BARREL_INDEX_SUFFIXES } from "../../constants.js";
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -10,12 +11,14 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Import from the direct path: `import { Button } from './components/Button'` instead of `./components`",
     agentGuidance: "Import from the module that defines the symbol, for example `./components/Button`, instead of the folder `index` barrel, so unused exports can be tree-shaken.",
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       const source = node.source?.value;
       if (typeof source !== "string") return;
       if (!source.startsWith(".")) return;

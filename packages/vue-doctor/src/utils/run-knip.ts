@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { Diagnostic } from "../types.js";
 import { listNestedWorkspaceDirectories, listWorkspaceDirectories, listWorkspacePackages } from "./discover-project.js";
 import { findMonorepoRoot, isMonorepoRoot } from "./find-monorepo-root.js";
+import { isTestFile } from "../plugin/test-files.js";
 
 // Knip issue types vue-doctor reports; the rest (dependencies, unlisted, ...) belongs to other tools.
 export const KNIP_ISSUE_TYPES = ["files", "exports", "types", "duplicates"] as const;
@@ -25,22 +26,61 @@ const KNIP_MESSAGE_MAP: Record<KnipIssueType, string> = {
   duplicates: "Duplicate export",
 };
 
+const AUTO_IMPORT_D_TS_FILES = [
+  "auto-imports.d.ts",
+  "components.d.ts",
+  "src/auto-imports.d.ts",
+  "src/components.d.ts",
+];
+
+const readAutoImportedSymbols = (rootDirectory: string): Set<string> => {
+  const symbols = new Set<string>();
+  for (const filename of AUTO_IMPORT_D_TS_FILES) {
+    try {
+      const content = fs.readFileSync(path.join(rootDirectory, filename), "utf8");
+      for (const match of content.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*:/g)) {
+        symbols.add(match[1]);
+      }
+      for (const match of content.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*typeof\s+import\(/g)) {
+        symbols.add(match[1]);
+      }
+    } catch {
+      // File does not exist.
+    }
+  }
+  return symbols;
+};
+
 const toPosixRelative = (rootDirectory: string, filePath: string): string =>
   path.relative(rootDirectory, filePath).split(path.sep).join("/");
 
-const toDiagnostic = (issue: KnipWorkerIssue, rootDirectory: string): Diagnostic => ({
-  filePath: toPosixRelative(rootDirectory, issue.filePath),
-  plugin: "knip",
-  rule: issue.type,
-  severity: "warning",
-  message:
-    issue.type === "files" ? KNIP_MESSAGE_MAP.files : `${KNIP_MESSAGE_MAP[issue.type]}: ${issue.symbol}`,
-  help: issue.type === "files" ? "This file is not imported by any other file in the project." : "",
-  line: 0,
-  column: 0,
-  category: "Dead Code",
-  weight: 1,
-});
+const toDiagnostic = (
+  issue: KnipWorkerIssue,
+  rootDirectory: string,
+  autoImportedSymbols?: ReadonlySet<string>,
+): Diagnostic | null => {
+  if (issue.type === "files") {
+    if (issue.filePath.endsWith(".d.ts") || isTestFile(issue.filePath, rootDirectory)) {
+      return null;
+    }
+  }
+  if (issue.type === "exports" && autoImportedSymbols?.has(issue.symbol)) {
+    return null;
+  }
+  return {
+    filePath: toPosixRelative(rootDirectory, issue.filePath),
+    plugin: "knip",
+    rule: issue.type,
+    severity: "warning",
+    message:
+      issue.type === "files" ? KNIP_MESSAGE_MAP.files : `${KNIP_MESSAGE_MAP[issue.type]}: ${issue.symbol}`,
+    help: issue.type === "files" ? "This file is not imported by any other file in the project." : "",
+    line: 0,
+    column: 0,
+    category: "Dead Code",
+    weight: 1,
+  };
+};
 
 // Knip runs in a child process (see knip-worker.ts for why). The worker is a real file shipped in
 // dist next to this module's chunk; when running from source (tests), fall back to the built one.
@@ -152,8 +192,11 @@ export const runKnip = async (
   session?: KnipSession,
 ): Promise<Diagnostic[]> => {
   const directory = path.resolve(projectDirectory);
+  const autoImported = readAutoImportedSymbols(directory);
   const toDiagnostics = (issues: KnipWorkerIssue[]): Diagnostic[] =>
-    issues.map((issue) => toDiagnostic(issue, directory));
+    issues
+      .map((issue) => toDiagnostic(issue, directory, autoImported))
+      .filter((diagnostic): diagnostic is Diagnostic => diagnostic !== null);
 
   // The project is the monorepo root itself: nested workspaces are other projects.
   if (isMonorepoRoot(directory)) {

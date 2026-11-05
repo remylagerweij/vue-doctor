@@ -3,6 +3,16 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "browser-run component test",
+      filename: "app/components/Modal.spec.ts",
+      code: `it("traps focus", () => {\n  document.body.innerHTML = "<button id=a></button>";\n  document.getElementById("a").focus();\n});\n`,
+    },
+    {
+      name: "Playwright end-to-end helper",
+      filename: "tests/e2e/support/scroll.ts",
+      code: `export const readTitle = () => document.querySelector("h1").textContent;\n`,
+    },
+    {
       name: "template ref instead of document lookup",
       filename: "src/Comp.vue",
       code: `<script setup>\nimport { ref, onMounted } from "vue";\nconst input = ref(null);\nonMounted(() => input.value.focus());\n</script>\n`,

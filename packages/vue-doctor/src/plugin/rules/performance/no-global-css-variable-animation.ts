@@ -9,6 +9,7 @@ export default defineRule({
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Set the variable on the nearest element instead of a parent, or use `@property` with `inherits: false`",
     agentGuidance: "Do not animate a CSS variable on `:root`/`body`; every dependent element restyles each frame. Set the variable on the nearest element that uses it, or register it with `@property` and `inherits: false`.",

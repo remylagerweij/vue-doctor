@@ -35,7 +35,7 @@
     "vue-doctor/performance/client-passive-event-listeners": 1,
     "vue-doctor/performance/js-batch-dom-css": 1,
     "vue-doctor/performance/js-cache-storage": 2,
-    "vue-doctor/performance/js-combine-iterations": 2,
+    "vue-doctor/performance/js-combine-iterations": 1,
     "vue-doctor/performance/js-early-exit": 2,
     "vue-doctor/performance/js-hoist-regexp": 1,
     "vue-doctor/performance/js-index-maps": 1,
@@ -58,8 +58,9 @@
     "vue-doctor/reactivity/no-reactive-destructure": 1,
     "vue-doctor/reactivity/no-reactive-replace": 1,
     "vue-doctor/reactivity/no-ref-from-prop": 1,
-    "vue-doctor/reactivity/no-watch-for-computed": 3,
-    "vue-doctor/reactivity/prefer-computed": 1
+    "vue-doctor/reactivity/no-watch-for-computed": 1,
+    "vue-doctor/reactivity/prefer-computed": 1,
+    "vue/no-side-effects-in-computed-properties": 1
   },
   "Security": {
     "vue-doctor/security/no-eval": 1,

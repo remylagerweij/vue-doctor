@@ -10,6 +10,7 @@ export default defineRule({
     confidence: "high",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use `transform: translateX()` or `scale()` instead — they run on the compositor and skip layout/paint",
     agentGuidance: "Animate compositor-friendly properties only. Replace animated width/height/top/left/margin with `transform: translate()/scale()` and `opacity`.",

@@ -54,6 +54,10 @@ const cases: RuleCases = {
       code: `export const link = (enabled, url) => (enabled ? url : "javascript:void(0)");\n`,
     },
     {
+      name: "javascript:; placeholder assigned in script",
+      code: `export const placeholder = { href: "javascript:;" };\n`,
+    },
+    {
       name: "JSX href with javascript:",
       filename: "src/Comp.jsx",
       code: `export const Link = () => <a href="javascript:void(0)">Open</a>;\n`,
@@ -74,6 +78,12 @@ const cases: RuleCases = {
       { name: "bound template literal with a javascript: prefix", filename: FILENAME, code: vue("defineProps(['code'])", "<a :href=\"`javascript:${code}`\">open</a>") },
       { name: "javascript: action on a form", filename: FILENAME, code: vue("", `<form action="javascript:submit()"></form>`) },
       { name: "javascript: href in a v-bind object", filename: FILENAME, code: vue("", `<a v-bind="{ href: 'javascript:void(0)' }">open</a>`) },
+      {
+        name: "placeholder social links (FooterSocials.vue)",
+        filename: "app/components/layout/footer/FooterSocials.vue",
+        code: vue("", `<a href="javascript:void(0)" class="icon">fb</a>\n<a href="javascript:;" class="icon">x</a>`),
+        count: 2,
+      },
     ],
   },
 };

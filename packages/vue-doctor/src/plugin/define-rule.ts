@@ -1,3 +1,5 @@
+import { getFilename } from "./helpers.js";
+import { isTestFile } from "./test-files.js";
 import type { Rule, RuleContext, RuleVisitors } from "./types.js";
 
 /** Display categories, in the order findings are grouped in reports. */
@@ -23,6 +25,9 @@ export type RuleConfidence = "high" | "medium" | "low";
 
 export type RuleFramework = "vue" | "nuxt";
 
+/** Toolchain features a rule may depend on; detected per project by utils/project-capabilities.ts. */
+export type ProjectCapability = "props-destructure" | "typescript" | "ssr" | "nuxt-image";
+
 /**
  * Which analyzer runs the rule: oxlint (script AST), eslint-template (template AST), fs (project
  * files, see define-fs-rule.ts) or audit (opt-in network lookup, see define-audit-rule.ts).
@@ -41,6 +46,8 @@ export interface RuleMeta {
    * Nuxt-only rules list just `["nuxt"]`.
    */
   frameworks: RuleFramework[];
+  /** Project capabilities the rule needs; it is not run on projects that lack one. */
+  requires?: ProjectCapability[];
   /** CWE identifiers, e.g. `["CWE-79"]`. */
   cwe?: string[];
   /** OWASP Top 10 category, e.g. `A03:2021`. */
@@ -57,7 +64,27 @@ export interface RuleMeta {
   help: string;
   /** Instructions for an AI coding agent on how to fix a finding correctly. */
   agentGuidance: string;
+  /**
+   * JSON Schema of the rule's options object, set in config as `["warn", { ... }]`. Rules without it
+   * take no options. Every property needs a `description`: the rule docs are generated from it.
+   */
+  options?: RuleOptionsSchema;
   engine: RuleEngine;
+  /** Not run on test files and test-runner config (see test-files.ts): the code never ships. */
+  skipTestFiles?: boolean;
+}
+
+export interface RuleOptionSchema {
+  type: "boolean" | "string" | "array";
+  description: string;
+  items?: { type: "string" };
+  enum?: readonly string[];
+}
+
+export interface RuleOptionsSchema {
+  type: "object";
+  properties: Record<string, RuleOptionSchema>;
+  additionalProperties: false;
 }
 
 /** What a rule file passes to `defineRule`; the engine is implied. */
@@ -67,7 +94,7 @@ type OxlintRuleMeta = Omit<RuleMeta, "engine">;
 interface HostRuleMeta {
   type: "problem" | "suggestion";
   docs: { description: string };
-  schema: [];
+  schema: [] | [RuleOptionsSchema];
 }
 
 /** An oxlint/ESLint-compatible rule that also carries Vue Doctor's registry metadata. */
@@ -86,8 +113,10 @@ export const defineRule = ({ meta, create }: RuleDefinition): DefinedRule => ({
   meta: {
     type: meta.category === "Security" || meta.defaultSeverity === "error" ? "problem" : "suggestion",
     docs: { description: meta.help },
-    schema: [],
+    schema: meta.options ? [meta.options] : [],
   },
-  create,
+  create: meta.skipTestFiles
+    ? (context) => (isTestFile(getFilename(context)) ? {} : create(context))
+    : create,
   ruleMeta: { ...meta, engine: "oxlint" },
 });

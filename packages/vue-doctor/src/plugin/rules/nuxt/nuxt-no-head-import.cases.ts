@@ -18,6 +18,10 @@ const cases: RuleCases = {
       name: "local module with a similar name",
       code: `import { head } from "./unhead-vue";\nexport { head };\n`,
     },
+    {
+      name: "type-only import from @unhead/vue",
+      code: `import type { ActiveHeadEntry, UseHeadInput } from "@unhead/vue";\nexport type { ActiveHeadEntry, UseHeadInput };\n`,
+    },
   ],
   invalid: [
     {

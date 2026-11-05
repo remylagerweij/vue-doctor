@@ -11,6 +11,7 @@ export default defineRule({
     confidence: "low",
     frameworks: ["vue", "nuxt"],
     fixable: false,
+    skipTestFiles: true,
     since: "1.0.0",
     help: "Use early returns to flatten deeply nested conditions for better readability",
     agentGuidance: "Flatten deeply nested conditionals with guard clauses: return early for the failing cases and keep the main path unindented. Do not change behaviour.",

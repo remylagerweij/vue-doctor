@@ -168,3 +168,17 @@ export const TEMPLATE_RULES: readonly RuleMeta[] = [
     agentGuidance: "Add `rel=\"noopener noreferrer\"` to every link with `target=\"_blank\"`.",
   }),
 ];
+
+/** Rules that also read `<script>`; off for a file whose script cannot be parsed, where they would see none. */
+export const SCRIPT_DEPENDENT_TEMPLATE_RULES: ReadonlySet<string> = new Set([
+  "vue/no-template-shadow",
+  "vue/require-explicit-emits",
+  "vue/component-name-in-template-casing",
+  "vue/no-mutating-props",
+  "vue/no-computed-properties-in-data",
+  "vue/no-side-effects-in-computed-properties",
+  "vue/no-async-in-computed-properties",
+  "vue/return-in-computed-property",
+  "vue/no-ref-as-operand",
+  "vue/no-dupe-keys",
+]);
