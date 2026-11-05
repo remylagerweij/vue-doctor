@@ -1,7 +1,12 @@
 {
   "name": "vue-doctor",
   "private": true,
-  "homepage": "https://github.com/remylagerweij/vue-doctor#readme",
+  "description": "Production-grade diagnostics, performance optimization, security guardrails, and dead-code detection for Vue.js and Nuxt applications.",
+  "author": {
+    "name": "Remy Martin Lagerweij",
+    "url": "https://github.com/remylagerweij"
+  },
+  "homepage": "https://remylagerweij.github.io/vue-doctor/",
   "bugs": {
     "url": "https://github.com/remylagerweij/vue-doctor/issues"
   },
@@ -37,10 +42,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@types/node": "^24.0.0",
-    "knip": "^6.39.0",
+    "@types/node": "^26.6.5",
+    "knip": "^6.43.0",
     "oxlint": "1.86.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

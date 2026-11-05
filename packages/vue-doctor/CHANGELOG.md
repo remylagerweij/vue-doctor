@@ -1,5 +1,17 @@
 # @remylagerweij/vue-doctor
 
+## 2.0.4
+
+### Patch Changes
+
+- docs: improve package discoverability, description, README, and npm keywords.
+
+## 2.0.3
+
+### Patch Changes
+
+- Minor dependency upgrades: knip, zod, eslint, happy-dom, @types/node, fast-uri.
+
 ## 2.0.2
 
 ### Patch Changes
