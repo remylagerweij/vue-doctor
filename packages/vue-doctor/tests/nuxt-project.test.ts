@@ -60,6 +60,25 @@ export default defineNuxtConfig({
     expect(readNuxtRenderSettings(root)).toEqual({ ssr: false });
   });
 
+  it("reads custom srcDir, serverDir, and dir overrides", () => {
+    const root = makeTree({
+      "nuxt.config.ts": `export default defineNuxtConfig({
+  srcDir: "app",
+  serverDir: "custom-server",
+  dir: {
+    pages: "views",
+    layouts: "templates",
+  },
+})\n`,
+    });
+    expect(readNuxtRenderSettings(root)).toEqual({
+      srcDir: "app",
+      serverDir: "custom-server",
+      pagesDir: "views",
+      layoutsDir: "templates",
+    });
+  });
+
   it("returns nothing for a missing or unreadable config", () => {
     expect(readNuxtRenderSettings(makeTree({ "package.json": {} }))).toEqual({});
     expect(readNuxtRenderSettings(makeTree({ "nuxt.config.ts": "export default createConfig()\n" }))).toEqual({});

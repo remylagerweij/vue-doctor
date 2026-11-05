@@ -1,5 +1,69 @@
 # @remylagerweij/vue-doctor
 
+## 2.1.0
+
+### Minor Changes
+
+- 0520d22: Server rules, reworked after scanning a real Nuxt 4 monorepo, where almost every finding of these rules was a false positive.
+  
+  - **Rule options.** A rule can now take options next to its severity, `["warn", { ... }]`; until now the tuple form was accepted and ignored. Unknown option names and wrong types are config errors (exit code 2); options given to a rule that takes none are ignored with a warning. Each rule page lists its options. On Nuxt projects the server rules also receive what a pre-scan of the project finds (`server/utils` guards, the session cookie's SameSite), and changing those files invalidates the lint cache.
+  - **`server/require-input-validation`**: `safeParse`, `parseAsync` and `safeParseAsync` count as validation (the pattern was case-sensitive, so `safeParse` never matched), as does a read nested in the validator call (`S.parse(await readBody(e))`), inside an object, array, `??`/`||` or conditional (`S.safeParse({ id: getRouterParam(e, "id") ?? "" })`), or behind `.catch()`/`.then()`. Webhook signature checks validate what they are handed (`stripe.webhooks.constructEvent`, `verify*`, any call given the signature header), as does a same-file function that checks its first parameter with `typeof`/`instanceof`/a schema, and a `switch` over the value. A route param only needs a presence check that throws (`if (!id) throw createError(...)`): it is always a string. New option `validators` for project helpers such as `parseBody`.
+  - **`server/auth-missing`**: recognises guards named like `requireAdmin`/`ensureAdmin`/`assertOrgMember`/`requirePlatformOperator`, and `server/utils` functions (auto-imported) that read the session and throw a 401/403, directly or through each other. A bare `userId`/`token` member name no longer counts as an auth check; `event.context.user`/`auth`/`session` still does. New option `authFunctions`.
+  - **`server/csrf-on-mutating-routes`**: reports only routes that authenticate with a session cookie (Supabase, nuxt-auth-utils, h3 sessions, `getCookie`, or a project helper that reads one), now also when they read no body. Nothing is reported when the session cookie is SameSite `lax`/`strict` (read from `nuxt.config`: `@nuxtjs/supabase`, `nuxt-auth-utils` and `@sidebase/nuxt-auth` default to `lax`), when `nuxt-security`/`nuxt-csurf` is installed, or when a server middleware checks `Origin`/`Sec-Fetch-Site`. Signature-verified hooks, header-secret authentication and an explicit `content-type` assertion count as mitigations; a JSON body does not (h3's `readBody` parses form posts too). Only real comparisons of the `Origin`/`Referer`/`Sec-Fetch-Site` header count, not `getRequestURL(event).origin`. New options `sessionFunctions`, `sessionCookieSameSite`, `csrfProtection` and `reportSameSiteLax`.
+  - **`server/server-no-console-in-handler`**: flags only `console.log`, `console.debug` and `console.trace` (debug leftovers that can leak request data); `console.info`/`warn` on a degraded path are legitimate operational logging. It no longer recommends a logging library.
+  - **New `vue-doctor/server/no-leaky-error-rethrow`** (warning, CWE-209): `createError({ statusMessage | message })` carrying a caught error's message (or a Supabase/Prisma `{ error }` result's), which the client receives; and a `catch` that turns everything into a 500 although its `try` block throws 4xx errors, without letting them through (`isError(e)`, `e.statusCode`).
+  - **Removed `vue-doctor/nuxt/nuxt-require-server-route-error-handling`.** Nitro already turns an unhandled error into a logged, generic 500, and the rule's advice (wrap every handler in try/catch and rethrow `createError`) swallowed 4xx statuses and leaked error messages. The ID still works in `rules`, `ignore.rules` and suppression comments, with a warning, but selects nothing; it does not carry over to the new rule.
+- Smart Stack Adaptation:
+  - Add toolchain capability gating (`typescript`, `nuxt-image`, `ssr`, `props-destructure`) to eliminate false positives on non-matching project stacks.
+  - Add full support for Nuxt 4 directory topology (`app/`) and custom `srcDir`, `serverDir`, `dir.pages`, and `dir.layouts`.
+  - Support solution-style `tsconfig.json` files by automatically resolving `tsconfig.app.json` for oxlint analysis.
+  - Add framework-aware template rule configuration, including Quasar `q-*` component casing tolerance.
+  - Eliminate Knip dead-code false positives for ambient `.d.ts` declaration files and auto-imported symbols from `unplugin-auto-import` and `unplugin-vue-components`.
+  - Statically respect project ESLint and Oxlint configurations for template rule options and rule suppressions.
+
+### Patch Changes
+
+- 760d968: Dogfood improvements:
+  - Support pnpm 9 `catalog:` protocol versions from `pnpm-workspace.yaml` in monorepos.
+  - Infer Vue version for Nuxt applications that don't list a direct `vue` dependency in `package.json`.
+  - Prevent plain Vue workspaces in monorepos from erroneously inheriting a sibling workspace's `nuxt` framework.
+  - Ignore type-only imports (`import type ...`) across import rules (`nuxt-no-head-import`, `no-barrel-import`, `prefer-dynamic-import`, `no-moment`, `no-full-lodash-import`).
+  - Filter out test files and fixtures from Knip dead file findings.
+- d4304cf: Fewer false positives in ten rules, found by running Vue Doctor on a large Nuxt 4 monorepo.
+  
+  - `correctness/prefer-defineProps-destructure` only runs when the project's installed Vue is 3.5+ (or `propsDestructure: true` is set) and `propsDestructure` is not disabled in `nuxt.config`/`vite.config`. It skips props objects used as a value (`toRefs(props)`, `toRef(props, "x")`, `watch(props)`, spreads, `Object.keys(props)`, composable arguments, `v-bind="props"`) and now also reports `withDefaults(defineProps())`.
+  - `nuxt/nuxt-no-process-env-in-client` only checks files that end up in the client bundle (srcDir `components`, `pages`, `layouts`, `composables`, non-`.server` `plugins`, `middleware`, `stores`, `utils`, `app.vue`, `error.vue`); `scripts/`, `bin/`, `server/`, `shared/` and config files are Node code.
+  - `reactivity/no-watch-for-computed` only reports a watcher whose assignment reads the watch source and whose target ref nothing else writes (script assignments, `v-model`, template handlers, composable arguments, returned refs).
+  - `reactivity/no-cascading-mutations` detects real cascades (a watcher writes state that another watcher watches and derives from) instead of counting assignments in one watcher.
+  - `reactivity/no-mutation-in-computed` recognises more values created inside the getter: ternaries and fallbacks of fresh values, `split`/`match`, `Object.keys/values/entries`, `Array.from/of`, `new Map/Set/Array`, `structuredClone`, and `.get()` of a getter-local container; TypeScript casts are looked through.
+  - `reactivity/no-ref-from-prop` skips `initial*`/`default*` props and copies that are written later (editable drafts, refs re-synced by a watch), and now also covers destructured props.
+  - `correctness/no-prevent-default` only checks `.vue` files, treats a call after a guard `return` as conditional, and skips named handlers registered with `addEventListener`/`useEventListener`.
+  - `security/no-secret-named-literal` ignores values that are environment variable names, and no longer says "client code" for scripts and test support files.
+  - `security/no-javascript-url` words a static `javascript:void(0)` / `javascript:;` placeholder as an accessibility/CSP problem; dynamic `javascript:` URLs keep the XSS wording.
+  - `supply-chain/no-dependency-install-scripts` skips install scripts that only `echo`/`true`/`exit 0`, and dependencies reviewed in npm `allowScripts` / `.npmrc allow-scripts`, pnpm `onlyBuiltDependencies` (and the never/ignored lists), Bun `trustedDependencies` or Yarn `dependenciesMeta.*.built: false`.
+- 490c33e: The eslint-plugin-vue pass now parses `<script lang="ts">`, so the rules that read the script work on TypeScript SFCs.
+  
+  - `vue/require-explicit-emits` no longer reports events declared with a typed `defineEmits<…>()`. Before, a TypeScript script was skipped, so every `$emit` in the template was flagged.
+  - `vue/no-mutating-props`, `vue/no-dupe-keys`, `vue/no-template-shadow`, `vue/no-ref-as-operand` and the computed-property rules (`no-side-effects-in-computed-properties`, `no-async-in-computed-properties`, `return-in-computed-property`, `no-computed-properties-in-data`) now check TypeScript SFCs. Expect new findings where these rules were silent before.
+  - TypeScript syntax in template expressions (`value as string`, `item!`) is parsed too.
+  - A script that still fails to parse is linted without it, and the rules that need the script are turned off for that file so they cannot report a component as if it had no script.
+  - New dependencies: `@typescript-eslint/parser` and `typescript` 6.0 (the last line with a JavaScript API). Vue Doctor uses its own copy, even when the project hoists TypeScript 7. `--debug` lists both versions.
+- d283981: Narrow nine performance rules that reported mostly false positives on a real Nuxt 4 monorepo:
+  
+  - `js-combine-iterations` reports only chains of three or more iteration methods, or two-step chains evaluated inside a loop or array callback. It skips small array literals (up to 8 elements) and a `.filter(Boolean)` or type-guard filter that only compacts a preceding `.map()`.
+  - `js-tosorted-immutable` skips spreads of Sets, Maps and iterators (`.values()`, `.keys()`, `.entries()`, `new Set(...)`, values declared or typed as a Set or Map, `ref(new Set())`), which have no `toSorted`. The help now says the rewrite is for readability and needs an ES2023 target.
+  - `async-parallel` treats destructured bindings and expression-statement awaits as dependencies. It treats auth, rate-limit and validation guards (`ensureAdmin`, `requireOrganizationContext`, `enforceRateLimit`, …) and unbound writes that precede other awaits as barriers, and calls on the same receiver with the same key as ordered. It also requires at least two awaits that are not request accessors (`readBody`, `serverSupabaseClient`, …).
+  - `js-set-map-lookups` skips declared array literals of up to 16 elements that are never grown.
+  - `js-index-maps` reports only key-equality predicates (`find(x => x.id === id)`) on an array that is not declared or reassigned inside the loop.
+  - `no-deep-watch` skips primitive sources (primitive props, refs of primitives) and getters that return a literal of plain reads, and suggests `deep: 1` (Vue 3.5+).
+  - `client-passive-event-listeners` checks only `touchstart`, `touchmove`, `wheel` and `mousewheel`, and skips handlers that call `preventDefault()`.
+  - `js-batch-dom-css` reports layout thrashing (a layout read between style writes, or a loop body that both reads layout and writes styles) instead of consecutive style writes.
+  - `js-hoist-regexp` reports only a `new RegExp()` whose arguments are all literals or loop-invariant identifiers.
+- 63834c6: `no-async-setup-without-suspense` no longer reports `app.vue`, `error.vue`, pages and layouts in Nuxt projects: Nuxt renders them inside `<Suspense>` through `<NuxtPage>` and `<NuxtLayout>`. Both the Nuxt 4 `app/` layout and the Nuxt 3 root layout are recognised; plain components are still reported.
+- 0581074: Dead-code analysis no longer reports every page, component and server route of a Nuxt project as unused when `.nuxt/` is missing (a fresh checkout before `nuxi prepare`). Knip needs Nuxt's generated types to see auto-imports and aliases, so in that case unused files, exports and types are left out, the dead-code analyzer is listed as incomplete with a reminder to run `nuxi prepare`, and the partial result is not cached. The dead-code cache key now covers the generated `.nuxt/` files knip reads, so a scan after `nuxi prepare` analyses again instead of reusing the result from before.
+- cfbae2e: `nuxt-no-window-in-ssr` recognises more code that never runs on the server: `onBeforeMount` and VueUse event helpers, functions that are only called from lifecycle hooks, DOM event listeners or template event handlers (followed through helper chains in the same file), `watch` callbacks without `immediate`, post-flush effects, same-file guard helpers such as `function isBrowser() { return typeof window !== "undefined" }`, and pages whose route has `ssr: false` in the `routeRules` of `nuxt.config` (or a client-only app with `ssr: false`). Functions exported from a module or returned from a composable are still reported, since their callers are in other files.
+- f4001d2: Rules about shipped code no longer run on test files. Browser-run component and end-to-end tests touch `window` and the DOM by design and are not worth micro-optimising, so `nuxt-no-window-in-ssr`, `no-direct-dom-manipulation`, the other Nuxt rendering rules, every `performance` and `bundle-size` rule and a few component-structure rules skip `*.spec.*`, `*.test.*`, `*.cy.*`, files under `test/`, `tests/`, `__tests__/`, `__mocks__/`, `__fixtures__/`, `e2e/` and `cypress/`, and test-runner config files. Security rules still run on them. Each rule page says whether it checks test files.
+
 ## 2.0.4
 
 ### Patch Changes

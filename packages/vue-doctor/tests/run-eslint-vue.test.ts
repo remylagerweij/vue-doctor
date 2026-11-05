@@ -40,6 +40,17 @@ describe("runEslintVue", () => {
     expect(issues[0].help).toContain("noopener noreferrer");
   });
 
+  it("ignores <q-*> component names in template casing when framework is quasar", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vdoc-quasar-"));
+    try {
+      fs.writeFileSync(path.join(dir, "Button.vue"), "<template><q-btn label='test' /></template>\n");
+      const diagnostics = await runEslintVue(dir, undefined, "quasar");
+      expect(diagnostics.filter((d) => d.rule === "vue/component-name-in-template-casing")).toHaveLength(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("returns project-relative paths with forward slashes", async () => {
     const diagnostics = await runEslintVue(BASIC_VUE_DIRECTORY);
 

@@ -1,9 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCustomTemplateRuleConfig, createOxlintConfig, createTemplateRuleConfig, getEnabledFsRules, type RuleOptionsById } from "../plugin/registry.js";
+import {
+  createCustomTemplateRuleConfig,
+  createOxlintConfig,
+  createTemplateRuleConfig,
+  getEnabledFsRules,
+  type RuleOptionsById,
+  type TemplateRuleOverrides,
+} from "../plugin/registry.js";
 import type { ProjectInfo } from "../types.js";
 import { findMonorepoRoot } from "../utils/find-monorepo-root.js";
+import { resolveTsconfigPath } from "../utils/discover-project.js";
 import { listNuxtKnipInputs, readNuxtRenderSettings } from "../utils/nuxt-project.js";
 import { listProjectSourceFiles } from "../utils/list-source-files.js";
 import { detectProjectCapabilities } from "../utils/project-capabilities.js";
@@ -29,6 +37,15 @@ const DEAD_CODE_INPUT_FILES = [
   "knip.config.ts",
   "knip.config.js",
   "tsconfig.json",
+  "tsconfig.app.json",
+  "vite.config.ts",
+  "vite.config.js",
+  "vite.config.mjs",
+  "vite.config.cjs",
+  "auto-imports.d.ts",
+  "components.d.ts",
+  "src/auto-imports.d.ts",
+  "src/components.d.ts",
 ] as const;
 
 const hashFileOrMissing = (filePath: string): string => {
@@ -59,10 +76,15 @@ export const computeCacheContexts = (
   project: ProjectInfo,
   /** Lint rule options (configured and inferred); a change re-lints every file. */
   ruleOptions?: RuleOptionsById,
+  /** Non-Security/non-Server own rules disabled by the project's ESLint/oxlint config. */
+  disabledOwnRules?: ReadonlySet<string>,
+  /** Template rule overrides from the project's ESLint/oxlint config. */
+  templateRuleOverrides?: TemplateRuleOverrides,
 ): CacheContexts => {
   const tools = getToolVersions();
   const ownCode = hashOwnCode();
-  const tsconfig = project.hasTypeScript ? hashFileOrMissing(path.join(directory, "tsconfig.json")) : "none";
+  const tsconfigPath = project.hasTypeScript ? (resolveTsconfigPath(directory) ?? "tsconfig.json") : null;
+  const tsconfig = tsconfigPath ? hashFileOrMissing(path.join(directory, tsconfigPath)) : "none";
 
   const lint = hashText(
     JSON.stringify({
@@ -74,6 +96,7 @@ export const computeCacheContexts = (
         nuxt: project.framework === "nuxt" ? readNuxtRenderSettings(directory) : undefined,
         capabilities: detectProjectCapabilities(directory),
         ruleOptions,
+        disabledRules: disabledOwnRules,
       }),
       tsconfig,
     }),
@@ -86,7 +109,7 @@ export const computeCacheContexts = (
       parser: tools["vue-eslint-parser"],
       typescriptParser: tools["@typescript-eslint/parser"],
       typescript: tools.typescript,
-      rules: { ...createTemplateRuleConfig(), ...createCustomTemplateRuleConfig(project.framework) },
+      rules: { ...createTemplateRuleConfig(templateRuleOverrides, project.framework), ...createCustomTemplateRuleConfig(project.framework) },
       // Template ignores are derived from the root .gitignore.
       gitignore: hashFileOrMissing(path.join(directory, ".gitignore")),
     }),

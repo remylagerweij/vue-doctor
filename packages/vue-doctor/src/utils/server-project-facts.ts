@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { RuleOptionsById } from "../plugin/registry.js";
 import { COOKIE_SESSION_FUNCTIONS } from "../plugin/server-auth.js";
+import { readNuxtRenderSettings } from "./nuxt-project.js";
 
 /**
  * Project-wide facts the per-file server rules cannot see: which auto-imported `server/utils`
@@ -229,8 +230,9 @@ const middlewareChecksOrigin = (serverDirectory: string): boolean =>
     return (/\bcsrf/i.test(code) || checksOrigin) && REJECTS_REQUEST.test(code);
   });
 
-export const collectServerProjectFacts = (directory: string): ServerProjectFacts => {
-  const serverDirectory = path.join(directory, "server");
+export const collectServerProjectFacts = (directory: string, customServerDir?: string): ServerProjectFacts => {
+  const serverDirName = customServerDir || readNuxtRenderSettings(directory).serverDir || "server";
+  const serverDirectory = path.isAbsolute(serverDirName) ? serverDirName : path.join(directory, serverDirName);
   const nuxtConfig = readNuxtConfig(directory);
   return {
     ...inferHelpers(serverDirectory),
@@ -242,8 +244,8 @@ export const collectServerProjectFacts = (directory: string): ServerProjectFacts
 };
 
 /** Facts as options of the rules that use them (flat rule names). */
-export const inferServerRuleOptions = (directory: string): RuleOptionsById => {
-  const facts = collectServerProjectFacts(directory);
+export const inferServerRuleOptions = (directory: string, customServerDir?: string): RuleOptionsById => {
+  const facts = collectServerProjectFacts(directory, customServerDir);
   const options: Record<string, Record<string, unknown>> = {};
   if (facts.authFunctions.length > 0) options["auth-missing"] = { authFunctions: facts.authFunctions };
   const csrf: Record<string, unknown> = {};

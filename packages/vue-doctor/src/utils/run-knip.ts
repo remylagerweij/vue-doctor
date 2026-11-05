@@ -26,11 +26,45 @@ const KNIP_MESSAGE_MAP: Record<KnipIssueType, string> = {
   duplicates: "Duplicate export",
 };
 
+const AUTO_IMPORT_D_TS_FILES = [
+  "auto-imports.d.ts",
+  "components.d.ts",
+  "src/auto-imports.d.ts",
+  "src/components.d.ts",
+];
+
+const readAutoImportedSymbols = (rootDirectory: string): Set<string> => {
+  const symbols = new Set<string>();
+  for (const filename of AUTO_IMPORT_D_TS_FILES) {
+    try {
+      const content = fs.readFileSync(path.join(rootDirectory, filename), "utf8");
+      for (const match of content.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*:/g)) {
+        symbols.add(match[1]);
+      }
+      for (const match of content.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*typeof\s+import\(/g)) {
+        symbols.add(match[1]);
+      }
+    } catch {
+      // File does not exist.
+    }
+  }
+  return symbols;
+};
+
 const toPosixRelative = (rootDirectory: string, filePath: string): string =>
   path.relative(rootDirectory, filePath).split(path.sep).join("/");
 
-const toDiagnostic = (issue: KnipWorkerIssue, rootDirectory: string): Diagnostic | null => {
-  if (issue.type === "files" && isTestFile(issue.filePath, rootDirectory)) {
+const toDiagnostic = (
+  issue: KnipWorkerIssue,
+  rootDirectory: string,
+  autoImportedSymbols?: ReadonlySet<string>,
+): Diagnostic | null => {
+  if (issue.type === "files") {
+    if (issue.filePath.endsWith(".d.ts") || isTestFile(issue.filePath, rootDirectory)) {
+      return null;
+    }
+  }
+  if (issue.type === "exports" && autoImportedSymbols?.has(issue.symbol)) {
     return null;
   }
   return {
@@ -158,9 +192,10 @@ export const runKnip = async (
   session?: KnipSession,
 ): Promise<Diagnostic[]> => {
   const directory = path.resolve(projectDirectory);
+  const autoImported = readAutoImportedSymbols(directory);
   const toDiagnostics = (issues: KnipWorkerIssue[]): Diagnostic[] =>
     issues
-      .map((issue) => toDiagnostic(issue, directory))
+      .map((issue) => toDiagnostic(issue, directory, autoImported))
       .filter((diagnostic): diagnostic is Diagnostic => diagnostic !== null);
 
   // The project is the monorepo root itself: nested workspaces are other projects.

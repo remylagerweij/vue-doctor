@@ -8,10 +8,13 @@ import {
   createTemplateRuleConfig,
   getRuleMeta,
   toDiagnosticRule,
+  type TemplateRuleConfigEntry,
+  type TemplateRuleOverrides,
 } from "../plugin/registry.js";
 import { SCRIPT_DEPENDENT_TEMPLATE_RULES } from "../plugin/template-rules.js";
-import type { Diagnostic } from "../types.js";
+import type { Diagnostic, Framework } from "../types.js";
 import { loadTypescriptParser } from "./load-typescript-parser.js";
+import { readProjectLinterConfig, stripTemplateRuleOptions } from "./project-linter-config.js";
 
 // Directory-form patterns so ESLint prunes these trees instead of walking them.
 const ALWAYS_IGNORED_PATTERNS = [
@@ -69,12 +72,15 @@ const resolveFilesToLint = (rootDirectory: string, includePaths: string[]): stri
 
 /**
  * Runs eslint-plugin-vue's template rules in-process with a flat config built on our own bundled
- * ESLint, plugin and parser. The scanned project's ESLint install and config are never loaded.
+ * ESLint, plugin and parser. The scanned project's ESLint install and config are never executed
+ * (non-Security `vue/*` rule overrides and options are read statically via `readProjectLinterConfig`).
  * Throws when ESLint itself fails so the caller can report the analyzer as skipped.
  */
 export const runEslintVue = async (
   rootDirectory: string,
   includePaths?: string[],
+  framework: Framework = "vite",
+  templateRuleOverrides?: TemplateRuleOverrides,
 ): Promise<Diagnostic[]> => {
   let patterns: string[];
   if (includePaths) {
@@ -102,20 +108,31 @@ export const runEslintVue = async (
       }
     },
   };
-  const templateRules = createTemplateRuleConfig();
-  const templateOnlyRules = Object.fromEntries(
-    Object.entries(templateRules).filter(([ruleId]) => !SCRIPT_DEPENDENT_TEMPLATE_RULES.has(ruleId)),
+  const resolvedOverrides = templateRuleOverrides ?? readProjectLinterConfig(rootDirectory).templateRules;
+  const hasCustomOptions = Object.values(resolvedOverrides).some(
+    (entry) => entry !== "off" && entry.options.length > 0,
   );
+  const customTemplateRules = createCustomTemplateRuleConfig(framework);
+  const gitignorePatterns = readGitignorePatterns(rootDirectory);
 
-  const createEslint = (skipScriptParsing: boolean): ESLint =>
-    new EslintClass({
+  const createEslint = (
+    skipScriptParsing: boolean,
+    activeTemplateRules: Record<string, TemplateRuleConfigEntry>,
+  ): ESLint => {
+    const rulesForPass = skipScriptParsing
+      ? Object.fromEntries(
+          Object.entries(activeTemplateRules).filter(([ruleId]) => !SCRIPT_DEPENDENT_TEMPLATE_RULES.has(ruleId)),
+        )
+      : activeTemplateRules;
+
+    return new EslintClass({
       cwd: rootDirectory,
       // Never load the project's eslint.config.* — only the config below applies.
       overrideConfigFile: true,
       // eslint-disable comments must not hide Vue Doctor findings (use vue-doctor-disable).
       allowInlineConfig: false,
       overrideConfig: [
-        { ignores: [...ALWAYS_IGNORED_PATTERNS, ...readGitignorePatterns(rootDirectory)] },
+        { ignores: [...ALWAYS_IGNORED_PATTERNS, ...gitignorePatterns] },
         ...(pluginVue.configs["flat/base"] as Linter.Config[]),
         {
           files: ["**/*.vue"],
@@ -139,8 +156,8 @@ export const runEslintVue = async (
           // Vue Doctor's own template rules (e.g. `v-html`), next to eslint-plugin-vue's.
           plugins: { [CUSTOM_TEMPLATE_PLUGIN_NAME]: { rules: CUSTOM_TEMPLATE_RULES } },
           rules: {
-            ...(skipScriptParsing ? templateOnlyRules : templateRules),
-            ...createCustomTemplateRuleConfig(),
+            ...(rulesForPass as Linter.RulesRecord),
+            ...customTemplateRules,
             // eslint-plugin-vue applies <!-- eslint-disable --> template comments through this rule,
             // independently of allowInlineConfig. Off, so only vue-doctor-disable suppresses.
             "vue/comment-directive": "off",
@@ -152,24 +169,40 @@ export const runEslintVue = async (
       cache: false,
       fix: false,
     });
+  };
 
   const hasFatalMessage = (result: ESLint.LintResult): boolean =>
     result.messages.some((message) => message.fatal);
 
+  const lintWithRules = async (
+    activeTemplateRules: Record<string, TemplateRuleConfigEntry>,
+  ): Promise<ESLint.LintResult[]> => {
+    const initialResults = await createEslint(false, activeTemplateRules).lintFiles(patterns);
+    // A script syntax error would drop every template finding in the file: retry without the script.
+    const unparsableFiles = initialResults.filter(hasFatalMessage).map((result) => result.filePath);
+    if (unparsableFiles.length === 0) return initialResults;
+
+    const retried = await createEslint(true, activeTemplateRules).lintFiles(unparsableFiles);
+    const retriedByPath = new Map(retried.map((result) => [result.filePath, result]));
+    return initialResults.map((result) => retriedByPath.get(result.filePath) ?? result);
+  };
+
   let results: ESLint.LintResult[];
   try {
-    results = await createEslint(false).lintFiles(patterns);
-
-    // A script syntax error would drop every template finding in the file: retry without the script.
-    const unparsableFiles = results.filter(hasFatalMessage).map((result) => result.filePath);
-    if (unparsableFiles.length > 0) {
-      const retried = await createEslint(true).lintFiles(unparsableFiles);
-      const retriedByPath = new Map(retried.map((result) => [result.filePath, result]));
-      results = results.map((result) => retriedByPath.get(result.filePath) ?? result);
-    }
+    results = await lintWithRules(createTemplateRuleConfig(resolvedOverrides, framework));
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`eslint-plugin-vue failed: ${reason}`);
+    if (hasCustomOptions) {
+      // A malformed rule option in the project's ESLint config must not break the template pass.
+      try {
+        results = await lintWithRules(createTemplateRuleConfig(stripTemplateRuleOptions(resolvedOverrides), framework));
+      } catch (fallbackError) {
+        const reason = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        throw new Error(`eslint-plugin-vue failed: ${reason}`);
+      }
+    } else {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`eslint-plugin-vue failed: ${reason}`);
+    }
   }
 
   // Individual unparsable files are skipped below; failing on every file means the run is broken.

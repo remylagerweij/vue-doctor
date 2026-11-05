@@ -54,11 +54,53 @@ describe("detectProjectCapabilities", () => {
   });
 
   it("keeps a rule that requires a capability out of the oxlint config when the project lacks it", () => {
-    const rulesWith = (capabilities?: ReadonlySet<"props-destructure">) =>
+    const rulesWith = (capabilities?: ReadonlySet<"props-destructure" | "typescript" | "nuxt-image" | "ssr">) =>
       Object.keys(createOxlintConfig({ pluginPath: "", framework: "nuxt", capabilities }).rules);
     expect(rulesWith(new Set())).not.toContain(PROPS_DESTRUCTURE_RULE);
     expect(rulesWith(new Set(["props-destructure"]))).toContain(PROPS_DESTRUCTURE_RULE);
     expect(rulesWith(undefined)).toContain(PROPS_DESTRUCTURE_RULE);
+
+    expect(rulesWith(new Set())).not.toContain("vue-doctor/require-defineprops-types");
+    expect(rulesWith(new Set(["typescript"]))).toContain("vue-doctor/require-defineprops-types");
+
+    expect(rulesWith(new Set())).not.toContain("vue-doctor/nuxt-no-img-element");
+    expect(rulesWith(new Set(["nuxt-image"]))).toContain("vue-doctor/nuxt-no-img-element");
+  });
+
+  it("detects typescript capability from tsconfig or package.json dependencies", () => {
+    const withConfig = createProject({ "tsconfig.json": "{}\n", "package.json": "{}\n" });
+    const withAppConfig = createProject({ "tsconfig.app.json": "{}\n", "package.json": "{}\n" });
+    const withDep = createProject({ "package.json": JSON.stringify({ devDependencies: { typescript: "^5.0.0" } }) });
+    const withoutTs = createProject({ "package.json": "{}\n" });
+
+    expect(detectProjectCapabilities(withConfig).has("typescript")).toBe(true);
+    expect(detectProjectCapabilities(withAppConfig).has("typescript")).toBe(true);
+    expect(detectProjectCapabilities(withDep).has("typescript")).toBe(true);
+    expect(detectProjectCapabilities(withoutTs).has("typescript")).toBe(false);
+  });
+
+  it("detects nuxt-image capability from dependencies or nuxt.config", () => {
+    const withDep = createProject({ "package.json": JSON.stringify({ dependencies: { "@nuxt/image": "^1.0.0" } }) });
+    const withConfig = createProject({
+      "package.json": "{}\n",
+      "nuxt.config.ts": "export default defineNuxtConfig({ modules: ['@nuxt/image'] })\n",
+    });
+    const withoutImg = createProject({ "package.json": "{}\n" });
+
+    expect(detectProjectCapabilities(withDep).has("nuxt-image")).toBe(true);
+    expect(detectProjectCapabilities(withConfig).has("nuxt-image")).toBe(true);
+    expect(detectProjectCapabilities(withoutImg).has("nuxt-image")).toBe(false);
+  });
+
+  it("detects ssr capability based on nuxt.config ssr setting", () => {
+    const defaultSsr = createProject({ "package.json": "{}\n" });
+    const spa = createProject({
+      "package.json": "{}\n",
+      "nuxt.config.ts": "export default defineNuxtConfig({ ssr: false })\n",
+    });
+
+    expect(detectProjectCapabilities(defaultSsr).has("ssr")).toBe(true);
+    expect(detectProjectCapabilities(spa).has("ssr")).toBe(false);
   });
 });
 

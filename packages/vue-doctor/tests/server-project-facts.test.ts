@@ -59,6 +59,16 @@ describe("collectServerProjectFacts", () => {
     expect(facts.sessionFunctions).toEqual(["ensureAdmin", "gate", "loadProfile", "withPermission"]);
   });
 
+  it("respects custom serverDir in nuxt.config", () => {
+    const facts = collectServerProjectFacts(
+      makeProject({
+        "nuxt.config.ts": `export default defineNuxtConfig({ serverDir: "custom-server" })\n`,
+        "custom-server/utils/admin.ts": ADMIN_UTILS,
+      }),
+    );
+    expect(facts.authFunctions).toEqual(["ensureAdmin", "gate", "withPermission"]);
+  });
+
   it("skips test files and functions that are not exported", () => {
     const facts = collectServerProjectFacts(
       makeProject({

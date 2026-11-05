@@ -15,6 +15,14 @@ export interface VueDoctorSettings {
     ssr?: boolean;
     /** `routeRules` entries that set `ssr`, in config order. */
     routeRules?: NuxtRouteRule[];
+    /** Custom `srcDir` from nuxt.config (when explicitly set). */
+    srcDir?: string;
+    /** Custom `serverDir` from nuxt.config (when explicitly set). */
+    serverDir?: string;
+    /** Custom `dir.pages` from nuxt.config (when explicitly set). */
+    pagesDir?: string;
+    /** Custom `dir.layouts` from nuxt.config (when explicitly set). */
+    layoutsDir?: string;
   };
 }
 
@@ -27,10 +35,16 @@ export const getVueDoctorSettings = (context: RuleContext): VueDoctorSettings =>
 
 export const isNuxtContext = (context: RuleContext): boolean => getVueDoctorSettings(context).framework === "nuxt";
 
-const PAGE_FILE_PATTERN = /(?:^|\/)pages\/(.+)\.(?:vue|[jt]sx)$/;
-const LAYOUT_FILE_PATTERN = /(?:^|\/)layouts\/.+\.(?:vue|[jt]sx)$/;
 const APP_ENTRY_PATTERN = /(?:^|\/)(?:app|error)\.vue$/;
 const COMPONENTS_SEGMENT_PATTERN = /(?:^|\/)components\//;
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const cleanDirSegment = (dir: string | undefined, fallback: string): string =>
+  (dir ? dir.replace(/\\/g, "/").replace(/^\.?\//, "").replace(/\/+$/, "") : "") || fallback;
+
+const matchNuxtDirEntry = (filename: string, dirName: string): RegExpExecArray | null =>
+  new RegExp(`(?:^|/)${escapeRegExp(dirName)}/(.+)\\.(?:vue|[jt]sx)$`).exec(filename);
 
 const relativeFilename = (context: RuleContext): string => toProjectRelative(getFilename(context));
 
@@ -38,7 +52,14 @@ const relativeFilename = (context: RuleContext): string => toProjectRelative(get
 export const isNuxtSuspenseEntry = (context: RuleContext): boolean => {
   const filename = relativeFilename(context);
   if (COMPONENTS_SEGMENT_PATTERN.test(filename)) return false;
-  return PAGE_FILE_PATTERN.test(filename) || LAYOUT_FILE_PATTERN.test(filename) || APP_ENTRY_PATTERN.test(filename);
+  const nuxt = getVueDoctorSettings(context).nuxt;
+  const pagesDir = cleanDirSegment(nuxt?.pagesDir, "pages");
+  const layoutsDir = cleanDirSegment(nuxt?.layoutsDir, "layouts");
+  return (
+    matchNuxtDirEntry(filename, pagesDir) !== null ||
+    matchNuxtDirEntry(filename, layoutsDir) !== null ||
+    APP_ENTRY_PATTERN.test(filename)
+  );
 };
 
 type RouteSegment = { kind: "static"; value: string } | { kind: "param" } | { kind: "catchAll" };
@@ -82,7 +103,8 @@ export const isClientRenderedPage = (context: RuleContext): boolean => {
   if (nuxt.ssr === false) return true;
   const filename = relativeFilename(context);
   if (COMPONENTS_SEGMENT_PATTERN.test(filename)) return false;
-  const match = PAGE_FILE_PATTERN.exec(filename);
+  const pagesDir = cleanDirSegment(nuxt.pagesDir, "pages");
+  const match = matchNuxtDirEntry(filename, pagesDir);
   if (!match || !nuxt.routeRules?.length) return false;
   const page = toRouteSegments(match[1]);
   let best: NuxtRouteRule | undefined;

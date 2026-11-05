@@ -14,6 +14,8 @@ import { createDefusedMirror, findFilesWithForeignDirectives } from "./defuse-in
 import { normalizeRelativePath } from "./list-source-files.js";
 import { createPrivateTempDirectory } from "./private-temp.js";
 import { detectProjectCapabilities } from "./project-capabilities.js";
+import { resolveTsconfigPath } from "./discover-project.js";
+import { readProjectLinterConfig } from "./project-linter-config.js";
 import { mapWithConcurrency } from "./map-with-concurrency.js";
 import { readNuxtRenderSettings } from "./nuxt-project.js";
 import { resolveBatchConcurrency } from "./run-bounded.js";
@@ -164,6 +166,7 @@ export const runOxlint = async (
   nodeBinaryPath: string = process.execPath,
   onCommand?: CommandListener,
   ruleOptions?: RuleOptionsById,
+  disabledRules?: ReadonlySet<string>,
 ): Promise<Diagnostic[]> => {
   if (includePaths !== undefined && includePaths.length === 0) {
     return [];
@@ -171,12 +174,14 @@ export const runOxlint = async (
 
   const pluginPath = resolvePluginPath();
   const nuxt = framework === "nuxt" ? readNuxtRenderSettings(rootDirectory) : undefined;
+  const resolvedDisabledRules = disabledRules ?? readProjectLinterConfig(rootDirectory).disabledOwnRules;
   const config = createOxlintConfig({
     pluginPath,
     framework,
     nuxt,
     capabilities: detectProjectCapabilities(rootDirectory),
     ruleOptions,
+    disabledRules: resolvedDisabledRules,
   });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;
@@ -190,8 +195,9 @@ export const runOxlint = async (
     const oxlintBinary = resolveOxlintBinary();
     const baseArgs = [oxlintBinary, "-c", configPath, "--format", "json"];
 
-    if (hasTypeScript) {
-      baseArgs.push("--tsconfig", "./tsconfig.json");
+    const tsconfigRel = hasTypeScript ? (resolveTsconfigPath(rootDirectory) ?? "tsconfig.json") : null;
+    if (tsconfigRel) {
+      baseArgs.push("--tsconfig", `./${tsconfigRel}`);
     }
 
     const batchConcurrency = resolveBatchConcurrency();
@@ -227,8 +233,8 @@ export const runOxlint = async (
 
     mirror = createDefusedMirror(defusedFiles);
     const defusedPaths = new Set(mirror.relativePaths);
-    const mirrorArgs = hasTypeScript
-      ? [...baseArgs.slice(0, -1), path.join(rootDirectory, "tsconfig.json")]
+    const mirrorArgs = tsconfigRel
+      ? [...baseArgs.slice(0, -1), path.join(rootDirectory, tsconfigRel)]
       : baseArgs;
     const mirrorDiagnostics = await runBatches(mirrorArgs, mirror.relativePaths, mirror.directory);
 

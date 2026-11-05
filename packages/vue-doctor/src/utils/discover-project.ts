@@ -340,6 +340,29 @@ export const listNestedWorkspaceDirectories = (directory: string): string[] =>
         .filter((workspace) => workspace !== path.resolve(directory))
     : [];
 
+const isSolutionTsconfig = (tsconfigPath: string): boolean => {
+  try {
+    const content = fs.readFileSync(tsconfigPath, "utf-8");
+    return /"references"\s*:\s*\[/.test(content) && !/"compilerOptions"\s*:\s*\{/.test(content);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Relative path of the project's primary TypeScript config (`tsconfig.app.json` when `tsconfig.json`
+ * is a solution-style references file, else `tsconfig.json`), or `null` when the project has none.
+ */
+export const resolveTsconfigPath = (directory: string): string | null => {
+  const hasRootTsconfig = fs.existsSync(path.join(directory, "tsconfig.json"));
+  const hasAppTsconfig = fs.existsSync(path.join(directory, "tsconfig.app.json"));
+  if (hasAppTsconfig && (!hasRootTsconfig || isSolutionTsconfig(path.join(directory, "tsconfig.json")))) {
+    return "tsconfig.app.json";
+  }
+  if (hasRootTsconfig) return "tsconfig.json";
+  return null;
+};
+
 export const discoverProject = (directory: string): ProjectInfo => {
   const packageJsonPath = path.join(directory, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
@@ -399,7 +422,7 @@ export const discoverProject = (directory: string): ProjectInfo => {
   }
 
   const projectName = packageJson.name ?? path.basename(directory);
-  const hasTypeScript = fs.existsSync(path.join(directory, "tsconfig.json"));
+  const hasTypeScript = resolveTsconfigPath(directory) !== null;
   const sourceFileCount = countSourceFiles(directory, listNestedWorkspaceDirectories(directory));
 
   return {

@@ -24,6 +24,7 @@ import { isUnpreparedNuxtProject } from "../utils/nuxt-project.js";
 import { isInsideAnyDirectory, listProjectSourceFiles, normalizeRelativePath } from "../utils/list-source-files.js";
 import { runOxlint } from "../utils/run-oxlint.js";
 import { applySuppressions, type SuppressedSummary } from "../utils/suppressions.js";
+import { readProjectLinterConfig, resolveEffectiveLinterConfig } from "../utils/project-linter-config.js";
 import { inferServerRuleOptions } from "../utils/server-project-facts.js";
 import { mergeRuleOptions, resolveConfiguredRuleOptions } from "../config/rule-options.js";
 
@@ -242,6 +243,14 @@ export const diagnose = async (
   const shouldTemplateLint = options.templateLint ?? shouldLint;
   const shouldDeadCode = (options.deadCode ?? config?.deadCode) !== false && !isDiffMode;
 
+  const linterConfig =
+    shouldLint || shouldTemplateLint
+      ? resolveEffectiveLinterConfig(readProjectLinterConfig(directory), config)
+      : { templateRules: {}, disabledOwnRules: new Set<string>(), sources: [] };
+  if (linterConfig.sources.length > 0) {
+    debug("config", `project linter settings from ${linterConfig.sources.join(", ")}`);
+  }
+
   // Rule options: `[severity, { ... }]` config entries on top of what the server rules need to know
   // about the rest of the project (auth helpers in server/utils, the session cookie's SameSite).
   const ruleOptions = shouldLint
@@ -253,7 +262,15 @@ export const diagnose = async (
   if (Object.keys(ruleOptions).length > 0) debug("lint", `rule options ${JSON.stringify(ruleOptions)}`);
 
   const cacheContexts =
-    (options.cache ?? config?.cache) === false ? null : computeCacheContexts(directory, project, ruleOptions);
+    (options.cache ?? config?.cache) === false
+      ? null
+      : computeCacheContexts(
+          directory,
+          project,
+          ruleOptions,
+          linterConfig.disabledOwnRules,
+          linterConfig.templateRules,
+        );
   const cache = cacheContexts
     ? openAnalysisCache(directory, cacheContexts, (message) => debug("cache", message))
     : null;
@@ -283,7 +300,16 @@ export const diagnose = async (
           );
         }
         const lint = (paths: string[] | undefined) =>
-          runOxlint(directory, project.hasTypeScript, project.framework, paths, nodeBinaryPath, logCommand("lint"), ruleOptions);
+          runOxlint(
+            directory,
+            project.hasTypeScript,
+            project.framework,
+            paths,
+            nodeBinaryPath,
+            logCommand("lint"),
+            ruleOptions,
+            linterConfig.disabledOwnRules,
+          );
         if (!cache) return lint(isDiffMode ? vueIncludePaths : hasNestedWorkspaces ? getCacheTargets() : undefined);
         return cache.analyzeFiles("lint", getCacheTargets(), lint);
       })
@@ -291,10 +317,12 @@ export const diagnose = async (
 
   const templatePromise = shouldTemplateLint
     ? runAnalyzer("template", () => {
-        if (!cache && !hasNestedWorkspaces) return runEslintVue(directory, isDiffMode ? vueIncludePaths : undefined);
+        const lintTemplates = (paths: string[] | undefined) =>
+          runEslintVue(directory, paths, project.framework, linterConfig.templateRules);
+        if (!cache && !hasNestedWorkspaces) return lintTemplates(isDiffMode ? vueIncludePaths : undefined);
         const vueFiles = getCacheTargets().filter((filePath) => filePath.endsWith(".vue"));
-        if (!cache) return runEslintVue(directory, vueFiles);
-        return cache.analyzeFiles("template", vueFiles, (paths) => runEslintVue(directory, paths));
+        if (!cache) return lintTemplates(vueFiles);
+        return cache.analyzeFiles("template", vueFiles, lintTemplates);
       })
     : Promise.resolve([]);
 

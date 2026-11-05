@@ -62,3 +62,13 @@ Some rules accept options, listed under "Options" on their rule page. Give them 
 
 - An unknown option name or a value of the wrong type is a config error (exit code 2). Options given to a rule that takes none are ignored with a warning.
 - On Nuxt projects the server rules also learn from the project itself, and receive that as the same options: `server/utils` functions that read the session and throw a 401/403 become `authFunctions`, and the session cookie's SameSite from `nuxt.config` becomes `sessionCookieSameSite`. Lists you configure are added to what is found; other values you configure win.
+
+## Existing linters and formatters
+
+Vue Doctor uses its own bundled `oxlint` and `eslint-plugin-vue` as internal AST analysis engines for `<script>` and `<template>` diagnostics. It checks for security, reactivity, SSR, performance and architectural issues rather than formatting or code style, so both engines run even on projects that use Prettier only, Biome, or no linter at all.
+
+When a project has an ESLint config (`eslint.config.*`, `.eslintrc*`, `package.json#eslintConfig`) or Oxlint config (`.oxlintrc.json`, `oxlint.config.*`), Vue Doctor reads it statically (without executing project code) and honours:
+
+- **Template rule options** on non-Security `vue/*` rules, such as `"vue/component-name-in-template-casing": ["error", "kebab-case"]` or `"vue/no-unused-vars": ["warn", { "ignorePattern": "^_" }]`.
+- **Disabled rules** (`"off"` or `0`) for non-Security `vue/*` and `vue-doctor/*` rules (including rules inside `@nuxt/eslint` `.overrideRules({ ... })` or `@antfu/eslint-config` `vue.overrides`).
+- **Precedence and security**: `vue-doctor.config.*` always wins over inferred linter settings, and `Security`, `Supply Chain` and `Server` rules can never be disabled by a foreign linter config.

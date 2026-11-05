@@ -8,6 +8,7 @@ export default defineRule({
     defaultSeverity: "warning",
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
+    requires: ["typescript"],
     fixable: false,
     skipTestFiles: true,
     since: "1.0.0",

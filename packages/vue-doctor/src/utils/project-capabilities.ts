@@ -3,7 +3,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import type { ProjectCapability } from "../plugin/define-rule.js";
 import { resolvePnpmCatalogVersion } from "./pnpm-catalog.js";
-import { inferVueVersionFromNuxt } from "./discover-project.js";
+import { inferVueVersionFromNuxt, resolveTsconfigPath } from "./discover-project.js";
+import { readNuxtRenderSettings } from "./nuxt-project.js";
 
 const CONFIG_FILENAMES = [
   "nuxt.config.ts",
@@ -83,6 +84,36 @@ export const detectProjectCapabilities = (directory: string): ReadonlySet<Projec
   const option = readPropsDestructureOption(directory);
   const isVue35 = version !== null && (version[0] > 3 || (version[0] === 3 && version[1] >= 5));
   if (option === true || (isVue35 && option !== false)) capabilities.add("props-destructure");
+
+  const manifest = readJson(path.join(directory, "package.json"));
+  const deps = {
+    ...(manifest?.dependencies as Record<string, string> | undefined),
+    ...(manifest?.devDependencies as Record<string, string> | undefined),
+  };
+
+  const hasTsConfig = resolveTsconfigPath(directory) !== null;
+  const hasTsDep = Boolean(deps.typescript);
+  if (hasTsConfig || hasTsDep) capabilities.add("typescript");
+
+  const hasNuxtImageDep = Boolean(deps["@nuxt/image"] || deps["@nuxt/image-edge"]);
+  let hasNuxtImageConfig = false;
+  for (const filename of ["nuxt.config.ts", "nuxt.config.js", "nuxt.config.mjs", "nuxt.config.cjs"]) {
+    try {
+      const src = fs.readFileSync(path.join(directory, filename), "utf8");
+      if (src.includes("@nuxt/image")) {
+        hasNuxtImageConfig = true;
+        break;
+      }
+    } catch {
+      // Config file does not exist or cannot be read.
+    }
+  }
+  if (hasNuxtImageDep || hasNuxtImageConfig) capabilities.add("nuxt-image");
+
+  const nuxtSettings = readNuxtRenderSettings(directory);
+  const isNuxtSpa = nuxtSettings.ssr === false;
+  if (!isNuxtSpa) capabilities.add("ssr");
+
   capabilitiesByDirectory.set(directory, capabilities);
   return capabilities;
 };

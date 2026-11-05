@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
   pull-requests: write
   id-token: write # Required for NPM Provenance (OIDC)
 
@@ -69,6 +70,7 @@ jobs:
         id: publish_tag
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         run: |
+          set -o pipefail
           # 1. Resolve raw tag name
           RAW_TAG="${{ inputs.tag }}"
           if [ -z "$RAW_TAG" ] && [ "${{ github.event_name }}" = "release" ]; then
@@ -99,35 +101,36 @@ jobs:
             exit 0
           fi
 
-          # 3. Check if already published on npm
-          if npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
-            echo "Version $VERSION of @remylagerweij/vue-doctor is already published on npm. Skipping publish."
-            echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 4. Synchronize packages/vue-doctor/package.json version if needed
+          # 3. Synchronize packages/vue-doctor/package.json version if needed and rebuild
           CURRENT_VERSION=$(node -p "require('./packages/vue-doctor/package.json').version")
           if [ "$CURRENT_VERSION" != "$VERSION" ]; then
             echo "Updating packages/vue-doctor/package.json from $CURRENT_VERSION to $VERSION"
             npm --no-git-tag-version version "$VERSION" --workspace=@remylagerweij/vue-doctor
+            npm run build
           fi
 
-          # 5. Rebuild with the updated version
-          npm run build
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          # 6. Publish to NPM with provenance
-          if npm publish --workspace=@remylagerweij/vue-doctor --provenance --access public; then
+          # 4. Check if already published on npm
+          if npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor is already published on npm. Skipping publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 5. Publish to NPM with provenance
+          PUBLISH_LOG=$(mktemp)
+          if npm publish --workspace=@remylagerweij/vue-doctor --provenance --access public 2>&1 | tee "$PUBLISH_LOG"; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          elif grep -qE "E409|EPUBLISHCONFLICT|previously (published|staged) version" "$PUBLISH_LOG"; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor was already published or staged concurrently."
+            echo "published=true" >> "$GITHUB_OUTPUT"
           else
             # Check if package version was published concurrently or staged
             sleep 5
             if npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
               echo "Version $VERSION of @remylagerweij/vue-doctor is confirmed on npm."
               echo "published=true" >> "$GITHUB_OUTPUT"
-              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             else
               echo "::error::npm publish failed for version $VERSION"
               exit 1
@@ -135,6 +138,53 @@ jobs:
           fi
         env:
           NPM_CONFIG_PROVENANCE: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        id: publish_github_packages
+        if: steps.changesets.outputs.published == 'true' || steps.publish_tag.outputs.version != '' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: |
+          set -o pipefail
+          VERSION="${{ steps.publish_tag.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(node -p "require('./packages/vue-doctor/package.json').version")
+          fi
+
+          # Only publish to GitHub Packages if this version is published on npm (or was just published in this run)
+          if [ "${{ steps.changesets.outputs.published }}" != "true" ] && [ "${{ steps.publish_tag.outputs.published }}" != "true" ]; then
+            if ! npm view "@remylagerweij/vue-doctor@$VERSION" version >/dev/null 2>&1; then
+              echo "Version $VERSION is not yet published on npm. Skipping GitHub Packages sync."
+              exit 0
+            fi
+          fi
+
+          if npm view "@remylagerweij/vue-doctor@$VERSION" version \
+            --registry=https://npm.pkg.github.com \
+            --//npm.pkg.github.com/:_authToken="$GH_TOKEN" >/dev/null 2>&1; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor is already published on GitHub Packages."
+            exit 0
+          fi
+
+          echo "Publishing @remylagerweij/vue-doctor@$VERSION to GitHub Packages..."
+          GPR_LOG=$(mktemp)
+          if npm publish --workspace=@remylagerweij/vue-doctor \
+            --registry=https://npm.pkg.github.com \
+            --//npm.pkg.github.com/:_authToken="$GH_TOKEN" \
+            --provenance=false \
+            --access public 2>&1 | tee "$GPR_LOG"; then
+            echo "Successfully published @remylagerweij/vue-doctor@$VERSION to GitHub Packages."
+          elif grep -qiE "E409|EPUBLISHCONFLICT|cannot publish over|already exists" "$GPR_LOG"; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor is already published on GitHub Packages."
+          elif npm view "@remylagerweij/vue-doctor@$VERSION" version \
+            --registry=https://npm.pkg.github.com \
+            --//npm.pkg.github.com/:_authToken="$GH_TOKEN" >/dev/null 2>&1; then
+            echo "Version $VERSION of @remylagerweij/vue-doctor is confirmed on GitHub Packages."
+          else
+            echo "::error::GitHub Packages publish failed for version $VERSION"
+            exit 1
+          fi
+        env:
+          NPM_CONFIG_PROVENANCE: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push SemVer Tags for GitHub Actions

@@ -188,6 +188,13 @@ export const readNuxtRenderSettings = (directory: string): NonNullable<VueDoctor
 
   const settings: NonNullable<VueDoctorSettings["nuxt"]> = {};
   if (typeof config.ssr === "boolean") settings.ssr = config.ssr;
+  if (typeof config.srcDir === "string") settings.srcDir = config.srcDir;
+  if (typeof config.serverDir === "string") settings.serverDir = config.serverDir;
+  const dir = config.dir;
+  if (dir && typeof dir === "object") {
+    if (typeof dir.pages === "string") settings.pagesDir = dir.pages;
+    if (typeof dir.layouts === "string") settings.layoutsDir = dir.layouts;
+  }
   const routeRules = config.routeRules;
   if (routeRules && typeof routeRules === "object") {
     const rules: NuxtRouteRule[] = [];

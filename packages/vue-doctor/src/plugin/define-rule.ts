@@ -26,7 +26,7 @@ export type RuleConfidence = "high" | "medium" | "low";
 export type RuleFramework = "vue" | "nuxt";
 
 /** Toolchain features a rule may depend on; detected per project by utils/project-capabilities.ts. */
-export type ProjectCapability = "props-destructure";
+export type ProjectCapability = "props-destructure" | "typescript" | "ssr" | "nuxt-image";
 
 /**
  * Which analyzer runs the rule: oxlint (script AST), eslint-template (template AST), fs (project

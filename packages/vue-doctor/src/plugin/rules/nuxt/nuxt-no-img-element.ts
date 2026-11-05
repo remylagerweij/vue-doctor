@@ -8,6 +8,7 @@ export default defineRule({
     defaultSeverity: "warning",
     confidence: "high",
     frameworks: ["nuxt"],
+    requires: ["nuxt-image"],
     fixable: false,
     skipTestFiles: true,
     since: "1.0.0",
