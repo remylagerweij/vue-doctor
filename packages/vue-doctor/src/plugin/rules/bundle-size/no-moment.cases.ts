@@ -18,6 +18,10 @@ const cases: RuleCases = {
       name: "lightweight moment-compatible package",
       code: `import moment from "moment-mini";\nexport { moment };\n`,
     },
+    {
+      name: "type-only import of Moment",
+      code: `import type { Moment } from "moment";\nexport type { Moment };\n`,
+    },
   ],
   invalid: [
     {

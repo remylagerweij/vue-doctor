@@ -1,5 +1,6 @@
 import { BARREL_INDEX_SUFFIXES } from "../../constants.js";
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -17,6 +18,7 @@ export default defineRule({
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       const source = node.source?.value;
       if (typeof source !== "string") return;
       if (!source.startsWith(".")) return;

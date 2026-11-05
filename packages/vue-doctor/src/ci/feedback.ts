@@ -7,11 +7,12 @@ import {
   promptOf,
 } from "../report/format-markdown.js";
 import { escapeMarkdown, markdownCode, markdownFence, sanitizeMarkerId } from "../report/markdown-escape.js";
+import { buildCombinedAgentPrompt } from "../report/agent-prompt.js";
 import type { GitHubClient } from "./github-client.js";
 import { formatGithub, toRepoPath } from "../report/format-github.js";
 import { logger } from "../utils/logger.js";
 
-export type FeedbackMode = "summary" | "annotations" | "findings" | "none";
+export type FeedbackMode = "summary" | "annotations" | "findings" | "comment" | "review-comments" | "none";
 export type GroupingMode = "finding" | "rule-per-file" | "rule";
 
 export interface FeedbackOptions {
@@ -38,8 +39,56 @@ export interface CommentGroup {
   body: string;
 }
 
+export interface TrackedFinding {
+  id: string;
+  ruleId: string;
+  file: string;
+  line: number;
+  message: string;
+  severity: "error" | "warning";
+  help?: string;
+  docsUrl?: string;
+  category?: string;
+  codeFrame?: string;
+  fixed?: boolean;
+}
+
 export const FINDING_MARKER_PREFIX = "<!-- vue-doctor:finding:";
 export const SCOPE_MARKER_PREFIX = "<!-- vue-doctor:scope:";
+export const TRACKED_MARKER_PREFIX = "<!-- vue-doctor:tracked:";
+
+export const findingIdentity = (f: { fingerprint?: string; file: string; line: number; ruleId: string }): string =>
+  f.fingerprint ? f.fingerprint : `${f.file}:${f.line}:${f.ruleId}`;
+
+export const extractTrackedFindings = (body: string): TrackedFinding[] => {
+  const match = body.match(/<!-- vue-doctor:tracked:([a-zA-Z0-9+/=]+) -->/);
+  if (match) {
+    try {
+      const json = Buffer.from(match[1], "base64").toString("utf8");
+      return JSON.parse(json);
+    } catch {
+      // Fall through to regex parser fallback
+    }
+  }
+
+  const findings: TrackedFinding[] = [];
+  const fixedRegex = /- ~~(?:\S+\s+)?\*\*([A-Z]+)\*\*\s+`([^`]+)`:\s*(.*?)\s*\(`([^`]+)`\)~~/g;
+  let m: RegExpExecArray | null;
+  while ((m = fixedRegex.exec(body)) !== null) {
+    const [, sev, loc, msg, rule] = m;
+    const [file, lineStr] = loc.split(":");
+    findings.push({
+      id: `${file}:${lineStr || "1"}:${rule}`,
+      ruleId: rule,
+      file,
+      line: parseInt(lineStr || "1", 10),
+      message: msg,
+      severity: sev.toLowerCase() === "error" ? "error" : "warning",
+      fixed: true,
+    });
+  }
+  return findings;
+};
 
 const normalizeScope = (prefix = ""): string =>
   prefix.split("/").filter((part) => part !== "" && part !== ".").join("/");
@@ -153,7 +202,146 @@ export const groupFindings = (
 };
 
 /**
- * Handles the sticky summary comment on the PR.
+ * Formats a single unified PR comment containing the score summary, all active findings
+ * grouped together, fixed earlier findings (crossed through), and a single combined AI agent prompt.
+ */
+export const renderStickyComment = (
+  report: Report,
+  options: FeedbackOptions,
+  previousTracked: TrackedFinding[] = [],
+): string => {
+  const prefix = options.sourceRootPrefix ?? "";
+  const scope = normalizeScope(prefix);
+
+  const summaryMarkdown = renderMarkdownSummary(report, {
+    stickyMarker: true,
+    collapseFindings: true,
+    scope,
+  }).trimEnd();
+
+  const currentFindings: ReportFinding[] = report.projects.flatMap((p) =>
+    p.findings.map((finding) => ({ ...finding, file: toRepoPath(prefix, p.root, finding.file) })),
+  );
+
+  const currentKeySet = new Set(currentFindings.map(findingIdentity));
+  const activeFindings = currentFindings;
+
+  const fixedFindings: TrackedFinding[] = [];
+  const seenFixedIds = new Set<string>();
+
+  for (const prev of previousTracked) {
+    if (!currentKeySet.has(prev.id) && !seenFixedIds.has(prev.id)) {
+      fixedFindings.push({ ...prev, fixed: true });
+      seenFixedIds.add(prev.id);
+    }
+  }
+
+  fixedFindings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.ruleId.localeCompare(b.ruleId));
+
+  const sections: string[] = [summaryMarkdown];
+
+  if (activeFindings.length > 0) {
+    sections.push("");
+    const heading = fixedFindings.length > 0
+      ? `### 📋 Remaining issues (${activeFindings.length})`
+      : `### 📋 Issues (${activeFindings.length})`;
+    sections.push(heading, "");
+
+    const groups = groupFindings(activeFindings, options.grouping ?? "rule-per-file", false, "");
+    const maxComments = options.maxComments ?? 30;
+    const shownGroups = groups.slice(0, maxComments);
+
+    for (const group of shownGroups) {
+      const cleaned = group.body
+        .replace(/^<!-- vue-doctor:finding:[^\n]+\n/m, "")
+        .replace(/^### 🩺/m, "#### 🩺")
+        .trimEnd();
+      sections.push(cleaned);
+      sections.push("");
+    }
+
+    if (groups.length > shownGroups.length) {
+      const omitted = groups.length - shownGroups.length;
+      sections.push(`_… and ${omitted} more issue groups not shown._`, "");
+    }
+  }
+
+  if (fixedFindings.length > 0) {
+    sections.push("");
+    sections.push(`### ✅ Fixed earlier findings (${fixedFindings.length})`, "");
+    const maxComments = options.maxComments ?? 30;
+    const shownFixed = fixedFindings.slice(0, maxComments);
+
+    for (const fixed of shownFixed) {
+      const icon = fixed.severity === "error" ? "🔴" : "⚠️";
+      const loc = fixed.line > 0 ? `${fixed.file}:${fixed.line}` : fixed.file;
+      sections.push(
+        `- ~~${icon} **${fixed.severity.toUpperCase()}** ${markdownCode(loc)}: ${escapeMarkdown(fixed.message)} (${markdownCode(fixed.ruleId)})~~`,
+      );
+    }
+
+    if (fixedFindings.length > shownFixed.length) {
+      const omitted = fixedFindings.length - shownFixed.length;
+      sections.push(`_… and ${omitted} more fixed findings not shown._`);
+    }
+    sections.push("");
+  }
+
+  if (options.agentPrompt !== false && activeFindings.length > 0) {
+    const promptText = buildCombinedAgentPrompt(activeFindings, {
+      projectRoot: options.sourceRootPrefix || ".",
+    });
+    if (promptText) {
+      sections.push(
+        "",
+        "<details>",
+        "<summary>🤖 Fix remaining issues with an AI agent</summary>",
+        "",
+        markdownFence(promptText, "text"),
+        "",
+        "</details>",
+        "",
+      );
+    }
+  }
+
+  const newTracked: TrackedFinding[] = [
+    ...activeFindings.map((f) => ({
+      id: findingIdentity(f),
+      ruleId: f.ruleId,
+      file: f.file,
+      line: f.line,
+      message: f.message,
+      severity: f.severity,
+      help: f.help,
+      docsUrl: f.docsUrl,
+      category: f.category,
+      codeFrame: f.codeFrame,
+      fixed: false,
+    })),
+    ...fixedFindings.map((f) => ({
+      id: f.id,
+      ruleId: f.ruleId,
+      file: f.file,
+      line: f.line,
+      message: f.message,
+      severity: f.severity,
+      help: f.help,
+      docsUrl: f.docsUrl,
+      category: f.category,
+      codeFrame: f.codeFrame,
+      fixed: true,
+    })),
+  ];
+
+  const trackedBase64 = Buffer.from(JSON.stringify(newTracked)).toString("base64");
+  sections.push(`<!-- vue-doctor:tracked:${trackedBase64} -->`);
+
+  return `${sections.join("\n").replace(/\n+$/, "")}\n`;
+};
+
+/**
+ * Handles the single sticky PR comment containing summary, grouped issues, fixed earlier findings, and agent prompt.
  */
 export const postStickySummary = async (
   client: GitHubClient,
@@ -163,26 +351,23 @@ export const postStickySummary = async (
   if (!options.pullNumber) return;
 
   const scope = normalizeScope(options.sourceRootPrefix);
-  const summaryMarkdown = renderMarkdownSummary(report, {
-    stickyMarker: true,
-    collapseFindings: true,
-    scope,
-  });
-
   const marker = summaryMarker(scope);
   const comments = await client.listIssueComments(options.owner, options.repo, options.pullNumber);
   const existing = comments.find((c) => c.body?.includes(marker));
 
+  const previousTracked = existing?.body ? extractTrackedFindings(existing.body) : [];
+  const commentMarkdown = renderStickyComment(report, options, previousTracked);
+
   if (existing) {
-    if (existing.body !== summaryMarkdown) {
+    if (existing.body !== commentMarkdown) {
       logger.log(`Updating sticky summary comment #${existing.id}...`);
-      await client.updateIssueComment(options.owner, options.repo, existing.id, summaryMarkdown);
+      await client.updateIssueComment(options.owner, options.repo, existing.id, commentMarkdown);
     } else {
       logger.log(`Sticky summary comment #${existing.id} is up to date.`);
     }
   } else {
     logger.log("Posting new sticky summary comment...");
-    await client.createIssueComment(options.owner, options.repo, options.pullNumber, summaryMarkdown);
+    await client.createIssueComment(options.owner, options.repo, options.pullNumber, commentMarkdown);
   }
 };
 

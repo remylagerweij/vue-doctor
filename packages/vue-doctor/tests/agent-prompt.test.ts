@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentPrompt, buildGroupPrompt, type PromptFinding } from "../src/report/agent-prompt.js";
+import { buildAgentPrompt, buildGroupPrompt, buildCombinedAgentPrompt, type PromptFinding } from "../src/report/agent-prompt.js";
 import { MASK, maskSecrets } from "../src/report/mask-secrets.js";
 
 const DOCS = "https://remylagerweij.github.io/vue-doctor/rules";
@@ -158,6 +158,77 @@ describe("buildGroupPrompt", () => {
     expect(() =>
       buildGroupPrompt([finding({ ruleId: "knip/files" }), finding({ ruleId: "knip/exports" })]),
     ).toThrow(/single rule/);
+  });
+});
+
+describe("buildCombinedAgentPrompt", () => {
+  it("returns empty string for empty findings", () => {
+    expect(buildCombinedAgentPrompt([])).toBe("");
+  });
+
+  it("delegates to buildAgentPrompt for a single finding", () => {
+    const single = finding({
+      ruleId: "vue-doctor/security/no-eval",
+      severity: "error",
+      message: "eval() is unsafe",
+    });
+    expect(buildCombinedAgentPrompt([single])).toBe(buildAgentPrompt(single));
+  });
+
+  it("delegates to buildGroupPrompt when all findings share the same rule", () => {
+    const list = [
+      finding({ ruleId: "knip/exports", file: "src/a.ts", message: "Unused export: a" }),
+      finding({ ruleId: "knip/exports", file: "src/b.ts", message: "Unused export: b" }),
+    ];
+    expect(buildCombinedAgentPrompt(list)).toBe(buildGroupPrompt(list));
+  });
+
+  it("combines findings across multiple rules into a single agent prompt", () => {
+    const f1 = finding({
+      ruleId: "vue-doctor/security/no-eval",
+      severity: "error",
+      file: "src/App.vue",
+      line: 10,
+      message: "eval() executes arbitrary code",
+    });
+    const f2 = finding({
+      ruleId: "vue-doctor/reactivity/no-ref-as-operand",
+      severity: "warning",
+      file: "src/Button.vue",
+      line: 20,
+      message: "Ref used as operand without .value",
+    });
+
+    const prompt = buildCombinedAgentPrompt([f1, f2], { projectRoot: "apps/web" });
+    expect(prompt).toContain("You are fixing Vue Doctor findings in this repository.");
+    expect(prompt).toContain("Remaining findings: 2");
+    expect(prompt).toContain("Rule: vue-doctor/security/no-eval");
+    expect(prompt).toContain("src/App.vue:10");
+    expect(prompt).toContain("Rule: vue-doctor/reactivity/no-ref-as-operand");
+    expect(prompt).toContain("src/Button.vue:20");
+    expect(prompt).toContain("Constraints:");
+    expect(prompt).toContain("Verify: run `npx @remylagerweij/vue-doctor apps/web --diff --format json`");
+  });
+
+  it("masks secrets in multi-rule prompt", () => {
+    const f1 = finding({
+      ruleId: "vue-doctor/security/no-hardcoded-secret",
+      severity: "error",
+      file: "src/config.ts",
+      line: 3,
+      message: `Secret exposed: ${FAKE_STRIPE_KEY}`,
+    });
+    const f2 = finding({
+      ruleId: "vue/require-v-for-key",
+      severity: "error",
+      file: "src/List.vue",
+      line: 5,
+      message: "Missing key",
+    });
+
+    const prompt = buildCombinedAgentPrompt([f1, f2]);
+    expect(prompt).not.toContain(FAKE_STRIPE_KEY);
+    expect(prompt).toContain(MASK);
   });
 });
 

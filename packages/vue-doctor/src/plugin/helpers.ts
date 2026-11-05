@@ -80,6 +80,17 @@ export const isSpecificCall = (node: EsTreeNode, name: string | Set<string>): bo
 
 export const isUppercaseName = (name: string): boolean => UPPERCASE_PATTERN.test(name);
 
+/** True when an ImportDeclaration is type-only (`import type ...` or all specifiers are `type`). */
+export const isTypeOnlyImport = (node: EsTreeNode): boolean => {
+  if (node.importKind === "type") return true;
+  const specifiers = node.specifiers as EsTreeNode[] | undefined;
+  return Boolean(
+    specifiers &&
+      specifiers.length > 0 &&
+      specifiers.every((specifier) => specifier.importKind === "type"),
+  );
+};
+
 export const getWatchCallback = (node: EsTreeNode): EsTreeNode | null => {
   if (!node.arguments?.length || node.arguments.length < 2) return null;
   const callback = node.arguments[1];

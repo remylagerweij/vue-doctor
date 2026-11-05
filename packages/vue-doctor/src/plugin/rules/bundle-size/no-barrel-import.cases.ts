@@ -18,6 +18,10 @@ const cases: RuleCases = {
       name: "dynamic import of an index file is not a static barrel import",
       code: `export const load = () => import("./components/index");\n`,
     },
+    {
+      name: "type-only barrel import has no runtime footprint",
+      code: `import type { ButtonProps } from "./components/index";\nexport type { ButtonProps };\n`,
+    },
   ],
   invalid: [
     {

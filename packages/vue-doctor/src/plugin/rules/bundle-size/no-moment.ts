@@ -1,4 +1,5 @@
 import { defineRule } from "../../define-rule.js";
+import { isTypeOnlyImport } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
 
 export default defineRule({
@@ -16,6 +17,7 @@ export default defineRule({
   },
   create: (context: RuleContext) => ({
     ImportDeclaration(node: EsTreeNode) {
+      if (isTypeOnlyImport(node)) return;
       if (node.source?.value === "moment" || node.source?.value === "moment-timezone") {
         context.report({
           node,

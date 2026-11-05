@@ -11,6 +11,7 @@ import type {
 } from "../types.js";
 import { findMonorepoRoot, isMonorepoRoot } from "./find-monorepo-root.js";
 import { readPackageJson } from "./read-package-json.js";
+import { resolvePnpmCatalogVersion } from "./pnpm-catalog.js";
 
 export const NUXT_CONFIG_FILENAMES = [
   "nuxt.config.ts",
@@ -113,11 +114,30 @@ const detectFrameworkFromConfig = (directory: string): Framework => {
   return "unknown";
 };
 
-const extractDependencyInfo = (packageJson: PackageJson): DependencyInfo => {
+export const inferVueVersionFromNuxt = (nuxtVersion?: string | null): string => {
+  if (!nuxtVersion) return "^3.0.0";
+  const cleaned = nuxtVersion.replace(/^[\^~>=<]/, "").trim();
+  if (cleaned.startsWith("2")) return "^2.7.0";
+  if (cleaned.startsWith("4")) return "^3.5.0";
+  return "^3.0.0";
+};
+
+const extractDependencyInfo = (packageJson: PackageJson, directory?: string): DependencyInfo => {
   const allDependencies = collectAllDependencies(packageJson);
+  let vueVersion = allDependencies.vue ?? null;
+  const framework = detectFrameworkFromDependencies(allDependencies);
+
+  if (directory && vueVersion?.startsWith("catalog:")) {
+    vueVersion = resolvePnpmCatalogVersion(directory, vueVersion, "vue") ?? vueVersion;
+  }
+
+  if (!vueVersion && framework === "nuxt") {
+    vueVersion = inferVueVersionFromNuxt(allDependencies.nuxt);
+  }
+
   return {
-    vueVersion: allDependencies.vue ?? null,
-    framework: detectFrameworkFromDependencies(allDependencies),
+    vueVersion,
+    framework,
   };
 };
 
@@ -327,14 +347,25 @@ export const discoverProject = (directory: string): ProjectInfo => {
   }
 
   const packageJson = readPackageJson(packageJsonPath);
-  let { vueVersion, framework } = extractDependencyInfo(packageJson);
+  let { vueVersion, framework } = extractDependencyInfo(packageJson, directory);
 
   // Also try to detect framework from config files
   if (framework === "unknown") {
     framework = detectFrameworkFromConfig(directory);
   }
 
-  if (!vueVersion || framework === "unknown") {
+  // If framework is nuxt but no vue version found, infer from nuxt
+  if (!vueVersion && framework === "nuxt") {
+    vueVersion = inferVueVersionFromNuxt(collectAllDependencies(packageJson).nuxt);
+  }
+
+  if (vueVersion?.startsWith("catalog:")) {
+    vueVersion = resolvePnpmCatalogVersion(directory, vueVersion, "vue") ?? vueVersion;
+  }
+
+  const hasOwnVue = Boolean(vueVersion);
+
+  if (!vueVersion || (framework === "unknown" && !hasOwnVue)) {
     const workspaceInfo = findVueInWorkspaces(directory, packageJson);
     if (!vueVersion && workspaceInfo.vueVersion) {
       vueVersion = workspaceInfo.vueVersion;
@@ -350,7 +381,20 @@ export const discoverProject = (directory: string): ProjectInfo => {
       vueVersion = monorepoInfo.vueVersion;
     }
     if (framework === "unknown") {
-      framework = monorepoInfo.framework;
+      // If the package already declares its own Vue dependency, it is a Vue package,
+      // not a Nuxt/Vite app unless the monorepo root itself explicitly declares that framework.
+      if (!hasOwnVue) {
+        framework = monorepoInfo.framework;
+      } else {
+        const monorepoRoot = findMonorepoRoot(directory);
+        if (monorepoRoot) {
+          const rootPackageJson = readPackageJson(path.join(monorepoRoot, "package.json"));
+          const rootInfo = extractDependencyInfo(rootPackageJson, monorepoRoot);
+          if (rootInfo.framework !== "unknown") {
+            framework = rootInfo.framework;
+          }
+        }
+      }
     }
   }
 

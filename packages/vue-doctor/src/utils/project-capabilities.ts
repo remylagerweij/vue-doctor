@@ -2,6 +2,8 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { ProjectCapability } from "../plugin/define-rule.js";
+import { resolvePnpmCatalogVersion } from "./pnpm-catalog.js";
+import { inferVueVersionFromNuxt } from "./discover-project.js";
 
 const CONFIG_FILENAMES = [
   "nuxt.config.ts",
@@ -39,9 +41,19 @@ const resolveVueVersion = (directory: string): [number, number] | null => {
   }
   const manifest = readJson(path.join(directory, "package.json"));
   for (const section of ["dependencies", "devDependencies", "peerDependencies"]) {
-    const range = (manifest?.[section] as Record<string, string> | undefined)?.vue;
+    let range = (manifest?.[section] as Record<string, string> | undefined)?.vue;
+    if (range?.startsWith("catalog:")) {
+      range = resolvePnpmCatalogVersion(directory, range, "vue") ?? undefined;
+    }
     const parsed = parseMinorVersion(range);
     if (parsed) return parsed;
+  }
+  for (const section of ["dependencies", "devDependencies"]) {
+    const nuxtRange = (manifest?.[section] as Record<string, string> | undefined)?.nuxt;
+    if (nuxtRange) {
+      const parsed = parseMinorVersion(inferVueVersionFromNuxt(nuxtRange));
+      if (parsed) return parsed;
+    }
   }
   return null;
 };

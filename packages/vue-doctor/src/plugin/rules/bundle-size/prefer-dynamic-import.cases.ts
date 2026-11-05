@@ -18,6 +18,10 @@ const cases: RuleCases = {
       name: "type-only-looking local file with a heavy name",
       code: `import { editor } from "./monaco-editor-config";\nexport { editor };\n`,
     },
+    {
+      name: "type-only import of a heavy library",
+      code: `import type * as monaco from "monaco-editor";\nexport type { monaco };\n`,
+    },
   ],
   invalid: [
     {

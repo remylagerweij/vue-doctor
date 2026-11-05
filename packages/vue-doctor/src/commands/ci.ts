@@ -213,10 +213,15 @@ export const registerCiCommand = (program: Command): void => {
             sourceRootPrefix,
           };
 
-          if (feedbackModes.includes("summary") && feedbackOpts.pullNumber) {
+          if (
+            (feedbackModes.includes("summary") ||
+              feedbackModes.includes("findings") ||
+              feedbackModes.includes("comment")) &&
+            feedbackOpts.pullNumber
+          ) {
             await postStickySummary(client, feedbackOpts, report);
           }
-          if (feedbackModes.includes("findings") && feedbackOpts.pullNumber) {
+          if (feedbackModes.includes("review-comments") && feedbackOpts.pullNumber) {
             await postReviewComments(client, feedbackOpts, report);
           }
           await postCommitStatus(client, feedbackOpts, report, gateOutcome.exitCode === EXIT_CODES.ok);
@@ -274,10 +279,15 @@ export const registerCiCommand = (program: Command): void => {
           commitSha,
         };
 
-        if (feedbackModes.includes("summary") && feedbackOpts.pullNumber) {
+        if (
+          (feedbackModes.includes("summary") ||
+            feedbackModes.includes("findings") ||
+            feedbackModes.includes("comment")) &&
+          feedbackOpts.pullNumber
+        ) {
           await postStickySummary(client, feedbackOpts, report);
         }
-        if (feedbackModes.includes("findings") && feedbackOpts.pullNumber) {
+        if (feedbackModes.includes("review-comments") && feedbackOpts.pullNumber) {
           await postReviewComments(client, feedbackOpts, report);
         }
         await postCommitStatus(client, feedbackOpts, report, report.summary.errors === 0);

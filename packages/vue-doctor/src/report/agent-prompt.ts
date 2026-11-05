@@ -173,3 +173,74 @@ export const buildGroupPrompt = (findings: readonly PromptFinding[], options: Gr
   );
   return lines.join("\n");
 };
+
+/**
+ * A single prompt for multiple Vue Doctor findings across one or several rules: groups them
+ * by rule, lists locations, guidance, constraints and a verification command.
+ */
+export const buildCombinedAgentPrompt = (
+  findings: readonly PromptFinding[],
+  options: GroupPromptOptions = {},
+): string => {
+  if (findings.length === 0) return "";
+  if (findings.length === 1) return buildAgentPrompt(findings[0], options);
+
+  const byRule = new Map<string, PromptFinding[]>();
+  for (const finding of findings) {
+    const list = byRule.get(finding.ruleId) ?? [];
+    list.push(finding);
+    byRule.set(finding.ruleId, list);
+  }
+
+  if (byRule.size === 1) {
+    return buildGroupPrompt(findings, options);
+  }
+
+  const sortedRules = [...byRule.entries()].sort(([leftId, leftList], [rightId, rightList]) => {
+    const leftHasError = leftList.some((f) => f.severity === "error");
+    const rightHasError = rightList.some((f) => f.severity === "error");
+    return Number(rightHasError) - Number(leftHasError) || rightList.length - leftList.length || compareText(leftId, rightId);
+  });
+
+  const lines = [
+    "You are fixing Vue Doctor findings in this repository.",
+    `Remaining findings: ${findings.length}`,
+    "",
+  ];
+
+  const maxLocations = Math.max(1, options.maxLocations ?? DEFAULT_GROUP_MAX_LOCATIONS);
+
+  for (const [ruleId, ruleFindings] of sortedRules) {
+    const [first] = ruleFindings;
+    const meta = findRuleMeta(ruleId);
+    const { title, guidance } = describeRule(ruleId, meta, first);
+    const sorted = [...ruleFindings].sort(compareLocations);
+    const shown = sorted.slice(0, maxLocations);
+    const hidden = sorted.length - shown.length;
+    const sharedMessage = sorted.every((f) => f.message === first.message);
+
+    lines.push(ruleLine(ruleId, title, first, meta));
+    if (sharedMessage) {
+      lines.push(`Problem: ${maskSecrets(first.message)}`);
+    }
+    lines.push("Locations:");
+    for (const finding of shown) {
+      lines.push(`- ${formatLocation(finding)}${sharedMessage ? "" : `: ${maskSecrets(finding.message)}`}`);
+    }
+    if (hidden > 0) {
+      lines.push(`- and ${hidden} more`);
+    }
+    lines.push(`Guidance: ${maskSecrets(guidance)}`);
+    if (first.docsUrl) {
+      lines.push(`Docs: ${first.docsUrl}`);
+    }
+    lines.push("");
+  }
+
+  const projectRoot = options.projectRoot ?? ".";
+  lines.push(
+    `Constraints: ${CONSTRAINTS}`,
+    `Verify: run \`npx ${PACKAGE_NAME} ${quoteArgument(projectRoot)} --diff --format json\` and confirm the findings are no longer reported.`,
+  );
+  return lines.join("\n");
+};

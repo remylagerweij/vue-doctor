@@ -18,6 +18,10 @@ const cases: RuleCases = {
       name: "package with lodash in its name",
       code: `import { merge } from "lodash.merge";\nexport { merge };\n`,
     },
+    {
+      name: "type-only import from lodash",
+      code: `import type { LoDashStatic } from "lodash";\nexport type { LoDashStatic };\n`,
+    },
   ],
   invalid: [
     {

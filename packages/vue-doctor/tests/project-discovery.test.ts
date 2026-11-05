@@ -180,6 +180,12 @@ describe("workspace discovery", () => {
     expect(info.framework).toBe("nuxt");
   });
 
+  it("does not infer sibling workspace's framework when package has its own Vue dependency", () => {
+    const info = discoverProject(path.join(monorepo(), "packages", "app"));
+    expect(info.vueVersion).toBe("^3.5.0");
+    expect(info.framework).toBe("unknown");
+  });
+
   it.each([
     ["nuxt.config.ts", "nuxt"],
     ["quasar.config.js", "quasar"],
