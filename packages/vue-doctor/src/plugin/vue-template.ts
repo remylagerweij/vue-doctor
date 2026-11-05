@@ -11,8 +11,10 @@ const ATTRIBUTE_PATTERN = /\s(@[^\s=/>]+|v-on:[^\s=/>]+|:[^\s=/>]+|v-[^\s=/>]+|#
 const MUSTACHE_PATTERN = /\{\{([\s\S]*?)\}\}/g;
 const EMPTY_INDEX: TemplateIndex = { usage: () => "none" };
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const usesIdentifier = (code: string, name: string): boolean =>
-  new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}(?![\\w$])`).test(code);
+  new RegExp(`(?<![\\w$.])${escapeRegExp(name)}(?![\\w$])`).test(code);
 
 // The script AST of a .vue file does not include the template, so it is read from disk.
 export const indexTemplate = (filename: string): TemplateIndex => {
