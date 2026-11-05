@@ -3,6 +3,14 @@ import { RULE_REGISTRY, getCanonicalRuleId } from "../plugin/registry.js";
 import type { ReportFinding } from "./model.js";
 import { maskSecrets } from "./mask-secrets.js";
 
+const sanitizeUntrustedPromptText = (value: string): string => {
+  const masked = maskSecrets(value ?? "");
+  return masked
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[`*_#[\]{}<>|]/g, " ")
+    .replace(/\b(system|assistant|user)\s*:/gi, "$1;");
+};
+
 /**
  * Prompts for AI coding agents, generated from rule metadata (`agentGuidance`) and the finding.
  * Plain text only (no Markdown), deterministic, and free of secret values: the prompt ends up in
@@ -221,11 +229,11 @@ export const buildCombinedAgentPrompt = (
 
     lines.push(ruleLine(ruleId, title, first, meta));
     if (sharedMessage) {
-      lines.push(`Problem: ${maskSecrets(first.message)}`);
+      lines.push(`Problem: ${sanitizeUntrustedPromptText(first.message)}`);
     }
     lines.push("Locations:");
     for (const finding of shown) {
-      lines.push(`- ${formatLocation(finding)}${sharedMessage ? "" : `: ${maskSecrets(finding.message)}`}`);
+      lines.push(`- ${formatLocation(finding)}${sharedMessage ? "" : `: ${sanitizeUntrustedPromptText(finding.message)}`}`);
     }
     if (hidden > 0) {
       lines.push(`- and ${hidden} more`);
