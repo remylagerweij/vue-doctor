@@ -14,7 +14,8 @@ describe("loadTypescriptParser", () => {
       comment: true,
     });
 
-    expect(result.ast.body.map((node) => node.type)).toEqual(["VariableDeclaration", "ExportNamedDeclaration"]);
+    const body = (result.ast as unknown as { body: Array<{ type: string }> }).body;
+    expect(body.map((node) => node.type)).toEqual(["VariableDeclaration", "ExportNamedDeclaration"]);
   });
 
   it("restores module resolution after loading", () => {
