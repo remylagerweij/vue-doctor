@@ -4,11 +4,11 @@ import type { ReportFinding } from "./model.js";
 import { maskSecrets } from "./mask-secrets.js";
 
 const sanitizeUntrustedPromptText = (value: string): string => {
-  const masked = maskSecrets(value ?? "");
-  return masked
+  const sanitized = (value ?? "")
     .replace(/[\r\n\t]+/g, " ")
     .replace(/[`*_#[\]{}<>|]/g, " ")
     .replace(/\b(system|assistant|user)\s*:/gi, "$1;");
+  return maskSecrets(sanitized);
 };
 
 /**
