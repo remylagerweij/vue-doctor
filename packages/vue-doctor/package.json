@@ -111,11 +111,11 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/coverage-v8": "^5.1.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "happy-dom": "^21.0.4",
-    "tsdown": "^0.23.4"
+    "tsdown": "^0.23.5"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts"
