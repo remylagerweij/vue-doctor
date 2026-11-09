@@ -97,7 +97,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
-    "@typescript-eslint/parser": "^8.71.2",
+    "@typescript-eslint/parser": "^8.72.1",
     "commander": "^15.0.0",
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.12.0",
