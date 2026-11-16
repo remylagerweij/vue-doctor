@@ -96,7 +96,7 @@
     "schema:update": "vitest run tests/config.test.ts tests/report.test.ts -u"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
+    "@clack/prompts": "^1.9.0",
     "@typescript-eslint/parser": "^8.71.2",
     "commander": "^15.0.0",
     "eslint": "^10.13.0",
