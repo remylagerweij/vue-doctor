@@ -505,6 +505,45 @@
               "byRule"
             ]
           },
+          "inlineDisables": {
+            "description": "Present only with --no-inline-disables: vue-doctor-disable comments were ignored. `unsuppressed` counts the findings they would have hidden; those findings are in `findings` and in the score.",
+            "type": "object",
+            "properties": {
+              "ignored": {
+                "type": "boolean",
+                "const": true
+              },
+              "unsuppressed": {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "byRule": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "count",
+                  "byRule"
+                ]
+              }
+            },
+            "required": [
+              "ignored",
+              "unsuppressed"
+            ]
+          },
           "baseline": {
             "description": "Present when a baseline was applied.",
             "type": "object",

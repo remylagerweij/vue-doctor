@@ -88,6 +88,8 @@ The shape is always `projects[]`, also for a single project. Projects are ordere
 
 `skipped` lists analyzers that did not run (`oxlint`, `eslint`, `knip`, and `vue-doctor` for the project checks); the score is incomplete when it is not empty. `baseline` is present only when a baseline was applied, and `scope.mode` is `changed` for `--diff` runs.
 
+`inlineDisables` is present only for `--no-inline-disables` runs: `{ ignored: true, unsuppressed: { count, byRule } }` counts the findings that `vue-doctor-disable` comments would have hidden. Those findings are in `findings` and in the score, and `suppressed` is 0. See [Suppressions](/guide/suppressions).
+
 ## JSONL
 
 Each line is a self-contained JSON object. Every finding is one line with `"type": "finding"` that carries the finding fields above plus `project` (the project name). The last line is always the summary:

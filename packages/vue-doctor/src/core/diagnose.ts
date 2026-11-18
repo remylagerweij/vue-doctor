@@ -67,6 +67,13 @@ export interface DiagnoseOptions {
    */
   offline?: boolean;
   /**
+   * Honour `vue-doctor-disable*` comments. Set to false for an audit: every finding is reported
+   * (and counts toward score and gate) even where a comment hides it; `unsuppressed` on the result
+   * says how many comments would have hidden. Config `ignore` and baselines still apply. The
+   * cache is unaffected (it holds findings before suppression). Default: true.
+   */
+  inlineDisables?: boolean;
+  /**
    * Reuse findings for unchanged files from the content-hash cache (see core/cache.ts).
    * Default: the config's `cache`, else true.
    */
@@ -104,6 +111,8 @@ export interface DiagnoseResult {
   diagnostics: Diagnostic[];
   /** Findings hidden by `vue-doctor-disable*` comments (never by eslint-disable/oxlint-disable). */
   suppressed: SuppressedSummary;
+  /** Present only when `inlineDisables: false`: the findings that comments would have hidden (they are reported). */
+  unsuppressed?: SuppressedSummary;
   /** `eslint-disable` / `oxlint-disable` comments seen in files with findings; they have no effect. */
   foreignDirectives: number;
   /** Overall score (0-100) after caps; the `--min-score` gate compares against this value. */
@@ -402,7 +411,12 @@ export const diagnose = async (
     config,
   );
 
-  const suppression = applySuppressions(combinedDiagnostics, directory, ruleIdReporter);
+  const suppression = applySuppressions(
+    combinedDiagnostics,
+    directory,
+    ruleIdReporter,
+    options.inlineDisables === false,
+  );
   let diagnostics = addFingerprints(suppression.diagnostics, directory);
 
   let baseline: BaselineSummary | undefined;
@@ -415,7 +429,7 @@ export const diagnose = async (
 
   debug(
     "results",
-    `${combinedDiagnostics.length} findings after config, ${suppression.suppressed.count} suppressed, ${diagnostics.length} reported`,
+    `${combinedDiagnostics.length} findings after config, ${suppression.suppressed.count} suppressed${suppression.unsuppressed ? ` (inline disables ignored: ${suppression.unsuppressed.count} kept)` : ""}, ${diagnostics.length} reported`,
   );
   const {
     score,
@@ -432,6 +446,7 @@ export const diagnose = async (
     project,
     diagnostics,
     suppressed: suppression.suppressed,
+    ...(suppression.unsuppressed ? { unsuppressed: suppression.unsuppressed } : {}),
     foreignDirectives: suppression.foreignDirectives,
     score,
     label,
