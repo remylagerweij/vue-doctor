@@ -1,5 +1,11 @@
 # @remylagerweij/vue-doctor
 
+## 2.1.1
+
+### Patch Changes
+
+- 6dbe480: Update runtime dependencies: eslint 10.15, eslint-plugin-vue 10.12.1, vue-eslint-parser 10.4.2, @typescript-eslint/parser 8.73, knip 6.46, commander 15.1 and @clack/prompts 1.9.
+
 ## 2.1.0
 
 ### Minor Changes
