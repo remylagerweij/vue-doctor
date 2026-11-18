@@ -23,6 +23,11 @@ updates:
       # upgraded by hand with the fixture snapshot review (see .agents/workflows/upgrade-oxlint.md).
       - dependency-name: oxlint
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      # The package's runtime `typescript` stays on 6.x: TypeScript 7 has no JS API, and
+      # @typescript-eslint/parser needs one (see src/utils/load-typescript-parser.ts).
+      # This also holds back root dev `typescript` majors; bump those by hand.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
