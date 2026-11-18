@@ -30,7 +30,7 @@ export default defineRule({
     defaultSeverity: "warning",
     confidence: "medium",
     frameworks: ["vue", "nuxt"],
-    fixable: false,
+    fixable: true,
     skipTestFiles: true,
     since: "1.0.0",
     help: "Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent. Requires an ES2023 build target",

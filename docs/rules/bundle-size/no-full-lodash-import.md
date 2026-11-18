@@ -7,7 +7,7 @@
 | **Category** | Bundle Size |
 | **Default Severity** | `warning` |
 | **Confidence** | high |
-| **Fixable** | No |
+| **Fixable** | Yes (`--fix`) |
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
@@ -20,7 +20,7 @@ Import the specific function: `import debounce from 'lodash/debounce'` — saves
 
 ## How to fix
 
-Review the finding and update the code according to best practices below.
+This rule is automatically fixable. Run `npx @remylagerweij/vue-doctor@latest . --fix` to apply the codemod.
 
 ## Agent Guidance
 

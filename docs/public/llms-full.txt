@@ -54,7 +54,7 @@
 - Category: Bundle Size
 - Default Severity: warning
 - Confidence: high
-- Fixable: No
+- Fixable: Yes
 - Help: Import the specific function: `import debounce from 'lodash/debounce'` — saves ~70kb
 - Agent Guidance: Import the single function (`import debounce from 'lodash/debounce'`) or switch to `lodash-es`/native code instead of importing the full library.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-full-lodash-import
@@ -378,7 +378,7 @@
 - Category: Performance
 - Default Severity: warning
 - Confidence: medium
-- Fixable: No
+- Fixable: Yes
 - Help: Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent. Requires an ES2023 build target
 - Agent Guidance: This is a readability rewrite, not a speed-up: `toSorted` copies the array just like the spread does. Replace `[...array].sort(compare)` with `array.toSorted(compare)` only when the receiver is a real array (Sets, Maps and iterators have no `toSorted`) and the build target supports ES2023 (Chrome 110, Firefox 115, Safari 16); Vite does not polyfill it. Leave the spread when either is not the case.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable
@@ -954,7 +954,7 @@
 - Category: Security
 - Default Severity: warning
 - Confidence: high
-- Fixable: No
+- Fixable: Yes
 - Help: Add `rel="noopener noreferrer"` to links that use `target="_blank"`
 - Agent Guidance: Add `rel="noopener noreferrer"` to every link with `target="_blank"`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/security/vue-no-template-target-blank

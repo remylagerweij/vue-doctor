@@ -166,8 +166,8 @@ npx @remylagerweij/vue-doctor@latest [directory] [options]
 - \`--score\`: Print only the numeric health score (0–100) and exit.
 - \`--output <file>\`: Write formatted output to file instead of stdout.
 - \`--diff [branch]\`: Only scan files changed compared to git base branch or working tree.
-- \`--fix\`: Automatically apply deterministic codemods to source files.
-- \`--dry-run\`: Show unified diff of fixes without writing to disk.
+- \`--fix\`: Fix the reported findings of fixable rules with deterministic codemods, then scan the fixed code (see [Fixing findings](/guide/cli-usage#fixing-findings)).
+- \`--dry-run\`: With \`--fix\`, print the fixes as a unified diff on stdout instead of writing them, and skip the scan.
 - \`--fail-on <severity>\`: Gate threshold (\`none\`, \`error\`, \`warning\`). Default: \`none\`.
 - \`--gate <scope>\`: Gate scope (\`all\` or \`new\`). Default: \`all\`.
 - \`--min-score <score>\`: Fail gate if score is below this threshold (0–100).
