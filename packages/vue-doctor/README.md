@@ -331,6 +331,8 @@ console.log(`Total Findings: ${result.diagnostics.length}`);
 - **[Official Documentation](https://remylagerweij.github.io/vue-doctor/)**
 - **[Full Rules Catalog](https://remylagerweij.github.io/vue-doctor/rules/)**
 - **[CI & GitHub PR Guide](https://remylagerweij.github.io/vue-doctor/guide/ci)**
+- **[Editor Integration (Oxlint / ESLint plugin)](https://remylagerweij.github.io/vue-doctor/guide/editor)**
+- **[Pre-commit Hooks](https://remylagerweij.github.io/vue-doctor/guide/pre-commit)**
 - **[AI Agents Playbook](https://remylagerweij.github.io/vue-doctor/guide/agents)**
 - **[Model Context Protocol (MCP) Guide](https://remylagerweij.github.io/vue-doctor/guide/mcp)**
 - **[CLI Reference](https://remylagerweij.github.io/vue-doctor/reference/cli)**

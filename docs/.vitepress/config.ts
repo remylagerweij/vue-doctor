@@ -45,6 +45,9 @@ export default defineConfig({
           items: [
             { text: "Getting started", link: "/guide/getting-started" },
             { text: "CLI usage", link: "/guide/cli-usage" },
+            { text: "Editor integration", link: "/guide/editor" },
+            { text: "Plugin rule lists", link: "/guide/oxlint-rules" },
+            { text: "Pre-commit", link: "/guide/pre-commit" },
             { text: "Continuous integration", link: "/guide/ci" },
             { text: "Secure fork PRs", link: "/guide/fork-prs" },
             { text: "Baselines & adoption", link: "/guide/baseline" },
