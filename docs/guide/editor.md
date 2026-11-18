@@ -11,7 +11,16 @@ support and with ESLint 9 and 10 flat configs, and it ships two ready-made rule 
 | `configs.recommended` | Every script rule that is on by default and applies to any Vue project. |
 | `configs.nuxt` | `recommended` plus the Nuxt-only rules, and the setting that tells the rules the project is a Nuxt app. |
 
-Rules and severities match what the CLI enables, so a finding in the editor is a finding in `vue-doctor`.
+The presets enable the same rules as the CLI, but only the CLI applies your project's suppressions. `vue-doctor-disable`
+comments, the rule severities and ignores in your vue-doctor config, and [baselines](./baseline) are read by the
+`vue-doctor` command alone; Oxlint and ESLint running the plugin know nothing about them. A
+`// vue-doctor-disable-next-line vue-doctor/security/no-eval` comment still yields the finding in the editor. Editor
+results can therefore include findings the CLI hides.
+
+To silence a finding in the editor, use the linter's own comments. We ran the pinned Oxlint (1.86) on a small file
+and both `// oxlint-disable-next-line vue-doctor/no-eval` and `// eslint-disable-next-line vue-doctor/no-eval`
+suppressed the plugin's finding; in ESLint use `// eslint-disable-next-line vue-doctor/no-eval`. Those comments are
+not read by the CLI, so to hide a finding in both places you need both kinds of comment.
 
 ## What the editor covers, and what it does not
 
@@ -23,7 +32,7 @@ Rules and severities match what the CLI enables, so a finding in the editor is a
 | | Dead code (Knip) |
 | | The 0-100 score, baselines, gates, reports and `--fix` codemods |
 
-Three script rules are not part of the presets, because the CLI only turns them on when it detects a toolchain
+A few script rules are not part of the presets, because the CLI only turns them on when it detects a toolchain
 feature of the project (TypeScript, Vue 3.5 props destructure, the `@nuxt/image` module) and an editor setup has no
 such detection. Add them by hand when your project qualifies; see [Plugin rule lists](./oxlint-rules#rules-the-presets-leave-out).
 

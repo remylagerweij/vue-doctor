@@ -2,7 +2,7 @@
 
 There are two ways to check code before it is committed. They cover different amounts, so pick by what you need.
 
-| | Plugin through lint-staged | CLI `--diff` in a git hook |
+| | Plugin through lint-staged (advisory) | CLI `--diff` in a git hook |
 |---|---|---|
 | Looks at | Exactly the staged files | Changed files, see below |
 | Rules | Script rules only | Everything: script, template, filesystem, dead code, score |
@@ -60,7 +60,11 @@ export default {
 
 The function form runs the command once. This has the scope of `--diff` above, not only the staged files.
 
-For a check of exactly the staged files, run the Oxlint plugin; lint-staged passes the file names to it:
+Use `vue-doctor --diff` as the commit gate. It is the only option that honours `vue-doctor-disable` comments, your
+vue-doctor config (severities, ignores) and [baselines](./baseline).
+
+For a faster check of exactly the staged files you can run the Oxlint plugin directly; lint-staged passes the file
+names to it. Treat this as advisory, not as the gate:
 
 ```js
 // lint-staged.config.js
@@ -69,6 +73,8 @@ export default {
 };
 ```
 
-The `.oxlintrc.json` is the one from [Editor integration](./editor). Oxlint exits `1` when it reports an error-level
-finding and `0` for warnings only; add `--deny-warnings` to fail on warnings as well. Only script rules run this way,
-so keep the full `vue-doctor` scan in CI.
+The `.oxlintrc.json` is the one from [Editor integration](./editor). Oxlint ignores `vue-doctor-disable` comments, your
+vue-doctor config and baselines, so it can fail a commit on findings the project has suppressed or baselined. Only
+`oxlint-disable` comments apply to it. It exits `1` on an error-level finding and `0` for warnings only; add
+`--deny-warnings` to fail on warnings as well. Only script rules run this way, so keep the full `vue-doctor` scan as
+the gate and in CI.
