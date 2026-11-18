@@ -86,3 +86,65 @@ export const renderComparison = ({ rows, notes }) => {
   }
   return lines.join("\n");
 };
+
+/** Default regression tolerance: a rule may rise by this many findings, or by this share of its baseline, whichever is larger. */
+export const DEFAULT_TOLERANCE = { absolute: 10, relative: 0.1 };
+
+/**
+ * Resolves the directory to scan inside a checkout. `directory` is a repo-relative path from repos.json
+ * (monorepos); it must stay inside the checkout.
+ */
+export const resolveScanDirectory = (checkoutDirectory, directory, pathModule) => {
+  if (directory === undefined || directory === "" || directory === ".") return checkoutDirectory;
+  if (typeof directory !== "string" || pathModule.isAbsolute(directory)) {
+    throw new Error(`Invalid benchmark directory "${directory}": it must be a relative path.`);
+  }
+  const resolved = pathModule.resolve(checkoutDirectory, directory);
+  const relative = pathModule.relative(checkoutDirectory, resolved);
+  if (relative.startsWith("..") || pathModule.isAbsolute(relative)) {
+    throw new Error(`Invalid benchmark directory "${directory}": it escapes the checkout.`);
+  }
+  return resolved;
+};
+
+/**
+ * Regression gate. Sums each rule's findings over the repos that are comparable (present in both runs, same pinned
+ * SHA and same scanned directory) and flags a rule whose total rose by more than
+ * `max(tolerance.absolute, ceil(tolerance.relative * baselineTotal))`. A rule that is new (baseline total 0) is
+ * therefore allowed up to `tolerance.absolute` findings. Rules that fell, or are absent now, never fail. `knip/*`
+ * rules are skipped when dead-code analysis differs between the two runs.
+ */
+export const findRegressions = (previous, current, tolerance = DEFAULT_TOLERANCE) => {
+  const totals = new Map();
+  const skipKnip = previous.deadCode !== current.deadCode;
+  for (const [repoId, repo] of Object.entries(current.repos)) {
+    const before = previous.repos?.[repoId];
+    if (!before || before.sha !== repo.sha || (before.directory ?? "") !== (repo.directory ?? "")) continue;
+    for (const ruleId of new Set([...Object.keys(before.rules), ...Object.keys(repo.rules)])) {
+      if (skipKnip && ruleId.startsWith("knip/")) continue;
+      const entry = totals.get(ruleId) ?? { before: 0, after: 0 };
+      entry.before += before.rules[ruleId] ?? 0;
+      entry.after += repo.rules[ruleId] ?? 0;
+      totals.set(ruleId, entry);
+    }
+  }
+  const regressions = [];
+  for (const [ruleId, { before, after }] of totals) {
+    const delta = after - before;
+    const allowed = Math.max(tolerance.absolute, Math.ceil(tolerance.relative * before));
+    if (delta > allowed) regressions.push({ ruleId, before, after, delta, allowed, isNew: before === 0 });
+  }
+  regressions.sort((left, right) => right.delta - left.delta || left.ruleId.localeCompare(right.ruleId));
+  return regressions;
+};
+
+/** Renders the gate verdict as markdown. */
+export const renderRegressions = (regressions, tolerance = DEFAULT_TOLERANCE) => {
+  const rule = `Gate: a rule fails when its total rises by more than max(${tolerance.absolute}, ${Math.round(tolerance.relative * 100)}% of its baseline) findings (a new rule is allowed ${tolerance.absolute}).`;
+  if (regressions.length === 0) return `${rule}\n\nNo regression.`;
+  const lines = [rule, "", "| Rule | Before | After | Delta | Allowed |", "| --- | ---: | ---: | ---: | ---: |"];
+  for (const row of regressions) {
+    lines.push(`| \`${row.ruleId}\`${row.isNew ? " (new)" : ""} | ${row.before} | ${row.after} | +${row.delta} | +${row.allowed} |`);
+  }
+  return lines.join("\n");
+};

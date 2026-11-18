@@ -1,10 +1,20 @@
 name: Benchmark
 
-# Weekly false-positive benchmark on pinned public Nuxt/Vite apps (see benchmarks/README.md).
+# False-positive benchmark on 25 pinned public Vue/Nuxt repos (see benchmarks/README.md).
+# Runs weekly, on demand, and on pull requests that touch the rules, the engine or the benchmark itself.
+# Fails when a rule's findings rise beyond the tolerance against benchmarks/results.json.
 # Read-only: results are uploaded as an artifact and summarised in the job summary; nothing is committed.
 on:
   schedule:
     - cron: "0 5 * * 1" # Mondays 05:00 UTC
+  pull_request:
+    paths:
+      - "packages/vue-doctor/src/plugin/**"
+      - "packages/vue-doctor/src/utils/**"
+      - "packages/vue-doctor/scripts/benchmark/**"
+      - "packages/vue-doctor/tests/benchmark.test.ts"
+      - "benchmarks/**"
+      - ".github/workflows/benchmark.yml"
   workflow_dispatch:
     inputs:
       dead-code:
@@ -16,14 +26,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: benchmark
-  cancel-in-progress: false
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   benchmark:
     name: Benchmark
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -36,6 +46,8 @@ jobs:
 
       - run: npm run build
 
+      # --compare exits 1 on a regression (a rule rising beyond the gate in the summary) and 2 when a scan failed.
+      # The summary and the artifact are written either way, so the next steps run with `if: always()`.
       - name: Run benchmark
         env:
           BENCHMARK_DIR: ${{ runner.temp }}/vue-doctor-benchmark
@@ -44,9 +56,10 @@ jobs:
         run: npm run benchmark --workspace=@remylagerweij/vue-doctor -- --compare --summary --output "$GITHUB_WORKSPACE/benchmark-results.json" $DEAD_CODE
 
       - name: Upload results
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-results
           path: benchmark-results.json
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 90

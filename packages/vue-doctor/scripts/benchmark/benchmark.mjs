@@ -10,7 +10,18 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { compareResults, countFindingsByRule, renderComparison, renderRuleTable, renderSummaryTable, sumCounts } from "./lib.mjs";
+import {
+  DEFAULT_TOLERANCE,
+  compareResults,
+  countFindingsByRule,
+  findRegressions,
+  renderComparison,
+  renderRegressions,
+  renderRuleTable,
+  renderSummaryTable,
+  resolveScanDirectory,
+  sumCounts,
+} from "./lib.mjs";
 
 const PACKAGE_DIRECTORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const BENCHMARKS_DIRECTORY = path.resolve(PACKAGE_DIRECTORY, "..", "..", "benchmarks");
@@ -24,8 +35,12 @@ const USAGE = `Usage: node scripts/benchmark/benchmark.mjs [options]
   --dead-code        Also run knip: installs each repo's dependencies first (slow, needs network)
   --write            Write the results to benchmarks/results.json (the committed baseline)
   --output <file>    Write the results to this file instead
-  --compare          Print the per-rule delta vs. the committed results
+  --compare          Print the per-rule delta vs. the committed results and exit 1 on a regression
   --baseline <file>  Compare against this results file instead of benchmarks/results.json
+  --no-gate          With --compare: print the delta but never fail on a regression
+  --max-increase <n> Regression gate: findings a rule may rise by (default ${DEFAULT_TOLERANCE.absolute})
+  --max-increase-percent <n>
+                     Regression gate: share of the baseline total a rule may rise by (default ${DEFAULT_TOLERANCE.relative * 100})
   --summary          Append the markdown tables to $GITHUB_STEP_SUMMARY when set
   -h, --help         Show this help
 
@@ -40,8 +55,12 @@ const run = (command, args, options = {}) =>
     // `shell` is only for the package-manager shims on Windows (`pnpm.cmd`); the arguments are constants.
     const child = spawn(command, args, { stdio: ["ignore", "ignore", "inherit"], shell: options.shell === true, ...options });
     child.on("error", reject);
-    child.on("close", (code) => resolve(code ?? 1));
+    // A scan killed by the timeout closes with a null code and a signal.
+    child.on("close", (code, signal) => (signal ? reject(new Error(`killed by ${signal} (timeout)`)) : resolve(code ?? 1)));
   });
+
+/** A single repo scan is killed after this long; a hung scan is a finding, not something to wait for. */
+const SCAN_TIMEOUT_MS = 20 * 60 * 1000;
 
 const git = (cwd, args) => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
@@ -105,7 +124,7 @@ const analyze = async (repo, directory, reportPath, { deadCode }) => {
     ...(deadCode ? [] : ["--no-dead-code"]),
   ];
   const startedAt = performance.now();
-  const code = await run(process.execPath, args, { cwd: PACKAGE_DIRECTORY });
+  const code = await run(process.execPath, args, { cwd: PACKAGE_DIRECTORY, timeout: SCAN_TIMEOUT_MS });
   const durationMs = Math.round(performance.now() - startedAt);
   // Exit code 1 only means a gate failed; 2 (usage/config) and 3 (analyzer failed) are real errors.
   if (code !== 0 && code !== 1) throw new Error(`${repo.id}: vue-doctor exited with code ${code}.`);
@@ -121,6 +140,9 @@ const main = async () => {
       output: { type: "string" },
       compare: { type: "boolean", default: false },
       baseline: { type: "string" },
+      "no-gate": { type: "boolean", default: false },
+      "max-increase": { type: "string" },
+      "max-increase-percent": { type: "string" },
       summary: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -157,25 +179,36 @@ const main = async () => {
     totalDurationMs: 0,
     repos: {},
   };
+  const failures = [];
   for (const repo of selected) {
-    const directory = path.join(cacheDirectory, `${repo.id}-${repo.sha.slice(0, 8)}`);
-    fetchRepo(repo, directory);
-    if (values["dead-code"]) await installDependencies(repo, directory);
-    log(`[${repo.id}] analyzing`);
-    // The report is written next to (not inside) the checkout: Vue Doctor never writes into the scanned project.
-    const { report, durationMs } = await analyze(repo, directory, `${directory}.report.json`, { deadCode: values["dead-code"] });
-    const rules = countFindingsByRule(report);
-    results.repos[repo.id] = {
-      url: repo.url,
-      sha: repo.sha,
-      durationMs,
-      totalFindings: sumCounts(rules),
-      errors: report.summary.errors,
-      warnings: report.summary.warnings,
-      rules,
-    };
-    results.totalDurationMs += durationMs;
+    try {
+      const directory = path.join(cacheDirectory, `${repo.id}-${repo.sha.slice(0, 8)}`);
+      fetchRepo(repo, directory);
+      const scanDirectory = resolveScanDirectory(directory, repo.directory, path);
+      if (values["dead-code"]) await installDependencies(repo, directory);
+      log(`[${repo.id}] analyzing${repo.directory ? ` (${repo.directory})` : ""}`);
+      // The report is written next to (not inside) the checkout: Vue Doctor never writes into the scanned project.
+      const { report, durationMs } = await analyze(repo, scanDirectory, `${directory}.report.json`, { deadCode: values["dead-code"] });
+      const rules = countFindingsByRule(report);
+      results.repos[repo.id] = {
+        url: repo.url,
+        sha: repo.sha,
+        ...(repo.directory ? { directory: repo.directory } : {}),
+        durationMs,
+        totalFindings: sumCounts(rules),
+        errors: report.summary.errors,
+        warnings: report.summary.warnings,
+        rules,
+      };
+      results.totalDurationMs += durationMs;
+    } catch (error) {
+      // Keep going: one crashing or hung repo must not hide the results of the others.
+      const message = error instanceof Error ? error.message : String(error);
+      log(`[${repo.id}] FAILED: ${message}`);
+      failures.push({ id: repo.id, error: message });
+    }
   }
+  if (failures.length > 0) results.failures = failures;
 
   const target = values.output ? path.resolve(values.output) : values.write ? DEFAULT_RESULTS_PATH : undefined;
   if (target) {
@@ -190,11 +223,31 @@ const main = async () => {
     "#### Findings per rule",
     renderRuleTable(results),
   ];
-  if (baseline) sections.push("#### Change vs. committed results", renderComparison(compareResults(baseline, results)));
+  let regressions = [];
+  if (baseline) {
+    const tolerance = {
+      absolute: values["max-increase"] === undefined ? DEFAULT_TOLERANCE.absolute : Number(values["max-increase"]),
+      relative: values["max-increase-percent"] === undefined ? DEFAULT_TOLERANCE.relative : Number(values["max-increase-percent"]) / 100,
+    };
+    if (!Number.isFinite(tolerance.absolute) || !Number.isFinite(tolerance.relative) || tolerance.absolute < 0 || tolerance.relative < 0) {
+      throw new Error("--max-increase and --max-increase-percent must be non-negative numbers.");
+    }
+    regressions = findRegressions(baseline, results, tolerance);
+    sections.push(
+      "#### Change vs. committed results",
+      renderComparison(compareResults(baseline, results)),
+      "#### Regression gate",
+      renderRegressions(regressions, tolerance),
+    );
+  }
+  if (failures.length > 0) {
+    sections.push("#### Failed scans", failures.map((failure) => `- \`${failure.id}\`: ${failure.error}`).join("\n"));
+  }
   const markdown = `${sections.join("\n\n")}\n`;
   process.stdout.write(markdown);
   if (values.summary && process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`);
-  return 0;
+  if (failures.length > 0) return 2;
+  return regressions.length > 0 && !values["no-gate"] ? 1 : 0;
 };
 
 main().then(
