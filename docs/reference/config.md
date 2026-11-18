@@ -50,6 +50,8 @@ export default defineConfig({
 
   // Diff scanning default
   diff: true,
+  // In a diff scan, only report findings on changed lines
+  diffLines: false,
 });
 ```
 

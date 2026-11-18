@@ -184,7 +184,13 @@ const buildProject = ({ directory, result }: ProjectResult, options: BuildReport
     typescript: result.project.hasTypeScript,
     sourceFiles: result.project.sourceFileCount,
     scope: result.isDiffMode
-      ? { mode: "changed", files: result.includePaths.length }
+      ? {
+          mode: "changed",
+          files: result.includePaths.length,
+          ...(result.outsideChangedLines === undefined
+            ? {}
+            : { changedLinesOnly: true, outsideChangedLines: result.outsideChangedLines }),
+        }
       : { mode: "full" },
     score: {
       value: result.score,

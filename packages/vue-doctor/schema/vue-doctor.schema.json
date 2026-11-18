@@ -214,6 +214,10 @@
         "boolean",
         "string"
       ]
+    },
+    "diffLines": {
+      "description": "In a diff scan (diff or --diff), only report findings on changed lines, and file-level findings of changed files. Does not enable diff mode itself. Default: false.",
+      "type": "boolean"
     }
   },
   "additionalProperties": false,

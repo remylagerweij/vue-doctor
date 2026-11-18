@@ -88,6 +88,12 @@ export const configSchema = z
       .union([z.boolean(), z.string()])
       .optional()
       .describe("Only scan changed files: true for auto-detection, or a base branch name."),
+    diffLines: z
+      .boolean()
+      .optional()
+      .describe(
+        "In a diff scan (diff or --diff), only report findings on changed lines, and file-level findings of changed files. Does not enable diff mode itself. Default: false.",
+      ),
   })
   .describe("Vue Doctor configuration");
 

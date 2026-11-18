@@ -24,6 +24,7 @@ const printProjectDetection = (
   projectInfo: ReturnType<typeof discoverProject>,
   isDiffMode: boolean,
   includePaths: string[],
+  isChangedLinesOnly = false,
 ): void => {
   const lines: FramedLine[] = [];
 
@@ -43,7 +44,7 @@ const printProjectDetection = (
   }
 
   if (isDiffMode) {
-    const diffLine = `Scanning ${includePaths.length} changed files`;
+    const diffLine = `Scanning ${includePaths.length} changed files${isChangedLinesOnly ? " (changed lines only)" : ""}`;
     lines.push(createFramedLine(diffLine, pc.yellow(diffLine)));
   } else {
     const countLine = `${projectInfo.sourceFileCount} source files`;
@@ -205,6 +206,7 @@ const analyzeProject = async (
     lint: options.lint,
     deadCode: options.deadCode,
     includePaths: options.includePaths ?? [],
+    changedLines: options.changedLines,
     force: options.force,
     config: options.config,
     baseline: options.baseline,
@@ -261,6 +263,12 @@ const renderOutcome = async (outcome: ScanOutcome, options: ScanOptions): Promis
     logger.break();
   }
 
+  if (result.outsideChangedLines) {
+    const noun = result.outsideChangedLines === 1 ? "finding" : "findings";
+    logger.log(`  ${pc.dim(`${result.outsideChangedLines} ${noun} outside the changed lines not reported (--diff-lines)`)}`);
+    logger.break();
+  }
+
   if (result.baseline) {
     const { matched, fixed } = result.baseline;
     const fixedText = fixed === null ? "" : `, ${fixed} fixed`;
@@ -283,7 +291,7 @@ export const scan = async (
     if (!projectInfo.vueVersion && !options.force) {
       throw new NoVueDependencyError(directory);
     }
-    printProjectDetection(projectInfo, includePaths.length > 0, includePaths);
+    printProjectDetection(projectInfo, includePaths.length > 0, includePaths, options.changedLines !== undefined);
   }
 
   const outcome = await analyzeProject(directory, options, {
@@ -362,7 +370,7 @@ export const scanProjects = async (
   for (const [index, outcome] of outcomes.entries()) {
     const { options } = projects[index];
     if (isInteractiveOutput && isInteractive(options)) {
-      printProjectDetection(outcome.project, outcome.isDiffMode, outcome.includePaths);
+      printProjectDetection(outcome.project, outcome.isDiffMode, outcome.includePaths, outcome.outsideChangedLines !== undefined);
       progress.flush(index);
     }
     await renderOutcome(outcome, options);

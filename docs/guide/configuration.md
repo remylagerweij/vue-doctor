@@ -29,7 +29,7 @@ export default defineConfig({
 
 - `rules` sets a severity (`"off"`, `"warn"`, `"error"`) per rule. Rule IDs are `vue-doctor/<category>/<rule>`, `vue/<rule>` and `knip/<type>` (see [Rules](/rules/)); the 1.x forms still work but are deprecated.
 - A rule that documents options takes them next to the severity: `["warn", { ... }]` (see [Rule options](#rule-options)).
-- `gate`, `lint`, `deadCode`, `verbose` and `diff` are defaults; command-line flags win.
+- `gate`, `lint`, `deadCode`, `verbose`, `diff` and `diffLines` are defaults; command-line flags win. `diffLines` only applies to a diff scan (see [changed lines](/guide/cli-usage#changed-files-and-changed-lines)).
 - The config is validated: unknown keys and invalid values exit with code 2 and say what is wrong.
 - `.ts`/`.js` configs are executed. Use JSON when scanning untrusted code.
 
