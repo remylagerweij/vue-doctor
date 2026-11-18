@@ -92,7 +92,7 @@ export const configSchema = z
       .boolean()
       .optional()
       .describe(
-        "In a diff scan (diff or --diff), only report findings on changed lines, and file-level findings of changed files. Does not enable diff mode itself. Default: false.",
+        "In the scan command's diff mode (diff or --diff), only report findings on changed lines; a finding without a line is kept when its file changed. Does not enable diff mode itself and is not read by `ci run`. Default: false.",
       ),
   })
   .describe("Vue Doctor configuration");

@@ -63,7 +63,7 @@ export interface DiagnoseOptions {
   /**
    * Only report findings on these lines (`--diff-lines`, see `getChangedLines`): findings on other
    * lines are dropped before the baseline, the score and the gate see them. File-level findings
-   * (dead code, filesystem rules, audit) are kept when their file is a key. Default: report all.
+   * (filesystem rules, audit, anything without a line) are kept when their file is a key. Default: report all.
    */
   changedLines?: ChangedLines;
   /** Scan even when no `vue` dependency is found. */
