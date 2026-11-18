@@ -68,7 +68,7 @@ Then add a script to your `package.json`:
 - 🛡️ **Comprehensive Quality Gates:** 85 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 104 registered rules.
 - 🔒 **Deep Security Guardrails:** Detects hardcoded secrets, unsafe HTML sinks (`v-html`), SSRF, command & SQL injection, prototype pollution, and LLM prompt injection risks.
 - 🧹 **Dead Code & Unused Exports:** Finds unused components, unreferenced exports, orphan types, and dead dependencies using Knip.
-- 🔧 **Automated Codemods:** Deterministic `--fix` repairs the scan's findings of the three fixable rules: named lodash imports become per-method imports, `[...items].sort()` becomes `items.toSorted()`, and `target="_blank"` links get `rel="noopener noreferrer"`. Only reported findings are rewritten; suppressed, disabled and unreported code is never touched.
+- 🔧 **Automated Codemods:** Deterministic `--fix` repairs the scan's findings of the two fixable rules: named lodash imports become per-method imports, and `target="_blank"` links get `rel="noopener noreferrer"`. Only reported findings are rewritten; suppressed, disabled and unreported code is never touched.
 - 🤖 **First-Class AI Agent Support:** Built-in stdio Model Context Protocol (MCP) server (`vue-doctor mcp`) and one-command agent playbook installer (`vue-doctor agents install`) for Cursor, Claude Code, Copilot, and Windsurf.
 - 🚦 **GitHub Actions CI & PR Feedback:** Full pull request feedback with sticky summary comments, line-level reviews with AI remediation prompts, check annotations, and score delta tracking.
 - 📈 **Baseline for Existing Codebases:** Adopt Vue Doctor on legacy applications instantly; record existing issues and only fail on new violations.

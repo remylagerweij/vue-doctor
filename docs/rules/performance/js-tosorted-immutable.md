@@ -7,7 +7,7 @@
 | **Category** | Performance |
 | **Default Severity** | `warning` |
 | **Confidence** | medium |
-| **Fixable** | Yes (`--fix`) |
+| **Fixable** | No |
 | **Engine** | `oxlint` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
@@ -20,7 +20,7 @@ Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent
 
 ## How to fix
 
-This rule is automatically fixable. Run `npx @remylagerweij/vue-doctor@latest . --fix` to apply the codemod.
+Review the finding and update the code according to best practices below.
 
 ## Agent Guidance
 

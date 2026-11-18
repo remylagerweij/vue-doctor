@@ -58,13 +58,11 @@ describe("vue-doctor --fix (built CLI)", () => {
     const result = runCli([directory, ...FAST, "--fix", "--dry-run"]);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("--- a/js-perf-issues.ts");
-    expect(result.stdout).toContain("-[...items].sort();");
-    expect(result.stdout).toContain("+items.toSorted();");
-    expect(result.stdout).toContain("+  filtered.value.toSorted((a, b) =>");
+    expect(result.stdout).toContain("--- a/template-issues.vue");
     expect(result.stdout).toContain('+    <a href="https://example.com" target="_blank" rel="noopener noreferrer">External</a>');
-    // In-place sorts are not findings of js-tosorted-immutable; the default lodash import is not fixable.
-    expect(result.stdout).not.toMatch(/^\+.*items\.toSorted\(\)\[/m);
+    // Sorting findings have no codemod; the default lodash import is not fixable.
+    expect(result.stdout).not.toContain("toSorted");
+    expect(result.stdout).not.toContain("js-perf-issues");
     expect(result.stdout).not.toContain("lodash/");
     expect(result.stdout).not.toContain(":key");
     expect(result.stderr).toContain("No files were changed.");
@@ -78,18 +76,15 @@ describe("vue-doctor --fix (built CLI)", () => {
     const result = runCli([directory, ...FAST, "--fix", "--json"]);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain("Fixed 4 findings in 4 files");
+    expect(result.stderr).toContain("Fixed 1 finding in 1 file");
     const jsPerf = read(directory, "js-perf-issues.ts");
-    expect(jsPerf).toContain("\nitems.toSorted();\n");
     expect(jsPerf).toContain("items.sort(); // Wait");
     expect(jsPerf).toContain("items.sort()[0];");
-    expect(read(directory, "js-perf-issues.vue")).toContain("const sorted = items.toSorted((a, b) => a - b);");
-    expect(read(directory, "architecture-issues.vue")).toContain("filtered.value.toSorted((a, b) =>");
     expect(read(directory, "template-issues.vue")).toContain('target="_blank" rel="noopener noreferrer"');
     expect(read(directory, "bundle-issues.vue")).toBe(untouched);
 
     const remaining = ruleIds(result.stdout);
-    expect(remaining).not.toContain("vue-doctor/performance/js-tosorted-immutable");
+    expect(remaining).toContain("vue-doctor/performance/js-tosorted-immutable");
     expect(remaining).not.toContain("vue/no-template-target-blank");
     expect(remaining).toContain("vue-doctor/bundle-size/no-full-lodash-import");
     expect(remaining).toContain("vue/require-v-for-key");
@@ -103,17 +98,31 @@ describe("vue-doctor --fix (built CLI)", () => {
 
   it("leaves findings hidden by a suppression comment unfixed", () => {
     const directory = copyFixture();
-    const file = path.join(directory, "js-perf-issues.vue");
+    const file = path.join(directory, "template-issues.vue");
     const suppressed = fs
       .readFileSync(file, "utf8")
-      .replace("// js-tosorted-immutable", "// vue-doctor-disable-next-line vue-doctor/performance/js-tosorted-immutable");
+      .replace("<a href=", "<!-- vue-doctor-disable-next-line vue/no-template-target-blank -->\n    <a href=");
     fs.writeFileSync(file, suppressed);
 
     const result = runCli([directory, ...FAST, "--fix", "--score"]);
 
     expect(result.status, result.stderr).toBe(0);
     expect(fs.readFileSync(file, "utf8")).toBe(suppressed);
-    expect(read(directory, "js-perf-issues.ts")).toContain("\nitems.toSorted();\n");
+  });
+
+  it("never rewrites [...x].sort() to toSorted, whatever x is", () => {
+    const directory = copyFixture();
+    const file = path.join(directory, "sorted-set.ts");
+    const source = "const tags = getTags();\nexport const sorted = [...tags].sort();\nexport const letters = (word: string) => [...word].sort();\n";
+    fs.writeFileSync(file, source);
+
+    const result = runCli([directory, ...FAST, "--fix"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(fs.readFileSync(file, "utf8")).toBe(source);
+    expect(read(directory, "js-perf-issues.ts")).toContain("\n[...items].sort();\n");
+    expect(read(directory, "js-perf-issues.vue")).toContain("[...items].sort((a, b) => a - b)");
+    expect(read(directory, "architecture-issues.vue")).toContain("[...filtered.value].sort(");
   });
 
   it("only fixes changed files with --diff", () => {
@@ -126,16 +135,16 @@ describe("vue-doctor --fix (built CLI)", () => {
     git("init", "--quiet");
     git("add", "-A");
     git("commit", "--quiet", "-m", "initial");
-    fs.appendFileSync(path.join(directory, "js-perf-issues.ts"), "// changed\n");
+    fs.appendFileSync(path.join(directory, "template-issues.vue"), "<!-- changed -->\n");
+    const bundle = read(directory, "bundle-issues.vue");
     const architecture = read(directory, "architecture-issues.vue");
-    const template = read(directory, "template-issues.vue");
 
     const result = runCli([directory, ...FAST, "--fix", "--diff", "--score"]);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(read(directory, "js-perf-issues.ts")).toContain("\nitems.toSorted();\n");
+    expect(read(directory, "template-issues.vue")).toContain('target="_blank" rel="noopener noreferrer"');
+    expect(read(directory, "bundle-issues.vue")).toBe(bundle);
     expect(read(directory, "architecture-issues.vue")).toBe(architecture);
-    expect(read(directory, "template-issues.vue")).toBe(template);
   });
 
   it("rejects --fix with --no-lint as a usage error", () => {

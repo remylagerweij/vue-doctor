@@ -8,7 +8,6 @@ import {
   createUnifiedDiff,
   fixFullLodashImport,
   fixTemplateTargetBlank,
-  fixToSortedImmutable,
   toUtf16Column,
   type FixLocation,
 } from "../src/fix/codemods.js";
@@ -17,7 +16,6 @@ import { RULE_REGISTRY, getCanonicalRuleId } from "../src/plugin/registry.js";
 import type { Diagnostic } from "../src/types.js";
 
 const LODASH = "vue-doctor/bundle-size/no-full-lodash-import";
-const TO_SORTED = "vue-doctor/performance/js-tosorted-immutable";
 const TARGET_BLANK = "vue/no-template-target-blank";
 
 /** 1-based line and UTF-16 column of the `occurrence`-th match of `needle` in `source`. */
@@ -109,44 +107,6 @@ describe("fix: vue-doctor/bundle-size/no-full-lodash-import", () => {
   });
 });
 
-describe("fix: vue-doctor/performance/js-tosorted-immutable", () => {
-  it.each([
-    ["an identifier", "const s = [...items].sort((a, b) => a - b);", "const s = items.toSorted((a, b) => a - b);"],
-    ["a member chain", "const s = [...this.items].sort();", "const s = this.items.toSorted();"],
-    ["a ref value", "const s = [ ...state.list.value ]\n  .sort(compare);", "const s = state.list.value.toSorted(compare);"],
-  ])("rewrites a reported spread-sort of %s", (_name, source, expected) => {
-    const result = fixTwice(fixToSortedImmutable, source, ["["]);
-    expect(result).toEqual({ code: expected, fixed: 1 });
-  });
-
-  it.each([
-    ["optional chaining", "const s = [...a?.b].sort();"],
-    ["a call", "const s = [...getItems()].sort();"],
-    ["two spreads", "const s = [...a, ...b].sort();"],
-    ["an operator", "const s = [...(a || b)].sort();"],
-    ["a computed member", "const s = [...a[0]].sort();"],
-    ["a non-null assertion", "const s = [...a!].sort();"],
-  ])("leaves a spread of %s unchanged even when reported", (_name, source) => {
-    expect(fixToSortedImmutable(source, [locate(source, "[")])).toEqual({ code: source, fixed: 0 });
-  });
-
-  it("never rewrites an in-place .sort(), reported or not", () => {
-    const source = "items.sort();\nconst first = items.sort()[0];\n";
-    expect(fixToSortedImmutable(source, [locate(source, "items"), locate(source, "items", 1)])).toEqual({
-      code: source,
-      fixed: 0,
-    });
-  });
-
-  it("only rewrites the reported spread-sort when several are present", () => {
-    const source = "const a = [...xs].sort();\nconst b = [...ys].sort();\nconst c = [...xs].sort(); const d = [...ys].sort();\n";
-    const result = fixToSortedImmutable(source, [locate(source, "[...ys]", 1)]);
-    expect(result.code).toBe(
-      "const a = [...xs].sort();\nconst b = [...ys].sort();\nconst c = [...xs].sort(); const d = ys.toSorted();\n",
-    );
-  });
-});
-
 describe("fix: vue/no-template-target-blank", () => {
   it("adds rel after target on a reported link", () => {
     const source = `<template>\n  <a href="https://x.dev" target="_blank">x</a>\n</template>\n`;
@@ -196,42 +156,42 @@ describe("fix: vue/no-template-target-blank", () => {
 
 describe("fix: applyCodemods", () => {
   it("leaves a file untouched when no finding has a codemod", () => {
-    const source = `<template><li v-for="item in items">{{ item }}</li></template>\nconst s = [...xs].sort();\n`;
+    const source = `<template><li v-for="item in items">{{ item }}</li></template>\n`;
     const result = applyCodemods(source, "src/List.vue", new Map([["vue/require-v-for-key", [{ line: 1, column: 11 }]]]));
     expect(result).toEqual({ code: source, fixedRules: {}, changed: false });
   });
 
   it("leaves unreported matches of a fixable rule untouched", () => {
-    const source = `import { debounce } from "lodash";\nconst s = [...xs].sort();\nitems.sort();\n`;
+    const source = `import { debounce } from "lodash";\nitems.sort();\n`;
     const result = applyCodemods(source, "src/a.ts", new Map());
     expect(result.changed).toBe(false);
     expect(result.code).toBe(source);
   });
 
   it("converts oxlint's UTF-8 byte columns before matching", () => {
-    const source = `const label = "日本語😀"; const a = [...xs].sort(); const b = [...ys].sort();\n`;
-    const index = source.indexOf("[...ys]");
+    const source = `const label = "日本語😀"; import { a } from "lodash"; import { b } from "lodash";\n`;
+    const index = source.indexOf('import { b }');
     const byteColumn = Buffer.byteLength(source.slice(0, index)) + 1;
     expect(toUtf16Column(source, byteColumn, "utf8")).toBe(index + 1);
-    const result = applyCodemods(source, "src/a.ts", new Map([[TO_SORTED, [{ line: 1, column: byteColumn }]]]));
-    expect(result.code).toBe(`const label = "日本語😀"; const a = [...xs].sort(); const b = ys.toSorted();\n`);
-    expect(result.fixedRules).toEqual({ [TO_SORTED]: 1 });
+    const result = applyCodemods(source, "src/a.ts", new Map([[LODASH, [{ line: 1, column: byteColumn }]]]));
+    expect(result.code).toBe(`const label = "日本語😀"; import { a } from "lodash"; import b from "lodash/b.js";\n`);
+    expect(result.fixedRules).toEqual({ [LODASH]: 1 });
   });
 
   it("keeps later findings on their lines after an earlier codemod adds lines", () => {
-    const source = `import { debounce, pick } from "lodash";\nexport const s = [...xs].sort();\nexport const t = [...ys].sort();\n`;
+    const source = `import { debounce, pick } from "lodash";\nexport const x = 1;\nexport const t = \`<a href="https://x.dev" target="_blank">x</a>\`;\n<a href="https://y.dev" target="_blank">y</a>\n`;
     const result = applyCodemods(
       source,
-      "src/a.ts",
+      "src/a.vue",
       new Map([
         [LODASH, [{ line: 1, column: 1 }]],
-        [TO_SORTED, [{ line: 3, column: 18 }]],
+        [TARGET_BLANK, [{ line: 4, column: 22 }]],
       ]),
     );
     expect(result.code).toBe(
-      `import debounce from "lodash/debounce.js";\nimport pick from "lodash/pick.js";\nexport const s = [...xs].sort();\nexport const t = ys.toSorted();\n`,
+      `import debounce from "lodash/debounce.js";\nimport pick from "lodash/pick.js";\nexport const x = 1;\nexport const t = \`<a href="https://x.dev" target="_blank">x</a>\`;\n<a href="https://y.dev" target="_blank" rel="noopener noreferrer">y</a>\n`,
     );
-    expect(result.fixedRules).toEqual({ [LODASH]: 1, [TO_SORTED]: 1 });
+    expect(result.fixedRules).toEqual({ [LODASH]: 1, [TARGET_BLANK]: 1 });
   });
 
   it("applies template codemods to .vue files only", () => {
@@ -243,8 +203,8 @@ describe("fix: applyCodemods", () => {
 
 describe("fix: unified diff", () => {
   it("shows only the changed lines with context and correct hunk ranges", () => {
-    const original = ["import { a, b } from \"lodash\";", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "[...xs].sort();"].join("\n");
-    const modified = ["import a from \"lodash/a.js\";", "import b from \"lodash/b.js\";", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "xs.toSorted();"].join("\n");
+    const original = ["import { a, b } from \"lodash\";", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "xs.sort();"].join("\n");
+    const modified = ["import a from \"lodash/a.js\";", "import b from \"lodash/b.js\";", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "xs.sort(); // changed"].join("\n");
     expect(createUnifiedDiff("src/a.ts", original, modified)).toBe(
       [
         "--- a/src/a.ts",
@@ -260,8 +220,8 @@ describe("fix: unified diff", () => {
         " seven",
         " eight",
         " nine",
-        "-[...xs].sort();",
-        "+xs.toSorted();",
+        "-xs.sort();",
+        "+xs.sort(); // changed",
       ].join("\n"),
     );
   });
@@ -286,25 +246,25 @@ describe("fix: planFixes and writeFixes", () => {
   const finding = (filePath: string, line: number, column: number): Diagnostic => ({
     filePath,
     plugin: "vue-doctor",
-    rule: "performance/js-tosorted-immutable",
+    rule: "bundle-size/no-full-lodash-import",
     severity: "warning",
     message: "",
     help: "",
     line,
     column,
-    category: "Performance",
+    category: "Bundle Size",
   });
-  const SOURCE = "export const s = [...xs].sort();\n";
+  const SOURCE = 'import { debounce } from "lodash";\n';
 
   it("plans a fix only for reported files and writes it atomically", () => {
     const project = makeProject();
     fs.writeFileSync(path.join(project, "src", "a.ts"), SOURCE);
     fs.writeFileSync(path.join(project, "src", "b.ts"), SOURCE);
-    const plan = planFixes(project, [finding("src/a.ts", 1, 18)]);
+    const plan = planFixes(project, [finding("src/a.ts", 1, 1)]);
     expect(plan.entries.map((entry) => entry.filePath)).toEqual(["src/a.ts"]);
     const { written } = writeFixes(plan.entries);
     expect(written).toHaveLength(1);
-    expect(fs.readFileSync(path.join(project, "src", "a.ts"), "utf8")).toBe("export const s = xs.toSorted();\n");
+    expect(fs.readFileSync(path.join(project, "src", "a.ts"), "utf8")).toBe('import debounce from "lodash/debounce.js";\n');
     expect(fs.readFileSync(path.join(project, "src", "b.ts"), "utf8")).toBe(SOURCE);
     expect(fs.readdirSync(path.join(project, "src")).sort()).toEqual(["a.ts", "b.ts"]);
   });
@@ -314,7 +274,7 @@ describe("fix: planFixes and writeFixes", () => {
     const outside = path.join(path.dirname(project), "outside.ts");
     fs.writeFileSync(outside, SOURCE);
     fs.symlinkSync(outside, path.join(project, "src", "link.ts"));
-    const plan = planFixes(project, [finding("../outside.ts", 1, 18), finding("src/link.ts", 1, 18)]);
+    const plan = planFixes(project, [finding("../outside.ts", 1, 1), finding("src/link.ts", 1, 1)]);
     expect(plan.entries).toEqual([]);
     expect(plan.skippedFiles.map((file) => file.reason)).toEqual([
       "outside the project directory",
@@ -327,7 +287,7 @@ describe("fix: planFixes and writeFixes", () => {
     const project = makeProject();
     const file = path.join(project, "src", "a.ts");
     fs.writeFileSync(file, SOURCE);
-    const plan = planFixes(project, [finding("src/a.ts", 1, 18)]);
+    const plan = planFixes(project, [finding("src/a.ts", 1, 1)]);
     fs.writeFileSync(file, `${SOURCE}// edited\n`);
     expect(writeFixes(plan.entries)).toEqual({ written: [], changedOnDisk: [file] });
     expect(fs.readFileSync(file, "utf8")).toBe(`${SOURCE}// edited\n`);

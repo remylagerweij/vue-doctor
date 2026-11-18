@@ -178,32 +178,6 @@ export const fixFullLodashImport = (source: string, locations: readonly FixLocat
 };
 
 // ---------------------------------------------------------------------------------------------
-// vue-doctor/performance/js-tosorted-immutable
-// ---------------------------------------------------------------------------------------------
-
-const SPREAD_SORT_PATTERN = /\[\s*\.\.\.\s*([^\]]*?)\s*\]\s*\.\s*sort\s*\(/g;
-/**
- * An identifier or a plain member chain (`items`, `this.items`, `state.list.value`). No calls,
- * operators, computed members or optional chaining: `[...a?.b].sort()` throws where
- * `a?.b.toSorted()` would return undefined, and anything with operators could change precedence.
- */
-const SIMPLE_RECEIVER_PATTERN = /^[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*$/;
-
-export const fixToSortedImmutable = (source: string, locations: readonly FixLocation[]): CodemodResult => {
-  const candidates: Candidate[] = [];
-  for (const match of source.matchAll(SPREAD_SORT_PATTERN)) {
-    const start = match.index;
-    const [text, receiver] = match;
-    candidates.push({
-      start,
-      end: start + text.length,
-      replacement: SIMPLE_RECEIVER_PATTERN.test(receiver) ? `${receiver}.toSorted(` : null,
-    });
-  }
-  return applyCandidates(source, candidates, locations);
-};
-
-// ---------------------------------------------------------------------------------------------
 // vue/no-template-target-blank
 // ---------------------------------------------------------------------------------------------
 
@@ -331,13 +305,6 @@ export const CODEMODS: ReadonlyMap<string, Codemod> = new Map(
         description: 'Rewrites `import { debounce } from "lodash"` to per-method imports (`lodash/debounce.js`)',
         appliesTo: (filePath) => SCRIPT_FILE_PATTERN.test(filePath),
         apply: fixFullLodashImport,
-      },
-      {
-        ruleId: "vue-doctor/performance/js-tosorted-immutable",
-        columnUnit: "utf8",
-        description: "Rewrites `[...items].sort(compare)` to `items.toSorted(compare)` for a plain identifier or member chain",
-        appliesTo: (filePath) => SCRIPT_FILE_PATTERN.test(filePath),
-        apply: fixToSortedImmutable,
       },
       {
         ruleId: "vue/no-template-target-blank",

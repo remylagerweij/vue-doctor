@@ -48,10 +48,9 @@ vue-doctor --fix
 | Rule | Fix |
 |------|-----|
 | `vue-doctor/bundle-size/no-full-lodash-import` | `import { debounce, pick as p } from "lodash"` becomes one `import debounce from "lodash/debounce.js"` per method. Default and namespace imports and inline `type` specifiers are left for you. |
-| `vue-doctor/performance/js-tosorted-immutable` | `[...items].sort(compare)` becomes `items.toSorted(compare)`, only when the spread is a plain identifier or member chain (`items`, `this.list`, `state.items.value`). `toSorted` needs an ES2023 target and a real array; review the diff if the value may be another iterable. In-place `items.sort()` is never touched. |
 | `vue/no-template-target-blank` | Adds `rel="noopener noreferrer"` after `target="_blank"` on `<a>` tags, or completes an existing static `rel`. Links with a dynamic `:rel` or `v-bind="..."` are left for you. |
 
-Code that is suppressed, belongs to a disabled rule, lies outside the `--diff` files or was not reported is never changed, and running `--fix` again changes nothing. Every project is analysed before any file is written, each file is replaced atomically, and files that resolve outside the project directory are skipped. Missing `v-for` keys are not fixed automatically: a correct key is an identity from your data, which a codemod cannot know. `--fix` cannot be combined with `--no-lint`.
+Code that is suppressed, belongs to a disabled rule, lies outside the `--diff` files or was not reported is never changed, and running `--fix` again changes nothing. Every project is analysed before any file is written, each file is replaced atomically, and files that resolve outside the project directory are skipped. Missing `v-for` keys and `[...items].sort()` (`js-tosorted-immutable`) are not fixed automatically: a correct key is an identity from your data, and `toSorted` throws on a Set or string and needs an ES2023 `lib`, which a codemod cannot know. `--fix` cannot be combined with `--no-lint`.
 
 ## Output streams
 

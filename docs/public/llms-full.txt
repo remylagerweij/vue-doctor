@@ -378,7 +378,7 @@
 - Category: Performance
 - Default Severity: warning
 - Confidence: medium
-- Fixable: Yes
+- Fixable: No
 - Help: Use `array.toSorted()` instead of `[...array].sort()`: same cost, clearer intent. Requires an ES2023 build target
 - Agent Guidance: This is a readability rewrite, not a speed-up: `toSorted` copies the array just like the spread does. Replace `[...array].sort(compare)` with `array.toSorted(compare)` only when the receiver is a real array (Sets, Maps and iterators have no `toSorted`) and the build target supports ES2023 (Chrome 110, Firefox 115, Safari 16); Vite does not polyfill it. Leave the spread when either is not the case.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/performance/js-tosorted-immutable
