@@ -21,12 +21,13 @@ import {
   renderSummaryTable,
   resolveScanDirectory,
   sumCounts,
+  validateRepos,
+  withRetries,
 } from "./lib.mjs";
 
 const PACKAGE_DIRECTORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const BENCHMARKS_DIRECTORY = path.resolve(PACKAGE_DIRECTORY, "..", "..", "benchmarks");
 const CLI_PATH = path.join(PACKAGE_DIRECTORY, "dist", "cli.js");
-const DEFAULT_RESULTS_PATH = path.join(BENCHMARKS_DIRECTORY, "results.json");
 const RESULTS_FORMAT = "vue-doctor/benchmark@1";
 
 const USAGE = `Usage: node scripts/benchmark/benchmark.mjs [options]
@@ -62,6 +63,10 @@ const run = (command, args, options = {}) =>
 /** A single repo scan is killed after this long; a hung scan is a finding, not something to wait for. */
 const SCAN_TIMEOUT_MS = 20 * 60 * 1000;
 
+/** A failed `git fetch` is retried this many times, after these pauses. */
+const FETCH_RETRIES = 2;
+const FETCH_BACKOFF_MS = [2000, 5000];
+
 const git = (cwd, args) => {
   const result = spawnSync("git", args, { cwd, encoding: "utf-8" });
   if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed in ${cwd}: ${result.stderr || result.error}`);
@@ -69,7 +74,7 @@ const git = (cwd, args) => {
 };
 
 /** Shallow-fetches exactly the pinned commit into `directory` (reused when it is already checked out). */
-const fetchRepo = (repo, directory) => {
+const fetchRepo = async (repo, directory) => {
   const isCheckedOut = () => {
     try {
       return fs.existsSync(path.join(directory, ".git")) && git(directory, ["rev-parse", "HEAD"]) === repo.sha;
@@ -85,7 +90,12 @@ const fetchRepo = (repo, directory) => {
   fs.rmSync(directory, { recursive: true, force: true });
   fs.mkdirSync(directory, { recursive: true });
   git(directory, ["init", "--quiet"]);
-  git(directory, ["fetch", "--quiet", "--depth", "1", repo.url, repo.sha]);
+  // Only the network step is retried (a transient failure must not fail the whole job); scans are never retried.
+  await withRetries(async () => git(directory, ["fetch", "--quiet", "--depth", "1", repo.url, repo.sha]), {
+    retries: FETCH_RETRIES,
+    delaysMs: FETCH_BACKOFF_MS,
+    onRetry: (error, attempt) => log(`[${repo.id}] fetch failed (${String(error.message).split("\n")[0]}); retry ${attempt}/${FETCH_RETRIES}`),
+  });
   git(directory, ["-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"]);
   if (git(directory, ["rev-parse", "HEAD"]) !== repo.sha) throw new Error(`Fetched commit of ${repo.id} does not match the pinned SHA.`);
 };
@@ -131,8 +141,20 @@ const analyze = async (repo, directory, reportPath, { deadCode }) => {
   return { report: JSON.parse(fs.readFileSync(reportPath, "utf-8")), durationMs };
 };
 
-const main = async () => {
+/**
+ * Runs the benchmark and returns the exit code (0 ok, 1 regression, 2 scan failure). The I/O layer can be replaced
+ * through `deps` so the decision logic is testable without network: `fetchRepo(repo, directory)`,
+ * `analyze(repo, scanDirectory, reportPath, { deadCode })`, `benchmarksDirectory`, `cacheDirectory`, `cliPath`,
+ * `write(text)` for the markdown output.
+ */
+export const main = async (argv = process.argv.slice(2), deps = {}) => {
+  const benchmarksDirectory = deps.benchmarksDirectory ?? BENCHMARKS_DIRECTORY;
+  const defaultResultsPath = path.join(benchmarksDirectory, "results.json");
+  const doFetch = deps.fetchRepo ?? fetchRepo;
+  const doAnalyze = deps.analyze ?? analyze;
+  const write = deps.write ?? ((text) => process.stdout.write(text));
   const { values } = parseArgs({
+    args: argv,
     options: {
       repo: { type: "string", multiple: true },
       "dead-code": { type: "boolean", default: false },
@@ -150,22 +172,23 @@ const main = async () => {
     strict: true,
   });
   if (values.help) {
-    process.stdout.write(USAGE);
+    write(USAGE);
     return 0;
   }
-  if (!fs.existsSync(CLI_PATH)) throw new Error(`${CLI_PATH} not found. Run \`npm run build\` first.`);
+  if (!deps.analyze && !fs.existsSync(CLI_PATH)) throw new Error(`${CLI_PATH} not found. Run \`npm run build\` first.`);
 
-  const { repos } = JSON.parse(fs.readFileSync(path.join(BENCHMARKS_DIRECTORY, "repos.json"), "utf-8"));
+  const { repos } = JSON.parse(fs.readFileSync(path.join(benchmarksDirectory, "repos.json"), "utf-8"));
+  validateRepos(repos);
   const selected = values.repo ? repos.filter((repo) => values.repo.includes(repo.id)) : repos;
   const unknown = (values.repo ?? []).filter((id) => !repos.some((repo) => repo.id === id));
   if (unknown.length > 0) throw new Error(`Unknown repo id(s): ${unknown.join(", ")}. Known: ${repos.map((repo) => repo.id).join(", ")}.`);
 
   // Read the baseline before anything can overwrite it (--write targets the same file).
-  const baselinePath = values.compare || values.baseline ? (values.baseline ? path.resolve(values.baseline) : DEFAULT_RESULTS_PATH) : undefined;
+  const baselinePath = values.compare || values.baseline ? (values.baseline ? path.resolve(values.baseline) : defaultResultsPath) : undefined;
   const baseline = baselinePath && fs.existsSync(baselinePath) ? JSON.parse(fs.readFileSync(baselinePath, "utf-8")) : undefined;
   if (baselinePath && !baseline) log(`No baseline at ${baselinePath}; skipping comparison.`);
 
-  const cacheDirectory = path.resolve(process.env.BENCHMARK_DIR || path.join(os.tmpdir(), "vue-doctor-benchmark"));
+  const cacheDirectory = path.resolve(deps.cacheDirectory ?? (process.env.BENCHMARK_DIR || path.join(os.tmpdir(), "vue-doctor-benchmark")));
   fs.mkdirSync(cacheDirectory, { recursive: true });
   const version = JSON.parse(fs.readFileSync(path.join(PACKAGE_DIRECTORY, "package.json"), "utf-8")).version;
 
@@ -183,12 +206,12 @@ const main = async () => {
   for (const repo of selected) {
     try {
       const directory = path.join(cacheDirectory, `${repo.id}-${repo.sha.slice(0, 8)}`);
-      fetchRepo(repo, directory);
+      await doFetch(repo, directory);
       const scanDirectory = resolveScanDirectory(directory, repo.directory, path);
       if (values["dead-code"]) await installDependencies(repo, directory);
       log(`[${repo.id}] analyzing${repo.directory ? ` (${repo.directory})` : ""}`);
       // The report is written next to (not inside) the checkout: Vue Doctor never writes into the scanned project.
-      const { report, durationMs } = await analyze(repo, scanDirectory, `${directory}.report.json`, { deadCode: values["dead-code"] });
+      const { report, durationMs } = await doAnalyze(repo, scanDirectory, `${directory}.report.json`, { deadCode: values["dead-code"] });
       const rules = countFindingsByRule(report);
       results.repos[repo.id] = {
         url: repo.url,
@@ -210,7 +233,7 @@ const main = async () => {
   }
   if (failures.length > 0) results.failures = failures;
 
-  const target = values.output ? path.resolve(values.output) : values.write ? DEFAULT_RESULTS_PATH : undefined;
+  const target = values.output ? path.resolve(values.output) : values.write ? defaultResultsPath : undefined;
   if (target) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, `${JSON.stringify(results, null, 2)}\n`, "utf-8");
@@ -244,18 +267,20 @@ const main = async () => {
     sections.push("#### Failed scans", failures.map((failure) => `- \`${failure.id}\`: ${failure.error}`).join("\n"));
   }
   const markdown = `${sections.join("\n\n")}\n`;
-  process.stdout.write(markdown);
+  write(markdown);
   if (values.summary && process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`);
   if (failures.length > 0) return 2;
   return regressions.length > 0 && !values["no-gate"] ? 1 : 0;
 };
 
-main().then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error) => {
-    log(error instanceof Error ? error.message : String(error));
-    process.exitCode = 2;
-  },
-);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      log(error instanceof Error ? error.message : String(error));
+      process.exitCode = 2;
+    },
+  );
+}

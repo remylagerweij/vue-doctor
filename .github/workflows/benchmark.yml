@@ -11,6 +11,10 @@ on:
     paths:
       - "packages/vue-doctor/src/plugin/**"
       - "packages/vue-doctor/src/utils/**"
+      - "packages/vue-doctor/src/core/**"
+      - "packages/vue-doctor/src/scan.ts"
+      - "packages/vue-doctor/package.json"
+      - "package-lock.json"
       - "packages/vue-doctor/scripts/benchmark/**"
       - "packages/vue-doctor/tests/benchmark.test.ts"
       - "benchmarks/**"
