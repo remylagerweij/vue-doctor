@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { createBaseline, writeBaseline } from "../src/core/baseline.js";
 import { diagnose } from "../src/index.js";
 import { ruleIdOf } from "../src/plugin/rule-ids.js";
 import { runCliInProcess } from "./support/run-cli-in-process.js";
@@ -87,6 +88,51 @@ describe("inlineDisables: false (audit mode)", () => {
     const byFile = await diagnose(directory, { ...FAST, inlineDisables: false, config: { ignore: { files: ["a.ts"] } } });
     expect(rulesOf(byFile, "a.ts")).toEqual([]);
     expect(rulesOf(byFile, "b.ts")).toContain(EVAL);
+  }, 60_000);
+});
+
+describe("inlineDisables and baseline fingerprints", () => {
+  // Two identical findings on identical source lines: the first is silenced by a comment.
+  const SOURCE = [
+    "export const first = (): unknown => {",
+    `  // vue-doctor-disable-next-line ${EVAL}`,
+    '  return eval("1");',
+    "};",
+    "export const second = (): unknown => {",
+    '  return eval("1");',
+    "};",
+    "",
+  ].join("\n");
+
+  it("keeps normal-mode fingerprints identical when audit mode is on", async () => {
+    const directory = makeProject({ "a.ts": SOURCE });
+    const normal = await diagnose(directory, FAST);
+    const audit = await diagnose(directory, { ...FAST, inlineDisables: false });
+    const evalIn = (result: Result) => result.diagnostics.filter((d) => ruleIdOf(d) === EVAL);
+
+    expect(evalIn(normal)).toHaveLength(1);
+    expect(evalIn(audit)).toHaveLength(2);
+    // The finding that is reported in normal mode keeps its fingerprint in audit mode.
+    const known = evalIn(normal)[0];
+    expect(evalIn(audit).filter((d) => d.fingerprint === known.fingerprint)).toEqual([
+      expect.objectContaining({ line: known.line }),
+    ]);
+    // The formerly silenced finding gets a different fingerprint.
+    expect(new Set(evalIn(audit).map((d) => d.fingerprint)).size).toBe(2);
+  }, 60_000);
+
+  it("points an audit run against a normal-mode baseline at the silenced finding, not the known one", async () => {
+    const directory = makeProject({ "a.ts": SOURCE });
+    const baselinePath = path.join(directory, "known.json");
+    const recorded = await diagnose(directory, { ...FAST, baseline: null });
+    writeBaseline(baselinePath, createBaseline(recorded.diagnostics));
+
+    const audit = await diagnose(directory, { ...FAST, baseline: baselinePath, inlineDisables: false });
+    const evals = audit.diagnostics.filter((d) => ruleIdOf(d) === EVAL).sort((a, b) => a.line - b.line);
+    expect(evals.map((d) => [d.line, d.status])).toEqual([
+      [3, "new"], // silenced by the comment: new to the baseline
+      [6, "baseline"], // already known
+    ]);
   }, 60_000);
 });
 

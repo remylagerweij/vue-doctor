@@ -32,6 +32,11 @@ interface SuppressionResult {
    * hidden. They are part of `diagnostics`; `suppressed` is empty in that mode.
    */
   unsuppressed?: SuppressedSummary;
+  /**
+   * Only with `ignoreInlineDisables`: the very objects in `diagnostics` that a comment would have
+   * hidden, so fingerprinting can number them after the findings a normal run reports.
+   */
+  wouldBeSuppressed?: Set<Diagnostic>;
 }
 
 type DirectiveKind = "disable-next-line" | "disable-line" | "disable-file" | "disable" | "enable";
@@ -201,6 +206,7 @@ export const applySuppressions = (
   };
 
   const kept: Diagnostic[] = [];
+  const wouldBeSuppressed = new Set<Diagnostic>();
   const byRule: Record<string, number> = {};
   let suppressedCount = 0;
 
@@ -210,7 +216,10 @@ export const applySuppressions = (
     if (scan && isSuppressed(scan.suppressions, diagnostic, ruleId)) {
       suppressedCount++;
       byRule[ruleId] = (byRule[ruleId] ?? 0) + 1;
-      if (ignoreInlineDisables) kept.push(diagnostic);
+      if (ignoreInlineDisables) {
+        kept.push(diagnostic);
+        wouldBeSuppressed.add(diagnostic);
+      }
     } else {
       kept.push(diagnostic);
     }
@@ -224,6 +233,6 @@ export const applySuppressions = (
     diagnostics: kept,
     suppressed: ignoreInlineDisables ? { count: 0, byRule: {} } : found,
     foreignDirectives,
-    ...(ignoreInlineDisables ? { unsuppressed: found } : {}),
+    ...(ignoreInlineDisables ? { unsuppressed: found, wouldBeSuppressed } : {}),
   };
 };

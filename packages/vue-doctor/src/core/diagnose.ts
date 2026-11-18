@@ -417,7 +417,7 @@ export const diagnose = async (
     ruleIdReporter,
     options.inlineDisables === false,
   );
-  let diagnostics = addFingerprints(suppression.diagnostics, directory);
+  let diagnostics = addFingerprints(suppression.diagnostics, directory, suppression.wouldBeSuppressed);
 
   let baseline: BaselineSummary | undefined;
   if (baselineReference) {
