@@ -22,9 +22,11 @@ export const unquoteGitPath = (quoted: string): string => {
   const body = quoted.slice(1, -1);
   const bytes: number[] = [];
   for (let index = 0; index < body.length; index++) {
-    const character = body[index];
-    if (character !== "\\") {
+    if (body[index] !== "\\") {
+      // Encode a whole code point: a surrogate half on its own would become U+FFFD.
+      const character = String.fromCodePoint(body.codePointAt(index) ?? 0);
       bytes.push(...Buffer.from(character, "utf-8"));
+      index += character.length - 1;
       continue;
     }
     const next = body[index + 1] ?? "";

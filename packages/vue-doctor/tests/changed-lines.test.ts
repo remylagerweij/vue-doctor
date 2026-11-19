@@ -151,6 +151,11 @@ describe("unquoteGitPath / isChangedLine", () => {
     expect(unquoteGitPath('"a\\"b\\\\c"')).toBe('a"b\\c');
   });
 
+  it("keeps literal non-ASCII characters intact, astral ones included", () => {
+    expect(unquoteGitPath('"src/café\\t😀.vue"')).toBe("src/café\t😀.vue");
+    expect(unquoteGitPath('"\\360\\237\\230\\200 😀"')).toBe("😀 😀");
+  });
+
   it("checks ranges inclusively", () => {
     const changed = { "a.ts": [{ start: 3, end: 5 }], "b.ts": "all" as const };
     expect([2, 3, 5, 6].map((line) => isChangedLine(changed, "a.ts", line))).toEqual([false, true, true, false]);
