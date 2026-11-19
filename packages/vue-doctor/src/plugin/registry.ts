@@ -151,6 +151,37 @@ export const createOxlintConfig = ({
   };
 };
 
+/** Rules a preset enables, with the oxlint/ESLint severity string. */
+export type PresetRules = Record<string, "error" | "warn">;
+
+const presetRules = (include: (meta: RuleMeta) => boolean): PresetRules => {
+  const rules: PresetRules = {};
+  for (const { ruleMeta: meta } of OXLINT_RULES) {
+    if (meta.defaultSeverity === "off" || !include(meta)) continue;
+    rules[`${PLUGIN_NAME}/${meta.id}`] = toOxlintSeverity(meta.defaultSeverity);
+  }
+  return rules;
+};
+
+/**
+ * Rules for `configs.recommended`: on by default, run on every Vue project, and independent of the
+ * project's toolchain. Rules that need a capability (`requires`) are left out because a standalone
+ * host cannot detect it; the CLI turns them on per project.
+ */
+export const createRecommendedRules = (): PresetRules =>
+  presetRules((meta) => meta.frameworks.includes("vue") && !meta.requires?.length);
+
+/** Rules for `configs.nuxt`: the recommended rules plus the Nuxt-only ones (no capability needed). */
+export const createNuxtRules = (): PresetRules => presetRules((meta) => !meta.requires?.length);
+
+/** Rules that are on by default but only make sense when the project has a capability. */
+export const getCapabilityGatedRules = (): { id: string; severity: "error" | "warn"; requires: ProjectCapability[] }[] =>
+  OXLINT_RULES.flatMap(({ ruleMeta: meta }) =>
+    meta.defaultSeverity !== "off" && meta.requires?.length
+      ? [{ id: `${PLUGIN_NAME}/${meta.id}`, severity: toOxlintSeverity(meta.defaultSeverity), requires: meta.requires }]
+      : [],
+  );
+
 /** The project-file rules that run by default on a project of this framework. */
 export const getEnabledFsRules = (framework: Framework): DefinedFsRule[] =>
   FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework));

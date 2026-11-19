@@ -24,9 +24,19 @@ export interface Rule {
   create: (context: RuleContext) => RuleVisitors;
 }
 
+/** An ESLint flat config object; `plugins` points back at the plugin that owns the preset. */
+export interface PluginConfig {
+  name: string;
+  plugins: Record<string, RulePlugin>;
+  rules: Record<string, "error" | "warn">;
+  settings?: Record<string, unknown>;
+}
+
 export interface RulePlugin {
   meta: { name: string };
   rules: Record<string, Rule>;
+  /** Ready-made rule sets: `recommended` (every Vue project) and `nuxt` (adds Nuxt-only rules). */
+  configs: { recommended: PluginConfig; nuxt: PluginConfig };
 }
 
 export interface EsTreeNode {
