@@ -97,6 +97,8 @@ with:
   strict: true      # Exits with code 3 if any analyzer fails or is skipped
 ```
 
+`ci run` always reports whole changed files and ignores the config's `diffLines`. Outside `ci run`, a plain pipeline step can gate a pull request on only the lines it changes with `vue-doctor --diff origin/main --diff-lines --fail-on error` (check out with `fetch-depth: 0` so the merge base exists). With `--diff-lines` the score and `--min-score` cover only the reported findings; see [changed lines](/guide/cli-usage#changed-files-and-changed-lines).
+
 ---
 
 ## Base Branch Score Comparison (Score Delta)

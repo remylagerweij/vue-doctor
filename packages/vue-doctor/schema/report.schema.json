@@ -106,6 +106,16 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "changedLinesOnly": {
+                "description": "`true` with --diff-lines: only findings on changed lines (and file-level findings of changed files) are reported, scored and gated.",
+                "type": "boolean"
+              },
+              "outsideChangedLines": {
+                "description": "With `changedLinesOnly`: findings in the changed files left out because they are not on a changed line.",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
               }
             },
             "required": [

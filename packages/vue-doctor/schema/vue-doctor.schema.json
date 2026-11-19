@@ -214,6 +214,10 @@
         "boolean",
         "string"
       ]
+    },
+    "diffLines": {
+      "description": "In the scan command's diff mode (diff or --diff), only report findings on changed lines; a finding without a line is kept when its file changed. Does not enable diff mode itself and is not read by `ci run`. Default: false.",
+      "type": "boolean"
     }
   },
   "additionalProperties": false,

@@ -337,6 +337,92 @@ describe("CLI in process: --diff", () => {
   });
 });
 
+describe("CLI in process: --diff-lines", () => {
+  const EVAL_RULE = "vue-doctor/security/no-eval";
+  const component = (secondLine: string, extra = ""): string =>
+    `<script setup lang="ts">\nconst value = eval("1 + 1");\nconst label = "${secondLine}";\n${extra}</script>\n<template><p>{{ value }} {{ label }}</p></template>\n`;
+
+  // main has Widget.vue with eval() on line 2; the feature branch edits only line 3.
+  const createRepo = (): string => {
+    const directory = copyFixture(CLEAN_VUE_DIRECTORY);
+    fs.writeFileSync(path.join(directory, "Widget.vue"), component("before"));
+    git(directory, "init", "--quiet");
+    git(directory, "symbolic-ref", "HEAD", "refs/heads/main");
+    git(directory, "add", "-A");
+    git(directory, "commit", "--quiet", "-m", "initial");
+    git(directory, "checkout", "--quiet", "-b", "feature");
+    fs.writeFileSync(path.join(directory, "Widget.vue"), component("after"));
+    git(directory, "commit", "--quiet", "-am", "edit label");
+    return directory;
+  };
+
+  const evalFindings = (stdout: string) => {
+    const report = JSON.parse(stdout) as {
+      projects: Array<{
+        scope: { mode: string; changedLinesOnly?: boolean; outsideChangedLines?: number };
+        findings: Array<{ ruleId: string; file: string; line: number }>;
+        summary: { errors: number };
+      }>;
+    };
+    const [project] = report.projects;
+    return { project, findings: project.findings.filter((finding) => finding.ruleId === EVAL_RULE) };
+  };
+
+  it("leaves out a finding on an unchanged line of a changed file that plain --diff reports", async () => {
+    const directory = createRepo();
+
+    const plain = await runCliInProcess([directory, ...FAST, "--diff", "main", "--json", "--fail-on", "error"]);
+    expect(evalFindings(plain.stdout).findings).toHaveLength(1);
+    expect(plain.exitCode).toBe(1);
+
+    const lines = await runCliInProcess([directory, ...FAST, "--diff", "main", "--diff-lines", "--json", "--fail-on", "error"]);
+    const { project, findings } = evalFindings(lines.stdout);
+    expect(findings).toHaveLength(0);
+    expect(project.summary.errors).toBe(0);
+    expect(project.scope).toMatchObject({ mode: "changed", files: 1, changedLinesOnly: true });
+    expect(project.scope.outsideChangedLines).toBeGreaterThanOrEqual(1);
+    // The gate sees what the report shows.
+    expect(lines.exitCode).toBe(0);
+  });
+
+  it("reports a finding on an added line, and says what it left out in the text report", async () => {
+    const directory = createRepo();
+    fs.writeFileSync(path.join(directory, "Widget.vue"), component("after", 'const extra = eval("2");\n'));
+
+    const json = await runCliInProcess([directory, ...FAST, "--diff-lines", "--json"]);
+    expect(json.exitCode).toBe(0);
+    expect(evalFindings(json.stdout).findings.map((finding) => finding.line)).toEqual([4]);
+
+    const text = await runCliInProcess([directory, ...FAST, "--diff-lines"]);
+    expect(text.exitCode).toBe(0);
+    expect(text.stderr).toContain("(changed lines only)");
+    expect(text.stderr).toMatch(/outside the changed lines not reported/);
+  });
+
+  it("reports every finding of a new file", async () => {
+    const directory = createRepo();
+    fs.writeFileSync(path.join(directory, "Fresh.vue"), component("fresh"));
+
+    const run = await runCliInProcess([directory, ...FAST, "--diff", "main", "--diff-lines", "--json"]);
+    expect(run.exitCode).toBe(0);
+    const files = evalFindings(run.stdout).findings.map((finding) => finding.file);
+    expect(files).toEqual(["Fresh.vue"]);
+  });
+
+  it("applies diffLines from the config only in a diff scan", async () => {
+    const directory = createRepo();
+    fs.writeFileSync(path.join(directory, "vue-doctor.config.json"), JSON.stringify({ diff: "main", diffLines: true }));
+    const diffRun = await runCliInProcess([directory, ...FAST, "--json"]);
+    expect(evalFindings(diffRun.stdout).project.scope.changedLinesOnly).toBe(true);
+    expect(evalFindings(diffRun.stdout).findings).toHaveLength(0);
+
+    fs.writeFileSync(path.join(directory, "vue-doctor.config.json"), JSON.stringify({ diffLines: true }));
+    const fullRun = await runCliInProcess([directory, ...FAST, "--json"]);
+    expect(evalFindings(fullRun.stdout).project.scope.mode).toBe("full");
+    expect(evalFindings(fullRun.stdout).findings).toHaveLength(1);
+  });
+});
+
 describe("CLI in process: monorepos", () => {
   it("scans every workspace project into one JSON document with -y", async () => {
     const root = createMonorepo();

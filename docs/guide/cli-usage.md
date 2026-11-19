@@ -28,10 +28,27 @@ vue-doctor --no-lint
 # Only scan files changed against a branch (includes untracked files)
 vue-doctor --diff main
 
+# Only report findings on the lines changed against a branch
+vue-doctor --diff main --diff-lines
+
 # Machine-readable output (see the report format reference)
 vue-doctor --format json
 vue-doctor --format jsonl --output vue-doctor.jsonl
 ```
+
+## Changed files and changed lines
+
+`--diff [branch]` scans the files changed against the merge base with `branch` (or the default branch, or the uncommitted changes when you are on it), including staged, unstaged and untracked files, and reports every finding in those files.
+
+`--diff-lines` (implies `--diff`; config key `diffLines`) keeps only the findings a change introduces:
+
+- A finding is reported when the line it starts on was added or modified versus the same merge base (a zero-context `git diff`, so committed, staged and unstaged edits all count).
+- New files (added or untracked) count as fully changed. A renamed file is compared with its old path, so a pure rename has no changed lines. Deleted and binary files are ignored.
+- A diff scan only analyses changed source files (`.vue`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`). Dead-code analysis (knip) is skipped, and findings on non-source files such as `.env`, lockfiles or `package.json` (including the dependency audit) never appear, even when those files changed. What remains are lint and template findings, which are filtered by line, and filesystem-rule findings that point at a changed source file; a finding without a line is kept whenever its file changed.
+- Findings off the changed lines are dropped before the baseline, the score and the gate: the text report, the JSON report and `--fail-on`/`--min-score` all see the same findings. The score is therefore the score of the change, not of the project, and is not comparable to a full scan. The JSON report marks this with `scope.changedLinesOnly: true` and counts what was left out in `scope.outsideChangedLines`; the text report prints the same count.
+- Outside a git repository `--diff-lines`, like `--diff`, warns and falls back to a full scan.
+
+In the config file, `diffLines: true` only refines a diff scan of the scan command (`diff` or `--diff`); it never turns diff mode on by itself, and `vue-doctor ci run` does not read it.
 
 ## Output streams
 

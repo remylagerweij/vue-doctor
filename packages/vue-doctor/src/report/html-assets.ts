@@ -370,7 +370,9 @@ export const REPORT_SCRIPT = String.raw`
     heading.id = "vd-project-" + index;
     title.appendChild(heading);
     var facts = [project.framework, project.vueVersion ? "Vue " + project.vueVersion : "Vue", project.typescript ? "TypeScript" : "JavaScript", plural(project.sourceFiles, "source file")];
-    if (project.scope.mode === "changed") facts.push("changed files only (" + (project.scope.files || 0) + ")");
+    if (project.scope.mode === "changed") facts.push(project.scope.changedLinesOnly
+      ? "changed lines only (" + plural(project.scope.files || 0, "file") + ")"
+      : "changed files only (" + (project.scope.files || 0) + ")");
     title.appendChild(make("div", "vd-muted", facts.join(" · ")));
     title.appendChild(make("div", "", plural(project.summary.errors, "error") + " · " + plural(project.summary.warnings, "warning") +
       (project.summary.suppressed > 0 ? " · " + project.summary.suppressed + " suppressed" : "")));
