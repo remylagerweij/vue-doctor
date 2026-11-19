@@ -50,7 +50,7 @@ vue-doctor --no-inline-disables
 - This is **not** a config option. Whether to trust a project's own comments is the auditor's decision for a run, not something the audited repository should be able to switch (or switch back) for itself, so the switch lives on the command line, the API and the MCP tool only.
 - Only inline comments are ignored. The `ignore.rules` and `ignore.files` entries of the config, `rules` severity overrides and [baselines](/guide/baseline) are not inline disables and stay in force: a rule ignored in the config is still not reported. To audit those too, scan with `config: null` / without the config file and without `--baseline`.
 - The analysis cache is not affected. It stores findings before suppression is applied, so runs with and without the flag can share it and never return each other's results.
-- `--fix` always respects suppression comments, so `--fix --no-inline-disables` reports suppressed findings it did not fix.
+- The flag only changes what is reported. It does not change what `--fix` rewrites.
 - `eslint-disable` and `oxlint-disable` comments are ignored in every mode, as before.
 
 Programmatic results from `diagnose()` include `suppressed: { count, byRule }` and `foreignDirectives` (ESLint/oxlint directives that were ignored). With `inlineDisables: false` they also include `unsuppressed` (the findings the comments would have hidden, which are part of `diagnostics`).
