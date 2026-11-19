@@ -1,34 +1,21 @@
-import { JWT_REGEX, decodeJwtPayload } from "./providers.js";
+import { JWT_REGEX } from "./providers.js";
+import {
+  COMMON_DESCRIPTOR_WORDS,
+  COMMON_PUBLIC_WORDS,
+  COMMON_SECRET_WORDS,
+  PASSWORD_ABBREVIATIONS,
+  decodeJwtPayload,
+  isLiteralPlaceholderValue,
+  splitNameWords,
+} from "./primitives.js";
 
 /**
  * Name-based detection: a secret-looking identifier assigned a literal that looks random. Used for
  * credentials of providers the pattern pack does not know and for plain passwords.
  */
 
-/** Splits `apiKey`, `API_KEY`, `APIKey`, `api-key` and `api.key` into lower-case words. */
-export const splitIdentifier = (name: string): string[] =>
-  name
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean)
-    .map((word) => word.toLowerCase());
-
 /** Single words that make a name secret-ish. Plurals (`tokens`, design tokens) deliberately do not. */
-const SECRET_WORDS = new Set([
-  "secret",
-  "password",
-  "passwd",
-  "pwd",
-  "passphrase",
-  "token",
-  "credential",
-  "credentials",
-  "apikey",
-  "authorization",
-  "bearer",
-  "privatekey",
-]);
+const SECRET_WORDS = new Set([...COMMON_SECRET_WORDS, ...PASSWORD_ABBREVIATIONS, "apikey", "authorization", "privatekey"]);
 
 /** Word pairs that are secret-ish only together (`key` alone is far too common). */
 const SECRET_PAIRS: readonly (readonly [string, string])[] = [
@@ -43,65 +30,14 @@ const SECRET_PAIRS: readonly (readonly [string, string])[] = [
 
 /** The last word of `tokenType`, `passwordLabel`, `secretName`: describes the secret rather than being one. */
 const DESCRIPTOR_WORDS = new Set([
-  "label",
-  "text",
-  "title",
-  "name",
-  "id",
-  "url",
-  "uri",
-  "path",
-  "route",
-  "page",
-  "param",
-  "params",
-  "field",
-  "column",
-  "header",
-  "placeholder",
-  "description",
-  "hint",
-  "type",
-  "icon",
-  "class",
-  "style",
-  "variant",
-  "event",
-  "action",
-  "message",
-  "error",
-  "prefix",
-  "suffix",
-  "regex",
-  "pattern",
-  "length",
-  "min",
-  "max",
-  "expiry",
-  "expires",
-  "ttl",
-  "endpoint",
-  "storage",
-  "cookie",
-  "env",
-  "ref",
-  "input",
-  "modal",
-  "state",
-  "status",
-  "enabled",
-  "required",
-  "policy",
-  "rule",
-  "rules",
-  "validator",
-  "schema",
-  "count",
-  "key",
+  ...COMMON_DESCRIPTOR_WORDS,
+  ...["title", "route", "page", "params", "column", "description", "hint", "icon", "class", "style", "variant", "event", "action"],
+  ...["message", "error", "suffix", "regex", "pattern", "min", "max", "storage", "env", "ref", "input", "modal", "state", "status"],
+  ...["policy", "rule", "rules", "validator", "schema", "count", "key"],
 ]);
 
 /** Words that mark a credential as public by design (publishable/anon keys, reCAPTCHA site keys). */
-const PUBLIC_WORDS = new Set(["public", "publishable", "pub", "pk", "anon", "site", "sitekey", "dsn"]);
+const PUBLIC_WORDS = new Set([...COMMON_PUBLIC_WORDS, "pk", "sitekey", "dsn"]);
 
 export type NameKind = "password" | "token" | "authorization";
 
@@ -110,7 +46,7 @@ export type NameKind = "password" | "token" | "authorization";
  * `clientSecret` qualify; `author`, `passwordLabel`, `tokenType`, `publicKey` and `apiKeyHeader` do not.
  */
 export const classifySecretName = (name: string): NameKind | undefined => {
-  const words = splitIdentifier(name);
+  const words = splitNameWords(name);
   if (words.length === 0 || words.some((word) => PUBLIC_WORDS.has(word))) return undefined;
   const last = words[words.length - 1];
   const joined = words.join("");
@@ -141,12 +77,6 @@ export const shannonEntropy = (value: string): number => {
   return entropy;
 };
 
-/** Stand-ins and samples that are never real credentials. */
-const PLACEHOLDER_VALUE =
-  /^(?:x{3,}|\*+|\.{3,}|-+|_+|0+|1234\d*|test\w*|demo|dummy|sample|example|changeme|change[-_ ]?me|replace[-_ ]?me|todo|tbd|none|null|undefined|secret|password|token|redacted|your[-_ ].*|my[-_ ].*|<.*>|\$\{.*\}|\{\{.*\}\}|%.*%)$|^(?:x{4,}|\*{4,})|your[-_ ]?(?:api|secret|token|key|password)|placeholder|changeme|example|dummy|<[^>]+>|\{\{|\$\{|process\.env|import\.meta\.env/i;
-
-export const isPlaceholderValue = (value: string): boolean => PLACEHOLDER_VALUE.test(value.trim());
-
 /** A snake/kebab/dotted identifier or route (`user_session_cookie`, `/auth/login`): a name, not a credential. */
 const IDENTIFIER_LIKE = /^[a-z][a-z0-9]*(?:[._:/-][a-z][a-z0-9]*)+$/;
 
@@ -175,10 +105,10 @@ const isPublicJwt = (value: string): boolean => {
  */
 export const looksLikeSecretValue = (value: string, kind: NameKind): boolean => {
   const trimmed = value.trim();
-  if (trimmed.length === 0 || isPlaceholderValue(trimmed) || isPublicJwt(trimmed)) return false;
+  if (trimmed.length === 0 || isLiteralPlaceholderValue(trimmed) || isPublicJwt(trimmed)) return false;
   if (kind === "authorization") {
     const credential = BASIC_BEARER.exec(trimmed)?.[1];
-    return credential !== undefined && !isPlaceholderValue(credential) && shannonEntropy(credential) >= TOKEN_MIN_ENTROPY;
+    return credential !== undefined && !isLiteralPlaceholderValue(credential) && shannonEntropy(credential) >= TOKEN_MIN_ENTROPY;
   }
   if (/\s/.test(trimmed)) return false;
   if (kind === "password") {
