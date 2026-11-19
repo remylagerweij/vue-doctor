@@ -37,4 +37,20 @@ Findings of the project checks that point into a `.env*` file (for example `vue-
 VITE_MAPS_SECRET_KEY=...
 ```
 
-Programmatic results from `diagnose()` include `suppressed: { count, byRule }` and `foreignDirectives` (ESLint/oxlint directives that were ignored).
+## Auditing: ignore inline disables
+
+For a security or quality audit you want to see every finding, whatever developers silenced. Run with `--no-inline-disables` (programmatic API: `diagnose(dir, { inlineDisables: false })`; MCP `scan` tool: `ignore_inline_disables: true`):
+
+```bash
+vue-doctor --no-inline-disables
+```
+
+- Every `vue-doctor-disable*` comment is ignored, in scripts, templates and `.env` files. The findings they would have hidden are reported like any other finding, so they count toward the score, `--fail-on` and `--min-score`. Exit codes do not change.
+- The report never claims anything was suppressed (`suppressed` is 0). Instead the text output prints how many findings the comments would have hidden, and the JSON, Markdown and HTML reports carry `inlineDisables: { ignored: true, unsuppressed: { count, byRule } }`.
+- This is **not** a config option. Whether to trust a project's own comments is the auditor's decision for a run, not something the audited repository should be able to switch (or switch back) for itself, so the switch lives on the command line, the API and the MCP tool only.
+- Only inline comments are ignored. The `ignore.rules` and `ignore.files` entries of the config, `rules` severity overrides and [baselines](/guide/baseline) are not inline disables and stay in force: a rule ignored in the config is still not reported. To audit those too, scan with `config: null` / without the config file and without `--baseline`.
+- The analysis cache is not affected. It stores findings before suppression is applied, so runs with and without the flag can share it and never return each other's results.
+- The flag only changes what is reported. It does not change what `--fix` rewrites.
+- `eslint-disable` and `oxlint-disable` comments are ignored in every mode, as before.
+
+Programmatic results from `diagnose()` include `suppressed: { count, byRule }` and `foreignDirectives` (ESLint/oxlint directives that were ignored). With `inlineDisables: false` they also include `unsuppressed` (the findings the comments would have hidden, which are part of `diagnostics`).

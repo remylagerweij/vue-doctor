@@ -373,7 +373,8 @@ export const REPORT_SCRIPT = String.raw`
     if (project.scope.mode === "changed") facts.push("changed files only (" + (project.scope.files || 0) + ")");
     title.appendChild(make("div", "vd-muted", facts.join(" · ")));
     title.appendChild(make("div", "", plural(project.summary.errors, "error") + " · " + plural(project.summary.warnings, "warning") +
-      (project.summary.suppressed > 0 ? " · " + project.summary.suppressed + " suppressed" : "")));
+      (project.summary.suppressed > 0 ? " · " + project.summary.suppressed + " suppressed" : "") +
+      (project.inlineDisables ? " · inline disables ignored (" + project.inlineDisables.unsuppressed.count + " reported that comments would have hidden)" : "")));
     header.appendChild(title);
     card.appendChild(header);
 

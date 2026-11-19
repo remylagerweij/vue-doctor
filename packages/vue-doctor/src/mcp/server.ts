@@ -34,6 +34,7 @@ export const TOOLS = [
         path: { type: "string", description: "Project directory (defaults to current working directory)" },
         scope: { type: "string", enum: ["changed", "full"], description: "Whether to scan changed files only or full repository" },
         files: { type: "array", items: { type: "string" }, description: "Specific relative file paths to scan" },
+        ignore_inline_disables: { type: "boolean", description: "Audit mode: ignore vue-doctor-disable comments so findings they would hide are reported too (config ignores and baselines still apply)" },
       },
     },
   },
@@ -282,6 +283,7 @@ export class McpServer {
 
           const res = await diagnose(projectDir, {
             includePaths,
+            ...(args.ignore_inline_disables === true ? { inlineDisables: false } : {}),
           });
 
           const findings = res.diagnostics.map((d) => ({
@@ -301,6 +303,7 @@ export class McpServer {
               errors: res.diagnostics.filter((d) => d.severity === "error").length,
               warnings: res.diagnostics.filter((d) => d.severity === "warning").length,
               totalFindings: findings.length,
+              ...(res.unsuppressed ? { inlineDisablesIgnored: true, unsuppressedFindings: res.unsuppressed.count } : {}),
             },
             findings,
             skipped: res.skipped,

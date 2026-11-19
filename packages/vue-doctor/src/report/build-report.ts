@@ -206,6 +206,9 @@ const buildProject = ({ directory, result }: ProjectResult, options: BuildReport
     // Timings differ on every run, so they go together with the timestamp.
     ...(options.generatedAt ? { timings: result.timings } : {}),
     suppressed: { count: result.suppressed.count, byRule: result.suppressed.byRule },
+    ...(result.unsuppressed
+      ? { inlineDisables: { ignored: true as const, unsuppressed: result.unsuppressed } }
+      : {}),
     ...(baseline && baselinePath
       ? {
           baseline: {

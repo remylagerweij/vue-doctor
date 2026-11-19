@@ -120,6 +120,8 @@ export interface ScanOptions {
   timings?: boolean;
   /** See DiagnoseOptions.offline. */
   offline?: boolean;
+  /** See DiagnoseOptions.inlineDisables. */
+  inlineDisables?: boolean;
   /** See DiagnoseOptions.audit. */
   audit?: boolean;
   includePaths?: string[];

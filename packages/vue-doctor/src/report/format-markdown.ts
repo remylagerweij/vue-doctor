@@ -132,6 +132,9 @@ const renderProjectSummary = (
 
   const counts = [plural(project.summary.errors, "error"), plural(project.summary.warnings, "warning")];
   if (project.summary.suppressed > 0) counts.push(`${project.summary.suppressed} suppressed`);
+  if (project.inlineDisables) {
+    counts.push(`inline disables ignored (${project.inlineDisables.unsuppressed.count} reported that comments would have hidden)`);
+  }
   lines.push(counts.join(" · "), "");
 
   if (project.baseline) {
