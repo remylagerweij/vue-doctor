@@ -5,14 +5,15 @@ const isKeyboardFocusable = (element: A11yElement): boolean => {
   if (isInert(element) || hasHiddenAttribute(element) || staticValue(element, "v-show") === "false") return false;
   const style = staticText(element, "style")?.replace(/\s+/g, "") ?? "";
   if (/(?:^|;)display:none/.test(style)) return false;
+  // A disabled form control is not focusable, whatever its tabindex; `disabled` means nothing on other elements.
+  if (element.attributes.has("disabled") && staticValue(element, "disabled") !== "false") {
+    if (["button", "input", "select", "textarea"].includes(element.name)) return false;
+  }
   const tabindex = staticText(element, "tabindex");
   if (element.attributes.has("tabindex")) {
     // A bound tabindex is unknown; `tabindex="-1"` takes the element out of the tab order.
     if (tabindex === undefined) return false;
     return /^\+?\d+$/.test(tabindex);
-  }
-  if (element.attributes.has("disabled") && staticValue(element, "disabled") !== "false") {
-    if (["button", "input", "select", "textarea"].includes(element.name)) return false;
   }
   switch (element.name) {
     case "a":
