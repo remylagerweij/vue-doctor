@@ -3,12 +3,17 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createOxlintConfig, type RuleOptionsById } from "../../src/plugin/registry.js";
+import { RULE_REGISTRY, createOxlintConfig, type RuleOptionsById } from "../../src/plugin/registry.js";
 import { resolvePluginPath } from "../../src/utils/run-oxlint.js";
 
 const esmRequire = createRequire(import.meta.url);
 
 export const DEFAULT_CASE_FILENAME = "src/example.ts";
+
+/** Every rule that ships off by default: rule cases test them as if a project opted in. */
+export const ALL_OPT_IN_RULES: ReadonlySet<string> = new Set(
+  RULE_REGISTRY.filter((meta) => meta.defaultSeverity === "off").map((meta) => meta.id),
+);
 
 export interface SourceFile {
   /** Path relative to the (temporary) project root. */
@@ -77,8 +82,11 @@ export const runOxlintOnFiles = async (files: SourceFile[], ruleOptions?: RuleOp
       fs.writeFileSync(target, file.code);
     });
     const configPath = path.join(root, "oxlintrc.json");
-    // `nuxt` enables every rule, including the Nuxt-only ones.
-    fs.writeFileSync(configPath, JSON.stringify(createOxlintConfig({ pluginPath, framework: "nuxt", ruleOptions })));
+    // `nuxt` enables every rule, including the Nuxt-only ones; opt-in rules are enabled as well.
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(createOxlintConfig({ pluginPath, framework: "nuxt", ruleOptions, optInRules: ALL_OPT_IN_RULES })),
+    );
 
     const stdout = await spawnOxlint(
       [resolveOxlintBinary(), "-c", configPath, "--format", "json", "--disable-nested-config", "."],

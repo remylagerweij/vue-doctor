@@ -12,7 +12,7 @@ import templateCases from "../../src/plugin/template-rules.cases.js";
 import type { Diagnostic } from "../../src/types.js";
 import { runEslintVue } from "../../src/utils/run-eslint-vue.js";
 import { runFsRuleCase } from "../support/run-fs-rule-cases.js";
-import { DEFAULT_CASE_FILENAME, runOxlintOnFiles, type FileResult } from "../support/run-rule-cases.js";
+import { ALL_OPT_IN_RULES, DEFAULT_CASE_FILENAME, runOxlintOnFiles, type FileResult } from "../support/run-rule-cases.js";
 
 // Each rule ships `<id>.cases.ts` next to its implementation. Every case runs through the same
 // engine as production (oxlint + the built plugin), so a rule cannot pass here yet misbehave there.
@@ -276,7 +276,7 @@ describe("template cases of own rules", () => {
         });
       }
     }
-    diagnostics = await runEslintVue(projectDirectory);
+    diagnostics = await runEslintVue(projectDirectory, undefined, "vite", undefined, ALL_OPT_IN_RULES);
   }, 120_000);
 
   afterAll(() => fs.rmSync(projectDirectory, { recursive: true, force: true }));

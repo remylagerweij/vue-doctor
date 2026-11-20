@@ -157,8 +157,11 @@ describe("severity policy", () => {
     }
   });
 
-  it("ships every rule enabled", () => {
-    for (const meta of RULE_REGISTRY) expect(meta.defaultSeverity, meta.id).not.toBe("off");
+  it("ships every rule enabled, except opt-in preview rules added in 2.5.0", () => {
+    for (const meta of RULE_REGISTRY) {
+      if (meta.defaultSeverity !== "off") continue;
+      expect(meta.since, `${meta.id} is off by default but is not a 2.5.0 preview rule`).toBe("2.5.0");
+    }
   });
 
   it("keeps the rules that reliably indicate a bug as errors", () => {

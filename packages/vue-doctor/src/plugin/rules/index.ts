@@ -2,6 +2,17 @@
 import type { DefinedRule } from "../define-rule.js";
 import type { DefinedFsRule } from "../define-fs-rule.js";
 import type { DefinedAuditRule } from "../define-audit-rule.js";
+import accessibilityClickEventsHaveKeyEvents from "./accessibility/click-events-have-key-events.js";
+import accessibilityNoAriaHiddenOnFocusable from "./accessibility/no-aria-hidden-on-focusable.js";
+import accessibilityNoInvalidAriaAttribute from "./accessibility/no-invalid-aria-attribute.js";
+import accessibilityNoInvalidRole from "./accessibility/no-invalid-role.js";
+import accessibilityNoPositiveTabindex from "./accessibility/no-positive-tabindex.js";
+import accessibilityRequireButtonName from "./accessibility/require-button-name.js";
+import accessibilityRequireFormControlLabel from "./accessibility/require-form-control-label.js";
+import accessibilityRequireIframeTitle from "./accessibility/require-iframe-title.js";
+import accessibilityRequireImgAlt from "./accessibility/require-img-alt.js";
+import accessibilityRequireLinkName from "./accessibility/require-link-name.js";
+import accessibilityRoleHasRequiredAriaProps from "./accessibility/role-has-required-aria-props.js";
 import architectureNoGiantComponent from "./architecture/no-giant-component.js";
 import architectureNoNestedComponentDefinition from "./architecture/no-nested-component-definition.js";
 import bundleSizeNoBarrelImport from "./bundle-size/no-barrel-import.js";
@@ -89,6 +100,17 @@ import supplyChainNoRemoteDependencySpec from "./supply-chain/no-remote-dependen
 import supplyChainVulnerableDependency from "./supply-chain/vulnerable-dependency.js";
 
 export const ruleModules: readonly (DefinedRule | DefinedFsRule | DefinedAuditRule)[] = [
+  accessibilityClickEventsHaveKeyEvents,
+  accessibilityNoAriaHiddenOnFocusable,
+  accessibilityNoInvalidAriaAttribute,
+  accessibilityNoInvalidRole,
+  accessibilityNoPositiveTabindex,
+  accessibilityRequireButtonName,
+  accessibilityRequireFormControlLabel,
+  accessibilityRequireIframeTitle,
+  accessibilityRequireImgAlt,
+  accessibilityRequireLinkName,
+  accessibilityRoleHasRequiredAriaProps,
   architectureNoGiantComponent,
   architectureNoNestedComponentDefinition,
   bundleSizeNoBarrelImport,

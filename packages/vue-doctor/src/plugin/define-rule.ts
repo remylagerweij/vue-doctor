@@ -11,6 +11,7 @@ export const RULE_CATEGORIES = [
   "Supply Chain",
   "Bundle Size",
   "Correctness",
+  "Accessibility",
   "Ecosystem",
   "Nuxt",
   "Server",
