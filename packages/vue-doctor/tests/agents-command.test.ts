@@ -21,6 +21,7 @@ import {
   removeClaudeHook,
   removeCursorHook,
 } from "../src/commands/agent-hooks.js";
+import { VERSION } from "../src/constants.js";
 import { runAgentHook } from "../src/commands/agent-hook-run.js";
 
 describe("agents install command", () => {
@@ -98,7 +99,7 @@ describe("agents install command", () => {
   });
 });
 
-const RUNNER = "npx --yes @remylagerweij/vue-doctor";
+const RUNNER = `npx --yes @remylagerweij/vue-doctor@${VERSION}`;
 const CLAUDE_COMMAND = `${RUNNER} agents hook claude`;
 const CURSOR_COMMAND = `${RUNNER} agents hook cursor`;
 
@@ -225,6 +226,19 @@ describe("agents install --hooks", { timeout: 60_000 }, () => {
     expect(readJson(dir, ".claude/settings.json").hooks.Stop).toHaveLength(1);
   });
 
+  it("recognises and removes its entry even when the runner does not mention vue-doctor", () => {
+    const runner = "npm run doctor --";
+    applyHooks(dir, ["claude", "cursor"], hookOptions({ hooks: true, runner }));
+    applyHooks(dir, ["claude", "cursor"], hookOptions({ hooks: true, runner }));
+
+    expect(readJson(dir, ".claude/settings.json").hooks.Stop).toHaveLength(1);
+    expect(readJson(dir, ".cursor/hooks.json").hooks.stop).toHaveLength(1);
+
+    applyHooks(dir, ["claude", "cursor"], hookOptions({ hooks: true, remove: true, runner }));
+    expect(fs.existsSync(path.join(dir, ".claude", "settings.json"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".cursor", "hooks.json"))).toBe(false);
+  });
+
   it("updates the command in place when the runner changes", () => {
     applyHooks(dir, ["claude"], hookOptions({ hooks: true }));
     applyHooks(dir, ["claude"], hookOptions({ hooks: true, runner: "pnpm exec vue-doctor" }));
@@ -293,7 +307,8 @@ describe("agents install --hooks", { timeout: 60_000 }, () => {
   it("recognizes only its own hook commands", () => {
     expect(isVueDoctorHookCommand(CLAUDE_COMMAND)).toBe(true);
     expect(isVueDoctorHookCommand("npx --no-install vue-doctor agents hook cursor")).toBe(true);
-    expect(isVueDoctorHookCommand("./hooks/agents hook claude")).toBe(false);
+    expect(isVueDoctorHookCommand("pnpm run doctor agents hook claude")).toBe(true);
+    expect(isVueDoctorHookCommand("./hooks/notify.sh")).toBe(false);
     expect(isVueDoctorHookCommand("vue-doctor . --diff")).toBe(false);
   });
 
@@ -329,6 +344,39 @@ describe("agents install --pre-commit", { timeout: 60_000 }, () => {
     expect(script).toContain("|| true");
     expect(script.trimEnd().endsWith("exit 0")).toBe(true);
     if (process.platform !== "win32") expect(fs.statSync(hookPath()).mode & 0o111).not.toBe(0);
+  });
+
+  it.skipIf(process.platform === "win32")("scans the project subdirectory when it is not the repository top level", () => {
+    initRepo(dir);
+    const web = path.join(dir, "web");
+    fs.mkdirSync(web);
+    applyHooks(web, [], hookOptions({ preCommit: true, runner: "pwd; true" }));
+
+    const script = fs.readFileSync(hookPath(), "utf8");
+    expect(script).toContain("(cd 'web' && pwd; true . --diff HEAD");
+    const result = spawnSync("sh", [hookPath()], { cwd: dir, encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim().endsWith("/web")).toBe(true);
+  });
+
+  it("puts the subdirectory in hook manager snippets", () => {
+    initRepo(dir);
+    const web = path.join(dir, "web");
+    fs.mkdirSync(web);
+    fs.writeFileSync(path.join(web, "lefthook.yml"), "pre-commit:\n");
+    const logged: string[] = [];
+    const original = process.stderr.write;
+    const originalOut = process.stdout.write;
+    const capture = ((chunk: unknown) => (logged.push(String(chunk)), true)) as typeof process.stdout.write;
+    process.stdout.write = capture;
+    process.stderr.write = capture;
+    try {
+      applyHooks(web, [], hookOptions({ preCommit: true }));
+    } finally {
+      process.stdout.write = originalOut;
+      process.stderr.write = original;
+    }
+    expect(logged.join("\n")).toContain("(cd 'web' &&");
   });
 
   it.skipIf(process.platform === "win32")("never fails the commit, whatever the scan does", () => {
@@ -432,6 +480,20 @@ describe("end-of-turn hook runtime", { timeout: 60_000 }, () => {
     const parsed = JSON.parse(output ?? "null");
     expect(parsed.decision).toBe("block");
     expect(parsed.reason).toContain("src/App.vue:3 [error] vue-doctor/security/no-unsafe-html-sink");
+  });
+
+  it("scans the project directory, not a subfolder Claude cd'd into", () => {
+    touchSource();
+    fs.writeFileSync(path.join(dir, "package.json"), "{}");
+    const sub = path.join(dir, "src");
+    fs.mkdirSync(sub);
+    const scanned: string[] = [];
+    const runScan = (directory: string) => (scanned.push(directory), report(finding(3)));
+
+    runAgentHook({ agent: "claude", input: { session_id: "s1", cwd: sub }, cwd: sub, stateDirectory: stateDir, runScan, env: {} });
+    runAgentHook({ agent: "claude", input: { session_id: "s2", cwd: sub }, cwd: sub, stateDirectory: stateDir, runScan, env: { CLAUDE_PROJECT_DIR: dir } });
+
+    expect(scanned).toEqual([dir, dir]);
   });
 
   it("answers Cursor with a followup_message", () => {

@@ -18,6 +18,7 @@ import {
   removeClaudeHook,
   removeCursorHook,
   resolvePreCommitPath,
+  resolveRelativeToGitRoot,
   resolveRunner,
   type HookAgent,
   type JsonEditResult,
@@ -216,6 +217,7 @@ const editJsonFile = (
 
 const installOrRemovePreCommit = (projectDir: string, runner: string, options: HookInstallOptions): void => {
   const hookPath = resolvePreCommitPath(projectDir);
+  const relativeDir = resolveRelativeToGitRoot(projectDir);
   const display = hookPath ? path.relative(projectDir, hookPath) || hookPath : ".git/hooks/pre-commit";
   const existing = hookPath && fs.existsSync(hookPath) ? fs.readFileSync(hookPath, "utf8") : null;
   const isOurs = existing !== null && existing.includes(PRE_COMMIT_MARKER);
@@ -233,7 +235,7 @@ const installOrRemovePreCommit = (projectDir: string, runner: string, options: H
 
   const manager = detectHookManager(projectDir);
   if (manager && !isOurs) {
-    logger.log(`${manager} detected: not writing a git hook. ${buildHookManagerSnippet(manager, runner)}`);
+    logger.log(`${manager} detected: not writing a git hook. ${buildHookManagerSnippet(manager, runner, relativeDir)}`);
     return;
   }
   if (!hookPath) {
@@ -243,12 +245,12 @@ const installOrRemovePreCommit = (projectDir: string, runner: string, options: H
   if (existing !== null && !isOurs) {
     logger.log(
       `A pre-commit hook already exists at ${display}; leaving it untouched. ` +
-        `To run Vue Doctor from it, add: ${buildPreCommitCommand(runner)}`,
+        `To run Vue Doctor from it, add: ${buildPreCommitCommand(runner, relativeDir)}`,
     );
     return;
   }
 
-  const script = buildPreCommitScript(runner);
+  const script = buildPreCommitScript(runner, relativeDir);
   if (existing === script) {
     logger.log(`${display} is already up to date.`);
     return;

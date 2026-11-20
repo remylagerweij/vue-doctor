@@ -50,7 +50,7 @@ npx @remylagerweij/vue-doctor@latest agents install --agent claude,cursor --hook
 | **Cursor** | `.cursor/hooks.json` | `stop` hook (`hooks.stop`, with `loop_limit: 1`) |
 
 When the agent is about to finish a turn, the hook scans **only the files changed since `HEAD`**
-(uncommitted and untracked source files; no dead-code analysis, no network) and, if it finds
+(the working tree against `HEAD`: uncommitted and untracked source files, including edits made before the session; no dead-code analysis, no network from the scan itself) and, if it finds
 issues, hands them back to the agent so it can fix them before it stops:
 
 - Claude Code receives `{"decision": "block", "reason": "..."}` listing up to ten findings.
@@ -67,11 +67,11 @@ The hook is built so it cannot trap the agent:
 - Set `VUE_DOCTOR_AGENT_HOOK=off` to disable the hooks without editing any file.
 
 Existing settings are merged, never replaced: other keys, events and hooks stay untouched, a file that is
-not valid JSON is left as it is, and re-running the command changes nothing. Vue Doctor's own entry is
+not valid JSON is left as it is, and re-running the command changes nothing. Vue Doctor's own entry (recognised by its `agents hook <agent>` command, whatever the runner) is
 updated in place if the command changes.
 
 The hook command is `npx --no-install vue-doctor agents hook <agent>` when Vue Doctor is a dependency of
-the project and `npx --yes @remylagerweij/vue-doctor agents hook <agent>` otherwise. Use
+the project and `npx --yes @remylagerweij/vue-doctor@<installed version> agents hook <agent>` otherwise (pinned, so a new release never changes the hook unannounced; npx may need the network once to fetch it, so adding Vue Doctor as a devDependency is recommended). Use
 `--runner "pnpm exec vue-doctor"` to choose the command prefix yourself.
 
 ### Advisory git pre-commit hook
@@ -80,13 +80,13 @@ the project and `npx --yes @remylagerweij/vue-doctor agents hook <agent>` otherw
 npx @remylagerweij/vue-doctor@latest agents install --pre-commit
 ```
 
-Writes a `pre-commit` hook that prints findings for the files you are committing and **never fails the
+Writes a `pre-commit` hook that prints findings for uncommitted and untracked source files (the working tree against `HEAD`, not only what is staged) and **never fails the
 commit** (it always exits `0`; set `VUE_DOCTOR_PRECOMMIT=off` to skip it once).
 
 - It is only written when no `pre-commit` hook exists. An existing hook is never modified.
 - When **husky**, **lefthook** or **simple-git-hooks** is detected, no file is written; the command prints
   the snippet to add to that tool's configuration instead.
-- It honours `core.hooksPath` and git worktrees.
+- It honours `core.hooksPath` and git worktrees. When the project is in a subdirectory of the repository, the hook runs `cd <subdirectory>` first, because git runs hooks from the repository top level.
 
 In a terminal, `agents install` asks whether to add the hooks when you pass neither flag (skip the
 questions with `--yes`).

@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { VERSION } from "../constants.js";
 
 /**
  * Installers for the optional `agents install --hooks` / `--pre-commit` features. Everything
@@ -34,7 +35,9 @@ export const isEditError = (result: JsonEditResult): result is { error: string }
 
 /**
  * The command prefix used by installed hooks. A project that has Vue Doctor as a dependency runs
- * its local binary (no network, fast); otherwise npx runs the cached package.
+ * its local binary (no network, fast); otherwise npx runs the package pinned to the version that
+ * installed the hook, so a later release cannot change hook behaviour unannounced. npx may still
+ * need the network once to fetch it; adding Vue Doctor as a devDependency avoids that.
  */
 export const resolveRunner = (projectDir: string): string => {
   try {
@@ -48,14 +51,14 @@ export const resolveRunner = (projectDir: string): string => {
   } catch {
     // No or unreadable package.json: fall through to the published package.
   }
-  return `npx --yes ${PACKAGE_NAME}`;
+  return `npx --yes ${PACKAGE_NAME}@${VERSION}`;
 };
 
 export const buildHookCommand = (runner: string, agent: HookAgent): string => `${runner} agents hook ${agent}`;
 
 /** True for a command this feature wrote (also after the runner was changed). */
 export const isVueDoctorHookCommand = (command: unknown): boolean =>
-  typeof command === "string" && command.includes("vue-doctor") && /\bagents hook (claude|cursor)\b/.test(command);
+  typeof command === "string" && /\bagents hook (claude|cursor)\b/.test(command);
 
 type JsonObject = Record<string, unknown>;
 
@@ -215,30 +218,38 @@ export const detectHookManager = (projectDir: string): HookManager | null => {
   return null;
 };
 
-/** The advisory scan command: prints findings for changed files and never fails (`|| true`). */
-export const buildPreCommitCommand = (runner: string): string =>
-  `${runner} . --diff HEAD --no-dead-code --offline --quiet --fail-on none || true`;
+const shellQuote = (value: string): string => `'${value.replace(/'/g, "'\\''")}'`;
 
-export const buildPreCommitScript = (runner: string): string => `#!/bin/sh
+/**
+ * The advisory scan command: prints findings for changed files and never fails (`|| true`).
+ * Git runs hooks from the top of the repository, so a project in a subdirectory (`relativeDir`,
+ * relative to that top level) is entered first; the runner is then resolved from the project.
+ */
+export const buildPreCommitCommand = (runner: string, relativeDir = ""): string => {
+  const scan = `${runner} . --diff HEAD --no-dead-code --offline --quiet --fail-on none`;
+  return relativeDir ? `(cd ${shellQuote(relativeDir)} && ${scan}) || true` : `${scan} || true`;
+};
+
+export const buildPreCommitScript = (runner: string, relativeDir = ""): string => `#!/bin/sh
 ${PRE_COMMIT_MARKER} (advisory: prints findings, never blocks the commit)
 # Installed by \`vue-doctor agents install --pre-commit\`. Remove with \`agents install --remove --pre-commit\`.
 # Set VUE_DOCTOR_PRECOMMIT=off to skip it for a single commit.
 [ "\${VUE_DOCTOR_PRECOMMIT:-}" = "off" ] && exit 0
 # Nothing to compare against before the first commit.
 git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || exit 0
-${buildPreCommitCommand(runner)}
+${buildPreCommitCommand(runner, relativeDir)}
 exit 0
 `;
 
-export const buildHookManagerSnippet = (manager: HookManager, runner: string): string => {
-  const command = buildPreCommitCommand(runner);
+export const buildHookManagerSnippet = (manager: HookManager, runner: string, relativeDir = ""): string => {
+  const command = buildPreCommitCommand(runner, relativeDir);
   switch (manager) {
     case "husky":
       return `Add this line to .husky/pre-commit:\n\n  ${command}`;
     case "lefthook":
       return `Add this to lefthook.yml:\n\n  pre-commit:\n    commands:\n      vue-doctor:\n        run: ${command}`;
     case "simple-git-hooks":
-      return `Add this to the "simple-git-hooks" entry in package.json (then run \`npx simple-git-hooks\`):\n\n  "pre-commit": "${command}"`;
+      return `Add this to the "simple-git-hooks" entry in package.json (then run \`npx simple-git-hooks\`):\n\n  "pre-commit": ${JSON.stringify(command)}`;
   }
 };
 
@@ -252,4 +263,11 @@ export const resolvePreCommitPath = (projectDir: string): string | null => {
   if (result.error || result.status !== 0) return null;
   const output = result.stdout.trim();
   return output.length > 0 ? path.resolve(projectDir, output) : null;
+};
+
+/** The project directory relative to the git top level ("" when it is the top level or not in git). */
+export const resolveRelativeToGitRoot = (projectDir: string): string => {
+  const result = spawnSync("git", ["rev-parse", "--show-prefix"], { cwd: projectDir, encoding: "utf8", stdio: "pipe" });
+  if (result.error || result.status !== 0) return "";
+  return result.stdout.trim().replace(/\/+$/, "");
 };

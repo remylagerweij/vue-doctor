@@ -68,9 +68,10 @@ export const runAgentHook = (options: HookRunOptions): string | null => {
     if (agent === "claude" && input.stop_hook_active === true) return null;
     if (agent === "cursor" && ((input.loop_count ?? 0) >= 1 || (input.status !== undefined && input.status !== "completed"))) return null;
 
-    const directory = path.resolve(
-      agent === "cursor" ? (input.workspace_roots?.[0] ?? input.cwd ?? options.cwd) : (input.cwd ?? options.cwd),
-    );
+    const directory =
+      agent === "cursor"
+        ? path.resolve(input.workspace_roots?.[0] ?? input.cwd ?? options.cwd)
+        : resolveClaudeDirectory(input.cwd ?? options.cwd, options.env ?? process.env);
 
     // Uncommitted + untracked files only. Anything but a clean "ok" means there is nothing to check.
     const diff = getDiffInfo(directory, "HEAD");
@@ -90,6 +91,23 @@ export const runAgentHook = (options: HookRunOptions): string | null => {
       : JSON.stringify({ followup_message: message });
   } catch {
     return null;
+  }
+};
+
+/**
+ * Claude Code's `cwd` follows the agent's `cd`s, so it can sit in a subfolder with no package.json.
+ * Prefer the project directory Claude Code exports for hooks; otherwise walk up to the nearest
+ * package.json.
+ */
+const resolveClaudeDirectory = (cwd: string, env: NodeJS.ProcessEnv): string => {
+  const projectDir = env.CLAUDE_PROJECT_DIR;
+  if (projectDir && fs.existsSync(projectDir)) return path.resolve(projectDir);
+  let current = path.resolve(cwd);
+  for (;;) {
+    if (fs.existsSync(path.join(current, "package.json"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(cwd);
+    current = parent;
   }
 };
 
@@ -155,7 +173,7 @@ const formatMessage = (findings: HookFinding[]): string => {
   });
   const more = findings.length > shown.length ? `\n...and ${findings.length - shown.length} more.` : "";
   return [
-    `Vue Doctor found ${findings.length} issue${findings.length === 1 ? "" : "s"} in the files changed in this session:`,
+    `Vue Doctor found ${findings.length} issue${findings.length === 1 ? "" : "s"} in your uncommitted files (changes since HEAD):`,
     ...lines,
   ].join("\n") +
     `${more}\n` +
