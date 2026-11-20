@@ -151,6 +151,14 @@ export const isInteractive = (element: A11yElement): boolean => {
  * and listeners fall through to it (`<IconButton aria-label="Close" @keydown.enter="…">`), so a
  * missing `aria-label`, `alt`, `aria-checked` or key handler may be supplied by every caller.
  */
+/** Whether the element carries `inert`, or sits inside an inert subtree: it cannot be focused. */
+export const isInert = (element: A11yElement): boolean => {
+  for (let current: A11yElement | null = element; current; current = current.parent()) {
+    if (current.attributes.has("inert") && staticValue(current, "inert") !== "false") return true;
+  }
+  return false;
+};
+
 /** Appended to the agent guidance of the rules that skip component roots. */
 export const ROOT_ELEMENT_NOTE =
   "The root element of a component is not reported: attributes and listeners the parent passes fall through to it.";
@@ -257,6 +265,8 @@ const CONTENT_DIRECTIVE = /(?:^|-)(?:html|text)$/;
 
 const CONTENT_PROPERTIES: ReadonlySet<string> = new Set(["innerhtml", "textcontent", "innertext", "v-html", "v-text"]);
 
+const TRANSPARENT_WRAPPERS: ReadonlySet<string> = new Set(["template", "transition", "keepalive", "keep-alive"]);
+
 const templateCache = new WeakMap<EsTreeNode, A11yElement>();
 
 /** Adapts a vue-eslint-parser `VElement`. */
@@ -317,7 +327,8 @@ export const fromTemplateElement = (node: EsTreeNode): A11yElement => {
           handler: expression,
         });
       }
-    } else if (CONTENT_DIRECTIVE.test(directive)) {
+    } else if (directive === "t" || CONTENT_DIRECTIVE.test(directive)) {
+      // vue-i18n's `v-t` sets the element's text.
       contentBinding = true;
     } else if (directive === "show") {
       // Kept so that `v-show="false"` (never displayed) counts as visually removed.
@@ -351,7 +362,8 @@ export const fromTemplateElement = (node: EsTreeNode): A11yElement => {
     parent: () => {
       for (let current = node.parent; current?.type === "VElement"; current = current.parent) {
         // `<template v-if>` wrappers and the SFC's root `<template>` render nothing themselves.
-        if (current.rawName !== "template" && current.name !== "template") return fromTemplateElement(current);
+        // `<Transition>` / `<KeepAlive>` render only their child, so attributes fall through it too.
+        if (!TRANSPARENT_WRAPPERS.has(String(current.rawName ?? current.name).toLowerCase())) return fromTemplateElement(current);
       }
       return null;
     },

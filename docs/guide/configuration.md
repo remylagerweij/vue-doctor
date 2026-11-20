@@ -48,6 +48,7 @@ Preview rules ship with default severity `off` and only run when you turn them o
 
 - The last matching key wins, so a single rule can be turned back off after its category.
 - `ignore.rules` still excludes an opted-in rule.
+- Only the rule's own ID or its own category group (`vue-doctor/accessibility/*`) opts in. Broader keys such as `vue-doctor/*` or `*` change severities but never switch a preview rule on.
 - Presets never turn on opt-in rules.
 - Opted-in findings count toward the score and the `--fail-on` gate like any other finding.
 

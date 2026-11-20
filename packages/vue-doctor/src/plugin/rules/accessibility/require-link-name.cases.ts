@@ -19,6 +19,7 @@ const cases: RuleCases = {
   ],
   template: {
     valid: [
+      { name: "vue-i18n v-t content", code: vue(`  <nav><a href="/about" v-t="'nav.about'"></a></nav>`) },
       { name: "root link receives aria-label through attribute fallthrough", code: vue(`  <a :href="href" class="icon-link"><i class="i-external"></i></a>`) },
       { name: "text", code: vue(`  <div><a href="/about">About us</a></div>`) },
       { name: "interpolation", code: vue(`  <div><a :href="post.url">{{ post.title }}</a></div>`) },

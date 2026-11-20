@@ -19,6 +19,7 @@ const cases: RuleCases = {
   ],
   template: {
     valid: [
+      { name: "img under Transition at the component root", code: vue(`  <Transition><img v-if="src" :src="src"></Transition>`) },
       { name: "root img receives alt through attribute fallthrough", code: vue(`  <img :src="src" class="avatar">`) },
       { name: "static alt", code: vue(`  <div><img src="/logo.svg" alt="Acme"></div>`) },
       { name: "empty alt for a decorative image", code: vue(`  <div><img src="/wave.svg" alt=""></div>`) },

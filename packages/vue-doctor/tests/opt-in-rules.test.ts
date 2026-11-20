@@ -36,6 +36,11 @@ describe("resolveOptInRules", () => {
     expect(resolve({ rules: { [IMG_ALT]: "warn", "vue-doctor/accessibility/*": "off" } })).toEqual([]);
   });
 
+  it("does not enable opt-in rules through broader keys such as vue-doctor/*", () => {
+    expect(resolve({ rules: { "vue-doctor/*": "warn" } })).toEqual([]);
+    expect(resolve({ rules: { "*": "error" } })).toEqual([]);
+  });
+
   it("never enables an opt-in rule through a preset or an ignored key", () => {
     expect(resolve({ extends: ["vue-doctor/strict"] })).toEqual([]);
     expect(resolve({ extends: ["vue-doctor/recommended"] })).toEqual([]);

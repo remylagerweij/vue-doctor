@@ -1,7 +1,10 @@
-import { type A11yElement, defineAccessibilityRule, hasHref, isAriaHidden, staticText, staticValue } from "./helpers.js";
+import { type A11yElement, defineAccessibilityRule, hasHiddenAttribute, hasHref, isAriaHidden, isInert, staticText, staticValue } from "./helpers.js";
 
 /** Focusable through the keyboard: natively, or with a non-negative `tabindex`. */
 const isKeyboardFocusable = (element: A11yElement): boolean => {
+  if (isInert(element) || hasHiddenAttribute(element) || staticValue(element, "v-show") === "false") return false;
+  const style = staticText(element, "style")?.replace(/\s+/g, "") ?? "";
+  if (/(?:^|;)display:none/.test(style)) return false;
   const tabindex = staticText(element, "tabindex");
   if (element.attributes.has("tabindex")) {
     // A bound tabindex is unknown; `tabindex="-1"` takes the element out of the tab order.

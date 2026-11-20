@@ -18,6 +18,8 @@ const cases: RuleCases = {
   ],
   template: {
     valid: [
+      { name: "vue-i18n v-t content", code: vue(`  <div><p>Hi</p><button v-t="'save'"></button></div>`) },
+      { name: "button under Transition at the component root", code: vue(`  <Transition name="fade"><button v-show="visible" @click="up"><svg /></button></Transition>`) },
       { name: "root icon button receives aria-label through attribute fallthrough", code: vue(`  <button type="button" class="icon-button"><span class="i-sparkles" aria-hidden="true"></span></button>`) },
       { name: "text", code: vue(`  <div><button type="submit">Sign in</button></div>`) },
       { name: "interpolation", code: vue(`  <div><button @click="next">{{ t('next') }}</button></div>`) },

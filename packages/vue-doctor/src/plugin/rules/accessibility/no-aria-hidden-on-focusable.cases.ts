@@ -18,6 +18,10 @@ const cases: RuleCases = {
   ],
   template: {
     valid: [
+      { name: "hidden attribute", code: vue(`  <div><button hidden aria-hidden="true">x</button></div>`) },
+      { name: "v-show false", code: vue(`  <div><a href="#" aria-hidden="true" v-show="false">x</a></div>`) },
+      { name: "inert ancestor", code: vue(`  <div inert><button aria-hidden="true">Dup</button></div>`) },
+      { name: "inline display none", code: vue(`  <div><button aria-hidden="true" style="display: none">x</button></div>`) },
       { name: "aria-hidden decorative svg", code: vue(`  <button aria-label="Close"><svg aria-hidden="true"><use href="#x" /></svg></button>`) },
       { name: "duplicate link removed from tab order", code: vue(`  <a href="/post/1" aria-hidden="true" tabindex="-1"><img src="/t.png" alt=""></a>`) },
       { name: "anchor without href", code: vue(`  <a aria-hidden="true" name="top"></a>`) },
