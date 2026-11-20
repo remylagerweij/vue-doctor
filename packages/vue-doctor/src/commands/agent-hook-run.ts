@@ -181,7 +181,7 @@ const formatMessage = (findings: HookFinding[]): string => {
     "If a finding is intentional, say so briefly and finish. This check reports a given set of findings only once.";
 };
 
-/** Reads stdin to the end (bounded); resolves to "" when stdin is a terminal or fails. */
+/** Reads the hook payload from stdin (bounded) and parses it as JSON; resolves to `{}` when stdin is a terminal, too large, not a JSON object, or unreadable. */
 export const readHookInput = async (stream: NodeJS.ReadStream = process.stdin): Promise<HookInput> => {
   if (stream.isTTY) return {};
   const chunks: Buffer[] = [];
