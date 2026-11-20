@@ -65,7 +65,7 @@ Then add a script to your `package.json`:
 ## 🚀 Key Features
 
 - ⚡ **Sub-Second Performance:** Blazing-fast scans powered by Oxlint and native caching (`node_modules/.cache/vue-doctor`).
-- 🛡️ **Comprehensive Quality Gates:** 85 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 104 registered rules.
+- 🛡️ **Comprehensive Quality Gates:** 91 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 110 registered rules.
 - 🔒 **Deep Security Guardrails:** Detects hardcoded secrets, unsafe HTML sinks (`v-html`), SSRF, command & SQL injection, prototype pollution, and LLM prompt injection risks.
 - 🧹 **Dead Code & Unused Exports:** Finds unused components, unreferenced exports, orphan types, and dead dependencies using Knip.
 - 🔧 **Automated Codemods:** Deterministic `--fix` automatically repairs lodash imports, in-place array mutation, missing `v-for` keys, and `rel="noopener noreferrer"`.

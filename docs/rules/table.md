@@ -6,9 +6,13 @@
 | `vue-doctor/reactivity/no-fetch-in-watch` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-missing-await-nextTick` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-mutation-in-computed` | Reactivity | warning | medium | vue, nuxt | oxlint |
+| `vue-doctor/reactivity/no-primitive-watch-source` | Reactivity | off | high | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-reactive-destructure` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-reactive-replace` | Reactivity | warning | medium | vue, nuxt | oxlint |
+| `vue-doctor/reactivity/no-reactive-spread-return` | Reactivity | off | high | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-ref-from-prop` | Reactivity | warning | medium | vue, nuxt | oxlint |
+| `vue-doctor/reactivity/no-setup-props-destructure` | Reactivity | off | medium | vue, nuxt | oxlint |
+| `vue-doctor/reactivity/no-unowned-watcher` | Reactivity | off | high | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/no-watch-for-computed` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/reactivity/prefer-computed` | Reactivity | warning | medium | vue, nuxt | oxlint |
 | `vue/no-async-in-computed-properties` | Reactivity | warning | high | vue, nuxt | eslint-template |
@@ -69,6 +73,8 @@
 | `vue-doctor/correctness/no-array-index-as-key` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-async-setup-without-suspense` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-direct-dom-manipulation` | Correctness | warning | medium | vue, nuxt | oxlint |
+| `vue-doctor/correctness/no-instance-api-after-await` | Correctness | off | high | vue, nuxt | oxlint |
+| `vue-doctor/correctness/no-instance-api-in-async-callback` | Correctness | off | high | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-prevent-default` | Correctness | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/correctness/no-this-in-setup` | Correctness | error | high | vue, nuxt | oxlint |
 | `vue-doctor/correctness/prefer-defineProps-destructure` | Correctness | warning | low | vue, nuxt | oxlint |

@@ -12,6 +12,8 @@ import bundleSizePreferDynamicImport from "./bundle-size/prefer-dynamic-import.j
 import correctnessNoArrayIndexAsKey from "./correctness/no-array-index-as-key.js";
 import correctnessNoAsyncSetupWithoutSuspense from "./correctness/no-async-setup-without-suspense.js";
 import correctnessNoDirectDomManipulation from "./correctness/no-direct-dom-manipulation.js";
+import correctnessNoInstanceApiAfterAwait from "./correctness/no-instance-api-after-await.js";
+import correctnessNoInstanceApiInAsyncCallback from "./correctness/no-instance-api-in-async-callback.js";
 import correctnessNoPreventDefault from "./correctness/no-prevent-default.js";
 import correctnessNoThisInSetup from "./correctness/no-this-in-setup.js";
 import correctnessPreferDefinePropsDestructure from "./correctness/prefer-defineProps-destructure.js";
@@ -54,9 +56,13 @@ import reactivityNoCascadingMutations from "./reactivity/no-cascading-mutations.
 import reactivityNoFetchInWatch from "./reactivity/no-fetch-in-watch.js";
 import reactivityNoMissingAwaitNextTick from "./reactivity/no-missing-await-nextTick.js";
 import reactivityNoMutationInComputed from "./reactivity/no-mutation-in-computed.js";
+import reactivityNoPrimitiveWatchSource from "./reactivity/no-primitive-watch-source.js";
 import reactivityNoReactiveDestructure from "./reactivity/no-reactive-destructure.js";
 import reactivityNoReactiveReplace from "./reactivity/no-reactive-replace.js";
+import reactivityNoReactiveSpreadReturn from "./reactivity/no-reactive-spread-return.js";
 import reactivityNoRefFromProp from "./reactivity/no-ref-from-prop.js";
+import reactivityNoSetupPropsDestructure from "./reactivity/no-setup-props-destructure.js";
+import reactivityNoUnownedWatcher from "./reactivity/no-unowned-watcher.js";
 import reactivityNoWatchForComputed from "./reactivity/no-watch-for-computed.js";
 import reactivityPreferComputed from "./reactivity/prefer-computed.js";
 import securityLlmPromptInjection from "./security/llm-prompt-injection.js";
@@ -99,6 +105,8 @@ export const ruleModules: readonly (DefinedRule | DefinedFsRule | DefinedAuditRu
   correctnessNoArrayIndexAsKey,
   correctnessNoAsyncSetupWithoutSuspense,
   correctnessNoDirectDomManipulation,
+  correctnessNoInstanceApiAfterAwait,
+  correctnessNoInstanceApiInAsyncCallback,
   correctnessNoPreventDefault,
   correctnessNoThisInSetup,
   correctnessPreferDefinePropsDestructure,
@@ -141,9 +149,13 @@ export const ruleModules: readonly (DefinedRule | DefinedFsRule | DefinedAuditRu
   reactivityNoFetchInWatch,
   reactivityNoMissingAwaitNextTick,
   reactivityNoMutationInComputed,
+  reactivityNoPrimitiveWatchSource,
   reactivityNoReactiveDestructure,
   reactivityNoReactiveReplace,
+  reactivityNoReactiveSpreadReturn,
   reactivityNoRefFromProp,
+  reactivityNoSetupPropsDestructure,
+  reactivityNoUnownedWatcher,
   reactivityNoWatchForComputed,
   reactivityPreferComputed,
   securityLlmPromptInjection,

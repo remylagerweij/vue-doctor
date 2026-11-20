@@ -87,6 +87,10 @@ export default defineConfig({
         "link": "/rules/reactivity/no-mutation-in-computed"
       },
       {
+        "text": "no-primitive-watch-source",
+        "link": "/rules/reactivity/no-primitive-watch-source"
+      },
+      {
         "text": "no-reactive-destructure",
         "link": "/rules/reactivity/no-reactive-destructure"
       },
@@ -95,8 +99,20 @@ export default defineConfig({
         "link": "/rules/reactivity/no-reactive-replace"
       },
       {
+        "text": "no-reactive-spread-return",
+        "link": "/rules/reactivity/no-reactive-spread-return"
+      },
+      {
         "text": "no-ref-from-prop",
         "link": "/rules/reactivity/no-ref-from-prop"
+      },
+      {
+        "text": "no-setup-props-destructure",
+        "link": "/rules/reactivity/no-setup-props-destructure"
+      },
+      {
+        "text": "no-unowned-watcher",
+        "link": "/rules/reactivity/no-unowned-watcher"
       },
       {
         "text": "no-watch-for-computed",
@@ -373,6 +389,14 @@ export default defineConfig({
       {
         "text": "no-direct-dom-manipulation",
         "link": "/rules/correctness/no-direct-dom-manipulation"
+      },
+      {
+        "text": "no-instance-api-after-await",
+        "link": "/rules/correctness/no-instance-api-after-await"
+      },
+      {
+        "text": "no-instance-api-in-async-callback",
+        "link": "/rules/correctness/no-instance-api-in-async-callback"
       },
       {
         "text": "no-prevent-default",
