@@ -81,6 +81,8 @@ export const runEslintVue = async (
   includePaths?: string[],
   framework: Framework = "vite",
   templateRuleOverrides?: TemplateRuleOverrides,
+  /** Off-by-default own rules the project config turns on (flat names). */
+  optedInRules?: ReadonlySet<string>,
 ): Promise<Diagnostic[]> => {
   let patterns: string[];
   if (includePaths) {
@@ -112,7 +114,7 @@ export const runEslintVue = async (
   const hasCustomOptions = Object.values(resolvedOverrides).some(
     (entry) => entry !== "off" && entry.options.length > 0,
   );
-  const customTemplateRules = createCustomTemplateRuleConfig(framework);
+  const customTemplateRules = createCustomTemplateRuleConfig(framework, optedInRules);
   const gitignorePatterns = readGitignorePatterns(rootDirectory);
 
   const createEslint = (

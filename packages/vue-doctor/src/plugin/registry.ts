@@ -64,14 +64,25 @@ export const getRuleMeta = (plugin: string, rule: string): RuleMeta | undefined 
   return undefined;
 };
 
-export const isEnabled = (meta: RuleMeta, framework: Framework): boolean => {
-  if (meta.defaultSeverity === "off") return false;
+/**
+ * Whether a rule runs on a project of this framework. Rules that are off by default (opt-in
+ * previews) run only when the project config turns them on; `optedIn` holds their flat names.
+ */
+export const isEnabled = (meta: RuleMeta, framework: Framework, optedIn?: ReadonlySet<string>): boolean => {
+  if (meta.defaultSeverity === "off" && !optedIn?.has(meta.id)) return false;
   // `vue` rules run everywhere; Nuxt-only rules run only on Nuxt projects.
   return meta.frameworks.includes("vue") || (framework === "nuxt" && meta.frameworks.includes("nuxt"));
 };
 
 const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
   severity === "error" ? "error" : "warn";
+
+/**
+ * Host severity for an enabled rule. An opted-in preview rule runs as `warn`; the severity the
+ * config gives it is applied to its findings afterwards, like every other `rules` entry.
+ */
+const hostSeverityOf = (meta: RuleMeta): "error" | "warn" =>
+  meta.defaultSeverity === "off" ? "warn" : toOxlintSeverity(meta.defaultSeverity);
 
 /** Options per own rule, keyed by the rule's flat name (`require-input-validation`). */
 export type RuleOptionsById = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
@@ -96,6 +107,8 @@ interface OxlintConfigOptions {
   ruleOptions?: RuleOptionsById;
   /** Non-Security/non-Server own rules disabled in the project's ESLint/oxlint config. */
   disabledRules?: ReadonlySet<string>;
+  /** Off-by-default rules (flat names) the project config turns on; see `resolveOptedInRules`. */
+  optedInRules?: ReadonlySet<string>;
 }
 
 type OxlintRuleEntry = "error" | "warn" | ["error" | "warn", Readonly<Record<string, unknown>>];
@@ -117,17 +130,18 @@ export const createOxlintConfig = ({
   capabilities,
   ruleOptions = {},
   disabledRules,
+  optedInRules,
 }: OxlintConfigOptions) => {
   const rules: Record<string, OxlintRuleEntry> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
     if (
-      !isEnabled(meta, framework) ||
+      !isEnabled(meta, framework, optedInRules) ||
       !hasRequiredCapabilities(meta, capabilities) ||
       isDisabledByProjectLinter(meta, disabledRules)
     ) {
       continue;
     }
-    const severity = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const severity = hostSeverityOf(meta);
     const options = meta.options ? ruleOptions[meta.id] : undefined;
     rules[`${PLUGIN_NAME}/${meta.id}`] = options && Object.keys(options).length > 0 ? [severity, options] : severity;
   }
@@ -151,9 +165,9 @@ export const createOxlintConfig = ({
   };
 };
 
-/** The project-file rules that run by default on a project of this framework. */
-export const getEnabledFsRules = (framework: Framework): DefinedFsRule[] =>
-  FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework));
+/** The project-file rules that run on a project of this framework (by default, plus opted-in previews). */
+export const getEnabledFsRules = (framework: Framework, optedInRules?: ReadonlySet<string>): DefinedFsRule[] =>
+  FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework, optedInRules));
 
 /**
  * ESLint `rules` record for the template rules (`vue/<rule>` to `error` or `warn`, or
@@ -187,12 +201,15 @@ export const createTemplateRuleConfig = (
  * These share their registry entry with the oxlint rule of the same name, so the severity and the
  * framework gating come from that entry.
  */
-export const createCustomTemplateRuleConfig = (framework: Framework = "vite"): Record<string, "error" | "warn"> => {
+export const createCustomTemplateRuleConfig = (
+  framework: Framework = "vite",
+  optedInRules?: ReadonlySet<string>,
+): Record<string, "error" | "warn"> => {
   const rules: Record<string, "error" | "warn"> = {};
   for (const name of Object.keys(CUSTOM_TEMPLATE_RULES)) {
     const meta = oxlintMetaById.get(name);
-    if (!meta || !isEnabled(meta, framework)) continue;
-    rules[`${CUSTOM_TEMPLATE_PLUGIN_NAME}/${name}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    if (!meta || !isEnabled(meta, framework, optedInRules)) continue;
+    rules[`${CUSTOM_TEMPLATE_PLUGIN_NAME}/${name}`] = hostSeverityOf(meta);
   }
   return rules;
 };

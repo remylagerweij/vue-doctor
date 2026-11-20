@@ -80,6 +80,8 @@ export const computeCacheContexts = (
   disabledOwnRules?: ReadonlySet<string>,
   /** Template rule overrides from the project's ESLint/oxlint config. */
   templateRuleOverrides?: TemplateRuleOverrides,
+  /** Off-by-default rules the project config turns on; opting one in re-runs its analyzer. */
+  optedInRules?: ReadonlySet<string>,
 ): CacheContexts => {
   const tools = getToolVersions();
   const ownCode = hashOwnCode();
@@ -97,6 +99,7 @@ export const computeCacheContexts = (
         capabilities: detectProjectCapabilities(directory),
         ruleOptions,
         disabledRules: disabledOwnRules,
+        optedInRules,
       }),
       tsconfig,
     }),
@@ -109,14 +112,14 @@ export const computeCacheContexts = (
       parser: tools["vue-eslint-parser"],
       typescriptParser: tools["@typescript-eslint/parser"],
       typescript: tools.typescript,
-      rules: { ...createTemplateRuleConfig(templateRuleOverrides, project.framework), ...createCustomTemplateRuleConfig(project.framework) },
+      rules: { ...createTemplateRuleConfig(templateRuleOverrides, project.framework), ...createCustomTemplateRuleConfig(project.framework, optedInRules) },
       // Template ignores are derived from the root .gitignore.
       gitignore: hashFileOrMissing(path.join(directory, ".gitignore")),
     }),
   );
   // The file rules read the project through recorded inputs; their context is the code and the enabled set.
   const projectChecks = hashText(
-    JSON.stringify({ ownCode, rules: getEnabledFsRules(project.framework).map((rule) => rule.ruleMeta) }),
+    JSON.stringify({ ownCode, rules: getEnabledFsRules(project.framework, optedInRules).map((rule) => rule.ruleMeta) }),
   );
   return { lint, template, "dead-code": hashText(JSON.stringify({ ownCode, knip: tools.knip })), project: projectChecks };
 };

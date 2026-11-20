@@ -167,6 +167,8 @@ export const runOxlint = async (
   onCommand?: CommandListener,
   ruleOptions?: RuleOptionsById,
   disabledRules?: ReadonlySet<string>,
+  /** Off-by-default rules the project config turns on (flat names). */
+  optedInRules?: ReadonlySet<string>,
 ): Promise<Diagnostic[]> => {
   if (includePaths !== undefined && includePaths.length === 0) {
     return [];
@@ -182,6 +184,7 @@ export const runOxlint = async (
     capabilities: detectProjectCapabilities(rootDirectory),
     ruleOptions,
     disabledRules: resolvedDisabledRules,
+    optedInRules,
   });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;

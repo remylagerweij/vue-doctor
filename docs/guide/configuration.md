@@ -35,7 +35,7 @@ export default defineConfig({
 
 ## Test files
 
-Rules about shipped code do not run on test files: Nuxt rendering rules (`nuxt-no-window-in-ssr` and the other `vue-doctor/nuxt/*` rules except `security-headers` and `no-secret-in-public-runtime-config`), every `performance` and `bundle-size` rule, `no-direct-dom-manipulation`, `no-prevent-default`, the component-structure rules (`no-async-setup-without-suspense`, `prefer-defineProps-destructure`, `require-defineprops-types`, `require-emits-declaration`, `no-giant-component`, `no-nested-component-definition`), `router-no-string-push` and `server-no-console-in-handler`. Each rule's page says whether it checks test files. Security rules always run on them.
+Rules about shipped code do not run on test files: Nuxt rendering rules (`nuxt-no-window-in-ssr` and the other `vue-doctor/nuxt/*` rules except `security-headers` and `no-secret-in-public-runtime-config`), every `performance` and `bundle-size` rule, `no-direct-dom-manipulation`, `no-prevent-default`, the component-structure rules (`no-async-setup-without-suspense`, `prefer-defineProps-destructure`, `require-defineprops-types`, `require-emits-declaration`, `no-giant-component`, `no-nested-component-definition`), `router-no-string-push`, `server-no-console-in-handler` and the Composition API [preview rules](#preview-rules) (`no-instance-api-after-await`, `no-instance-api-in-async-callback`, `no-unowned-watcher`, `no-reactive-spread-return`, `no-setup-props-destructure`, `no-primitive-watch-source`). Each rule's page says whether it checks test files. Security rules always run on them.
 
 A test file is, relative to the project root: `*.spec.*`, `*.test.*`, `*.cy.*` and `*.e2e.*` scripts (and `*.spec.vue` / `*.test.vue`), anything under a `test/`, `tests/`, `__tests__/`, `__mocks__/`, `__fixtures__/`, `e2e/` or `cypress/` directory, and `vitest`, `playwright`, `cypress` and `jest` config files (including variants such as `vitest.component.config.ts`).
 
@@ -62,6 +62,22 @@ Some rules accept options, listed under "Options" on their rule page. Give them 
 
 - An unknown option name or a value of the wrong type is a config error (exit code 2). Options given to a rule that takes none are ignored with a warning.
 - On Nuxt projects the server rules also learn from the project itself, and receive that as the same options: `server/utils` functions that read the session and throw a 401/403 become `authFunctions`, and the session cookie's SameSite from `nuxt.config` becomes `sessionCookieSameSite`. Lists you configure are added to what is found; other values you configure win.
+
+## Preview rules
+
+Some rules ship off by default while they collect feedback; their rule page says "Opt-in preview rule" and their default severity is `off`. Turn one on by naming it in `rules`:
+
+```json
+{
+  "rules": {
+    "vue-doctor/correctness/no-instance-api-after-await": "warn",
+    "vue-doctor/reactivity/no-unowned-watcher": "error"
+  }
+}
+```
+
+- Only a key that names the rule enables it. A group key such as `"vue-doctor/reactivity/*": "warn"` changes the severity of the rules that already run, but does not switch previews on; `"off"` (single or group, later in `rules`) switches them off again.
+- An enabled preview behaves like any other rule: its findings count towards the score and the gate, and `ignore` and suppression comments apply.
 
 ## Existing linters and formatters
 

@@ -16,8 +16,8 @@ Vue Doctor is a high-performance diagnostic tool for Vue.js and Nuxt application
   2. **ESLint Vue Pass** (`run-eslint-vue.ts`): Deep template validation via `eslint-plugin-vue` and `vue-eslint-parser` for template-specific anti-patterns. `<script lang="ts">` is parsed by `@typescript-eslint/parser` on Vue Doctor's own pinned `typescript` (6.0, the last line with a JS API; see `load-typescript-parser.ts`), so rules that read the script (emits, props, computed) see TypeScript SFCs. A script that still fails to parse is re-linted without it, with those script-dependent rules off (`SCRIPT_DEPENDENT_TEMPLATE_RULES`).
   3. **Knip Pass** (`run-knip.ts`): Unused exports, dead files, and unreferenced dependencies.
   4. **Project Checks Pass** (`engine: "fs"` via `run-project-checks.ts`): Filesystem inspection for committed secrets, lockfile integrity, and sensitive files in `public/`.
-- **104 Registered Rules** (`RULE_REGISTRY` in `src/plugin/registry.ts`):
-  - 85 own rules (`vue-doctor/<category>/<rule>`) on the oxlint, `fs` and `audit` engines.
+- **110 Registered Rules** (`RULE_REGISTRY` in `src/plugin/registry.ts`):
+  - 91 own rules (`vue-doctor/<category>/<rule>`) on the oxlint, `fs` and `audit` engines; 6 of them are opt-in previews (`defaultSeverity: "off"`, enabled by naming them in config `rules`).
   - 19 `eslint-plugin-vue` template rules (`vue/<rule>`).
   - Dead-code findings come from Knip as `knip/<type>`.
 - **Build System**: `tsdown` (Rolldown-based bundler producing dual ESM/DTS output).
@@ -98,7 +98,7 @@ packages/vue-doctor/
 │   │   ├── baseline.ts           # Baselines (finding identity in fingerprint.ts)
 │   │   └── cache.ts              # Analysis cache (keys in cache-keys.ts)
 │   ├── plugin/
-│   │   ├── registry.ts           # RULE_REGISTRY (all 104 rules)
+│   │   ├── registry.ts           # RULE_REGISTRY (all 110 rules)
 │   │   ├── rule-ids.ts           # Canonical IDs, 1.x aliases, removed-rule aliases
 │   │   ├── define-rule.ts        # Oxlint rule helper and RULE_CATEGORIES
 │   │   ├── define-fs-rule.ts     # Filesystem rule helper

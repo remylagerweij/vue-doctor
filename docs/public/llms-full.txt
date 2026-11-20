@@ -21,7 +21,7 @@
 
 ---
 
-# All Rules (104 registered, 104 on by default)
+# All Rules (110 registered, 104 on by default)
 
 ## vue-doctor/architecture/no-giant-component
 - Category: Architecture
@@ -112,6 +112,24 @@
 - Help: Use template refs: `const el = ref<HTMLElement>()` with `ref="el"` instead of `document.querySelector()`
 - Agent Guidance: Use a template ref (`const el = ref<HTMLElement | null>(null)` with `ref="el"`) and access `el.value` after mount instead of `document.querySelector`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-direct-dom-manipulation
+
+## vue-doctor/correctness/no-instance-api-after-await
+- Category: Correctness
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Call lifecycle hooks, `provide`/`inject` and instance composables before the first `await`, then use their results after it
+- Agent Guidance: Vue only knows which component is running while setup executes synchronously. After an `await` inside an async function (a composable, an `async setup()`, an event handler, a hook callback) the instance is gone: `onMounted`/`onUnmounted` and other hooks never register, `provide` does nothing, `inject`, `useRoute()`, `useRouter()` and `useI18n()` return undefined or throw. Move the call above the first `await` and keep its result in a variable (`const router = useRouter()` at the top of setup, then `router.push()` after the await), or register the hook synchronously and let it read state the async code fills in. Top-level `await` in `<script setup>` is not reported (the compiler restores the instance there), nor are Nuxt plugins, route middleware, `defineNuxtComponent` setup and `definePageMeta` callbacks (Nuxt restores its context).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-instance-api-after-await
+
+## vue-doctor/correctness/no-instance-api-in-async-callback
+- Category: Correctness
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Register hooks and call `provide`/`inject` synchronously in setup; inside the callback, only use what setup already obtained
+- Agent Guidance: Callbacks passed to `setTimeout`, `setInterval`, `requestAnimationFrame`, `nextTick`, `.then()/.catch()/.finally()`, `addEventListener` or a (non-immediate) `watch` run after setup has returned, when no component is active. Lifecycle hooks registered there never fire, `provide` does nothing and `inject`, `useRoute()`, `useRouter()` and `useI18n()` return undefined. Call the API synchronously in setup and keep the result (`const route = useRoute()`; `onUnmounted(() => clearTimeout(timer))`), then use that value inside the callback. Hooks called inside another hook's callback (`onMounted(() => onUnmounted(...))`) are fine and not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/correctness/no-instance-api-in-async-callback
 
 ## vue-doctor/correctness/no-prevent-default
 - Category: Correctness
@@ -482,6 +500,15 @@
 - Agent Guidance: A computed getter must be pure. Move assignments to `.value` and array mutations such as push/sort into a method, event handler or `watch`; if sorting, copy first with `[...list].sort()` or `toSorted()`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-mutation-in-computed
 
+## vue-doctor/reactivity/no-primitive-watch-source
+- Category: Reactivity
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Watch a getter instead of the value: `watch(() => props.count, ...)`, `watch(() => state.count, ...)`, or pass the ref itself: `watch(count, ...)`
+- Agent Guidance: `watch(state.count, cb)`, `watch(props.count, cb)` and `watch(count.value, cb)` evaluate the expression once and pass its current value; when that value is a string, number, boolean, null or undefined Vue cannot track it, logs "Invalid watch source" and the callback never runs. Pass a getter (`watch(() => props.count, cb)`), the ref itself (`watch(count, cb)`), or an array of those. Only sources that are certainly primitive are reported: a `reactive({ count: 0 })` property, a prop declared as `string`/`number`/`boolean` (type-based or runtime `defineProps`, or `props: { count: Number }`), or a ref created with a primitive in the same function.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-primitive-watch-source
+
 ## vue-doctor/reactivity/no-reactive-destructure
 - Category: Reactivity
 - Default Severity: warning
@@ -500,6 +527,15 @@
 - Agent Guidance: Reassigning a `reactive()` variable breaks every existing reference to it. Mutate it in place with `Object.assign(state, next)`, or switch to a `ref` and assign `.value`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-reactive-replace
 
+## vue-doctor/reactivity/no-reactive-spread-return
+- Category: Reactivity
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Return `...toRefs(state)` (or the reactive object itself) instead of spreading the reactive object
+- Agent Guidance: `return { ...state }` from `setup()`, a composable (`useX`) or a Pinia setup store copies the current values of a `reactive()` object into a plain object: the template or caller sees a snapshot that never updates, and a Pinia store treats the copies as non-state. Return `{ ...toRefs(state), other }` so every property stays a ref linked to the reactive object, or return `state` itself and let callers read `state.prop`. Spreading a reactive object anywhere else (building a request payload, cloning) is an intentional snapshot and is not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-reactive-spread-return
+
 ## vue-doctor/reactivity/no-ref-from-prop
 - Category: Reactivity
 - Default Severity: warning
@@ -508,6 +544,24 @@
 - Help: Remove the ref and derive inline: `const value = computed(() => transform(props.propName))`
 - Agent Guidance: Do not copy a prop into a `ref()` that is never updated again; the copy goes stale when the prop changes. Use `computed(() => props.x)` for derived values, or emit an event to the parent when the value must be edited. Copies that are written later (an editable draft, a ref re-synced by `watch(() => props.x, ...)`) and `initial*`/`default*` seed props are not reported.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-ref-from-prop
+
+## vue-doctor/reactivity/no-setup-props-destructure
+- Category: Reactivity
+- Default Severity: off
+- Confidence: medium
+- Fixable: No
+- Help: Keep `props` whole in `setup(props)` and read `props.x` where it is used, or use `toRefs(props)` / `toRef(props, 'x')`
+- Agent Guidance: In a `setup(props)` function (Options-style component, `defineComponent({ setup })`) `props` is a reactive object. Destructuring it, in the parameter list (`setup({ title })`) or in the setup body (`const { title } = props`), copies the values once: computed properties, watchers and the template never see later prop changes. Use `props.title` where the value is read, or `const { title } = toRefs(props)` and `title.value`. This is about `setup()`; destructuring `defineProps()` in `<script setup>` is reactive since Vue 3.5 and is not reported. Destructuring inside a nested function (a computed getter, a watcher, a handler) re-reads the props each time and is fine. `initialX` / `defaultX` props, seeds copied once on purpose, are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-setup-props-destructure
+
+## vue-doctor/reactivity/no-unowned-watcher
+- Category: Reactivity
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Create the watcher synchronously in setup, or keep its stop handle (`const stop = watch(...)`) and call `stop()` when it is no longer needed
+- Agent Guidance: A `watch`/`watchEffect` created synchronously in setup belongs to the component and stops when it unmounts. One created after an `await` or inside a timer, promise, event-listener or watch callback belongs to nothing: it keeps running after the component is gone (a memory leak and stale side effects), and a new one is added every time that code runs. Create the watcher in setup and let it react to state the async code sets, or keep the handle (`const stop = watch(...)`) and call `stop()` in `onUnmounted`, or create it inside an `effectScope().run()` you dispose. Only code that runs for a component is checked (a `.vue` file, a composable `useX`, a component `setup()`); watchers in app bootstrap code (`main.ts`, plugins, module top level), watchers whose handle is kept and `{ once: true }` watchers are not reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/reactivity/no-unowned-watcher
 
 ## vue-doctor/reactivity/no-watch-for-computed
 - Category: Reactivity

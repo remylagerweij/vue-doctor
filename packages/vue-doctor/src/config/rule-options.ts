@@ -1,7 +1,7 @@
 import type { DefinedRule } from "../plugin/define-rule.js";
-import { OXLINT_RULES, getCanonicalRuleId, type RuleOptionsById } from "../plugin/registry.js";
+import { FS_RULES, OXLINT_RULES, getCanonicalRuleId, type RuleOptionsById } from "../plugin/registry.js";
 import { resolveRuleKey } from "../plugin/rule-ids.js";
-import type { RuleEntry, VueDoctorConfig } from "./schema.js";
+import type { RuleEntry, RuleSeverity, VueDoctorConfig } from "./schema.js";
 
 type OptionsObject = Readonly<Record<string, unknown>>;
 
@@ -53,4 +53,31 @@ export const mergeRuleOptions = (inferred: RuleOptionsById, configured: RuleOpti
     merged[id] = base;
   }
   return merged;
+};
+
+const severityOf = (entry: RuleEntry): RuleSeverity => (Array.isArray(entry) ? entry[0] : entry);
+
+/**
+ * Off-by-default own rules (opt-in previews) that the config turns on, by flat name. Only a key that
+ * names the rule itself opts in (`"vue-doctor/reactivity/no-unowned-watcher": "warn"`); a group key
+ * (`vue-doctor/reactivity/*`) changes the severity of rules that already run, so a preview is never
+ * enabled by accident. Keys apply in order, so a later `"off"` (single or group) turns it off again.
+ */
+export const resolveOptedInRules = (config: VueDoctorConfig | null | undefined): Set<string> => {
+  const optedIn = new Set<string>();
+  const previews = [...OXLINT_RULES, ...FS_RULES]
+    .map((rule) => rule.ruleMeta)
+    .filter((meta) => meta.defaultSeverity === "off");
+  if (previews.length === 0) return optedIn;
+  for (const [key, entry] of Object.entries(config?.rules ?? {})) {
+    const isGroupKey = key.trim().endsWith("/*");
+    const isOff = severityOf(entry) === "off";
+    const { matches } = resolveRuleKey(key);
+    for (const meta of previews) {
+      if (!matches(getCanonicalRuleId(meta))) continue;
+      if (isOff) optedIn.delete(meta.id);
+      else if (!isGroupKey) optedIn.add(meta.id);
+    }
+  }
+  return optedIn;
 };

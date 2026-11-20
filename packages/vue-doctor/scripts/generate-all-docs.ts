@@ -73,7 +73,11 @@ ${Object.entries(meta.options.properties)
 | **Since** | v${meta.since} |
 | **Frameworks** | ${meta.frameworks.join(", ")} |
 ${meta.skipTestFiles ? "| **Test files** | Not checked ([which files](/guide/configuration#test-files)) |\n" : ""}${secRows.join("\n")}
-
+${meta.defaultSeverity === "off" ? `
+::: tip Opt-in preview rule
+This rule is off by default. Enable it by naming it in your config: \`rules: { "${canonicalId}": "warn" }\` (a \`/*\` group key does not enable it). See [Preview rules](/guide/configuration#preview-rules).
+:::
+` : ""}
 ## Why it matters
 
 ${meta.help}
