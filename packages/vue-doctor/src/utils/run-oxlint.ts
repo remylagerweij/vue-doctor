@@ -8,7 +8,7 @@ import {
   VUE_FILE_PATTERN,
   SPAWN_ARGS_MAX_LENGTH_CHARS,
 } from "../constants.js";
-import { createOxlintConfig, getRuleMeta, toDiagnosticRule, type RuleOptionsById } from "../plugin/registry.js";
+import { createOxlintConfig, getRuleMeta, toDiagnosticRule, type OptInRules, type RuleOptionsById } from "../plugin/registry.js";
 import type { CleanedDiagnostic, Diagnostic, Framework, OxlintOutput } from "../types.js";
 import { createDefusedMirror, findFilesWithForeignDirectives } from "./defuse-inline-directives.js";
 import { normalizeRelativePath } from "./list-source-files.js";
@@ -167,6 +167,7 @@ export const runOxlint = async (
   onCommand?: CommandListener,
   ruleOptions?: RuleOptionsById,
   disabledRules?: ReadonlySet<string>,
+  optInRules?: OptInRules,
 ): Promise<Diagnostic[]> => {
   if (includePaths !== undefined && includePaths.length === 0) {
     return [];
@@ -182,6 +183,7 @@ export const runOxlint = async (
     capabilities: detectProjectCapabilities(rootDirectory),
     ruleOptions,
     disabledRules: resolvedDisabledRules,
+    optInRules,
   });
   const configDirectory = createPrivateTempDirectory("oxlintrc");
   let mirror: ReturnType<typeof createDefusedMirror> | undefined;

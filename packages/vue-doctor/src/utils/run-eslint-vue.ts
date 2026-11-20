@@ -8,6 +8,7 @@ import {
   createTemplateRuleConfig,
   getRuleMeta,
   toDiagnosticRule,
+  type OptInRules,
   type TemplateRuleConfigEntry,
   type TemplateRuleOverrides,
 } from "../plugin/registry.js";
@@ -81,6 +82,8 @@ export const runEslintVue = async (
   includePaths?: string[],
   framework: Framework = "vite",
   templateRuleOverrides?: TemplateRuleOverrides,
+  /** Off-by-default own template rules the project config enables. */
+  optInRules?: OptInRules,
 ): Promise<Diagnostic[]> => {
   let patterns: string[];
   if (includePaths) {
@@ -112,7 +115,7 @@ export const runEslintVue = async (
   const hasCustomOptions = Object.values(resolvedOverrides).some(
     (entry) => entry !== "off" && entry.options.length > 0,
   );
-  const customTemplateRules = createCustomTemplateRuleConfig(framework);
+  const customTemplateRules = createCustomTemplateRuleConfig(framework, optInRules);
   const gitignorePatterns = readGitignorePatterns(rootDirectory);
 
   const createEslint = (
