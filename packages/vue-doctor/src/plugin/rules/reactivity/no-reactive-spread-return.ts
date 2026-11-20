@@ -5,6 +5,7 @@ import {
   isComposableName,
   peel,
   type ApiResolver,
+  visibleDeclarators,
 } from "../../composition-api.js";
 import { defineRule } from "../../define-rule.js";
 import { getFilename, isFunctionNode } from "../../helpers.js";
@@ -41,8 +42,8 @@ export default defineRule({
     const filename = getFilename(context);
 
     // A name counts as reactive only when every declaration of it in the file is `reactive(...)`.
-    const isReactiveBinding = (name: string): boolean => {
-      const declarations = resolver?.declarators.get(name) ?? [];
+    const isReactiveBinding = (name: string, at: EsTreeNode): boolean => {
+      const declarations = resolver ? visibleDeclarators(name, at, resolver) : [];
       return (
         declarations.length > 0 &&
         declarations.every((declarator) => {
@@ -68,7 +69,7 @@ export default defineRule({
         const spread = peel(property.argument);
         if (spread?.type !== "Identifier") continue;
         const isProps = spread.name === setupProps;
-        if (!isProps && !isReactiveBinding(spread.name)) continue;
+        if (!isProps && !isReactiveBinding(spread.name, property)) continue;
         context.report({
           node: property,
           message: `Spreading the reactive object \`${spread.name}\` into the returned object copies its current values; they never update. Return \`...toRefs(${spread.name})\` instead`,

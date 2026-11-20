@@ -3,6 +3,14 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "state is a parameter holding refs, shadowing a reactive declared in another function",
+      code: `import { reactive, watch } from "vue";\nexport function useCounterState() {\n  const state = reactive({ count: 0 });\n  return { state };\n}\nexport function useCounterSync(state) {\n  watch(state.count, (value) => console.log(value));\n}\n`,
+    },
+    {
+      name: "reactive declared in a sibling function is not in scope",
+      code: `import { reactive, watch } from "vue";\nfunction make() {\n  const state = reactive({ count: 0 });\n  return state;\n}\nfunction sync() {\n  watch(state.count, log);\n}\n`,
+    },
+    {
       name: "getter of a prop",
       filename: "src/components/Counter.vue",
       code: `<script setup lang="ts">\nimport { watch } from "vue";\nconst props = defineProps<{ count: number }>();\nwatch(() => props.count, log);\n</script>\n`,

@@ -3,6 +3,18 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "component created and mounted from a timer callback has its own setup instance",
+      code: `import { createApp, defineComponent, h, inject, onUnmounted } from "vue";\nsetTimeout(() => {\n  createApp(defineComponent({\n    setup() {\n      const theme = inject("theme");\n      onUnmounted(() => el.remove());\n      return () => h("p", theme);\n    },\n  })).mount(el);\n}, 100);\n`,
+    },
+    {
+      name: "provide inside the setup of an app mounted after a promise",
+      code: `import { createApp, h, provide } from "vue";\nloadConfig().then((config) => {\n  createApp({\n    setup() {\n      provide("config", config);\n      return () => h(App);\n    },\n  }).mount("#app");\n});\n`,
+    },
+    {
+      name: "async component factory returning a component whose setup uses hooks and watchers",
+      code: `import { defineAsyncComponent, defineComponent, onMounted, watch } from "vue";\nexport const Lazy = defineAsyncComponent(() =>\n  fetchSchema().then((schema) =>\n    defineComponent({\n      setup() {\n        onMounted(() => init(schema));\n        watch(n, log);\n        return {};\n      },\n    }),\n  ),\n);\n`,
+    },
+    {
       name: "hook registered inside another hook's callback (instance is active)",
       code: `import { onMounted, onUnmounted } from "vue";\nexport function useResize() {\n  onMounted(() => {\n    window.addEventListener("resize", update);\n    onUnmounted(() => window.removeEventListener("resize", update));\n  });\n}\n`,
     },

@@ -206,6 +206,42 @@ const nearestFunction = (node: EsTreeNode): EsTreeNode | null => {
   return null;
 };
 
+const bindsName = (pattern: EsTreeNode | null | undefined, name: string): boolean => {
+  if (!pattern) return false;
+  switch (pattern.type) {
+    case "Identifier":
+      return pattern.name === name;
+    case "AssignmentPattern":
+      return bindsName(pattern.left, name);
+    case "RestElement":
+      return bindsName(pattern.argument, name);
+    case "TSParameterProperty":
+      return bindsName(pattern.parameter, name);
+    case "ArrayPattern":
+      return (pattern.elements ?? []).some((element: EsTreeNode) => bindsName(element, name));
+    case "ObjectPattern":
+      return (pattern.properties ?? []).some((property: EsTreeNode) =>
+        bindsName(property.type === "Property" ? property.value : property, name),
+      );
+    default:
+      return false;
+  }
+};
+
+/**
+ * The declarators of `name` that are in scope at `at`: declared at the top level or in a function
+ * enclosing `at`. Empty when a closer function parameter binds the same name (it shadows them).
+ */
+export const visibleDeclarators = (name: string, at: EsTreeNode, resolver: ApiResolver): EsTreeNode[] => {
+  for (let current = at.parent; current; current = current.parent) {
+    if (isFunctionNode(current) && (current.params ?? []).some((param: EsTreeNode) => bindsName(param, name))) return [];
+  }
+  return (resolver.declarators.get(name) ?? []).filter((declarator) => {
+    const owner = nearestFunction(declarator);
+    return owner === null || contains(owner, at);
+  });
+};
+
 const calleeName = (call: EsTreeNode | null | undefined): string | null => {
   const callee = peel(call?.callee);
   if (callee?.type === "Identifier") return callee.name;
@@ -340,6 +376,11 @@ const deferringCallOf = (fn: EsTreeNode, resolver: ApiResolver): string | null =
 // in them (`scope.run` of an effectScope); nothing inside them is reported.
 const CONTEXT_RESTORING_METHODS = new Set(["runWithContext", "runInInjectionContext", "run", "callWithNuxt"]);
 
+const isDefineComponentSetupArrow = (fn: EsTreeNode): boolean => {
+  const parent = fn.parent;
+  return parent?.type === "CallExpression" && parent.arguments?.[0] === fn && calleeName(parent) === "defineComponent";
+};
+
 /**
  * The API a function enclosing `call` hands it to for a later run (`setTimeout`, `.then()`, ...),
  * or `null` when every enclosing function runs synchronously in setup.
@@ -347,6 +388,9 @@ const CONTEXT_RESTORING_METHODS = new Set(["runWithContext", "runInInjectionCont
 export const findDeferringCall = (call: EsTreeNode, resolver: ApiResolver): string | null => {
   for (let current = call.parent; current; current = current.parent) {
     if (!isFunctionNode(current)) continue;
+    // A component's own setup() runs with its own instance, even when the component is created or
+    // mounted from a timer or promise callback further out.
+    if (isSetupFunction(current) || isDefineComponentSetupArrow(current)) return null;
     const taking = callTakingFunction(current);
     if (taking && CONTEXT_RESTORING_METHODS.has(calleeName(taking) ?? "")) return null;
     const deferring = deferringCallOf(current, resolver);

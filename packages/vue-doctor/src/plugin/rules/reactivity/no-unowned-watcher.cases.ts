@@ -3,6 +3,10 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "watcher in the setup of a component built inside a promise callback",
+      code: `import { defineAsyncComponent, defineComponent, watch } from "vue";\nexport const Lazy = defineAsyncComponent(() =>\n  fetchSchema().then(() =>\n    defineComponent({\n      setup() {\n        watch(n, log);\n        return {};\n      },\n    }),\n  ),\n);\n`,
+    },
+    {
       name: "watcher created synchronously in a composable",
       code: `import { watch } from "vue";\nexport function useSearch(query) {\n  watch(query, run);\n}\n`,
     },

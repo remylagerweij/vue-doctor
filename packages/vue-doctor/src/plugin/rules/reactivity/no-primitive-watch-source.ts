@@ -1,4 +1,4 @@
-import { createApiResolver, isComponentSetup, peel, type ApiResolver } from "../../composition-api.js";
+import { createApiResolver, isComponentSetup, peel, visibleDeclarators, type ApiResolver } from "../../composition-api.js";
 import { defineRule } from "../../define-rule.js";
 import { getFilename, getStaticKeyName, isFunctionNode, walkAst } from "../../helpers.js";
 import type { EsTreeNode, RuleContext } from "../../types.js";
@@ -72,8 +72,8 @@ export default defineRule({
     const filename = getFilename(context);
 
     /** Every declaration of `name` in the file, when they all are calls to one of `apis`. */
-    const callsOf = (name: string, apis: ReadonlySet<string>): EsTreeNode[] => {
-      const declarations = resolver?.declarators.get(name) ?? [];
+    const callsOf = (name: string, apis: ReadonlySet<string>, at: EsTreeNode): EsTreeNode[] => {
+      const declarations = resolver ? visibleDeclarators(name, at, resolver) : [];
       const calls = declarations.map((declarator) => {
         const init = peel(declarator.init);
         const api = init?.type === "CallExpression" ? resolver?.resolve(init.callee) : null;
@@ -113,7 +113,7 @@ export default defineRule({
 
     /** `props.x` where `props` comes from `defineProps` or a component `setup(props)` with `props: { x: Number }`. */
     const isPrimitiveProp = (objectName: string, key: string, at: EsTreeNode): boolean => {
-      const [call] = callsOf(objectName, new Set(["defineProps", "withDefaults"]));
+      const [call] = callsOf(objectName, new Set(["defineProps", "withDefaults"]), at);
       if (call) {
         const api = resolver?.resolve(call.callee);
         const defineProps = api?.name === "withDefaults" ? peel(call.arguments?.[0]) : call;
@@ -137,7 +137,7 @@ export default defineRule({
         current = peel(current.object);
       }
       if (current?.type !== "Identifier" || path.length === 0) return false;
-      const calls = callsOf(current.name, new Set(["reactive", "shallowReactive"]));
+      const calls = callsOf(current.name, new Set(["reactive", "shallowReactive"]), source);
       if (calls.length !== 1) return false;
       let value: EsTreeNode | null = peel(calls[0].arguments?.[0]);
       for (const key of path) value = peel(findProperty(value, key)?.value);
@@ -149,7 +149,7 @@ export default defineRule({
       if (source.type !== "MemberExpression" || source.computed || source.property?.name !== "value") return false;
       const object = peel(source.object);
       if (object?.type !== "Identifier") return false;
-      const calls = callsOf(object.name, new Set(["ref", "shallowRef"]));
+      const calls = callsOf(object.name, new Set(["ref", "shallowRef"]), source);
       if (calls.length !== 1) return false;
       const argument = calls[0].arguments?.[0];
       if (argument && !isPrimitiveLiteral(argument)) return false;

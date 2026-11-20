@@ -3,6 +3,15 @@ import type { RuleCases } from "../../rule-cases.js";
 const cases: RuleCases = {
   valid: [
     {
+      name: "spreading a plain parameter that shadows a reactive in another composable",
+      code: `import { reactive, toRefs } from "vue";\nexport function useCounter() {\n  const state = reactive({ n: 0 });\n  return { ...toRefs(state) };\n}\nexport function useMerge(state: Record<string, unknown>) {\n  return { ...state, extra: 1 };\n}\n`,
+    },
+    {
+      name: "script setup helper spreading its own parameter, not the reactive form",
+      filename: "src/components/Form.vue",
+      code: `<script setup lang="ts">\nimport { reactive } from "vue";\nconst form = reactive({ a: 1 });\nfunction useSnapshot(form: Record<string, unknown>) {\n  return { ...form };\n}\n</script>\n`,
+    },
+    {
       name: "toRefs keeps every property linked",
       code: `import { reactive, toRefs } from "vue";\nexport function useCounter() {\n  const state = reactive({ count: 0 });\n  const inc = () => state.count++;\n  return { ...toRefs(state), inc };\n}\n`,
     },
