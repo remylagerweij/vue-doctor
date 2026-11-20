@@ -437,6 +437,56 @@ export default defineConfig({
     ]
   },
   {
+    "text": "Accessibility",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "click-events-have-key-events",
+        "link": "/rules/accessibility/click-events-have-key-events"
+      },
+      {
+        "text": "no-aria-hidden-on-focusable",
+        "link": "/rules/accessibility/no-aria-hidden-on-focusable"
+      },
+      {
+        "text": "no-invalid-aria-attribute",
+        "link": "/rules/accessibility/no-invalid-aria-attribute"
+      },
+      {
+        "text": "no-invalid-role",
+        "link": "/rules/accessibility/no-invalid-role"
+      },
+      {
+        "text": "no-positive-tabindex",
+        "link": "/rules/accessibility/no-positive-tabindex"
+      },
+      {
+        "text": "require-button-name",
+        "link": "/rules/accessibility/require-button-name"
+      },
+      {
+        "text": "require-form-control-label",
+        "link": "/rules/accessibility/require-form-control-label"
+      },
+      {
+        "text": "require-iframe-title",
+        "link": "/rules/accessibility/require-iframe-title"
+      },
+      {
+        "text": "require-img-alt",
+        "link": "/rules/accessibility/require-img-alt"
+      },
+      {
+        "text": "require-link-name",
+        "link": "/rules/accessibility/require-link-name"
+      },
+      {
+        "text": "role-has-required-aria-props",
+        "link": "/rules/accessibility/role-has-required-aria-props"
+      }
+    ]
+  },
+  {
     "text": "Ecosystem",
     "collapsed": true,
     "items": [

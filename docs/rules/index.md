@@ -16,7 +16,7 @@ Every rule has one public ID, used in findings, `--format json` output, baseline
 | Template rules (eslint-plugin-vue) | `vue/<rule>` | `vue/require-v-for-key` |
 | Dead code (knip) | `knip/<type>` | `knip/files` |
 
-`<category>` is the kebab-case category name: `reactivity`, `ecosystem`, `architecture`, `performance`, `security`, `supply-chain`, `bundle-size`, `correctness`, `nuxt`, `server`.
+`<category>` is the kebab-case category name: `accessibility`, `reactivity`, `ecosystem`, `architecture`, `performance`, `security`, `supply-chain`, `bundle-size`, `correctness`, `nuxt`, `server`.
 
 A trailing `/*` selects a whole group, in `rules` and `ignore.rules`: `vue-doctor/security/*`, `vue-doctor/*`, `vue/*`.
 
@@ -47,6 +47,8 @@ The secret-name rules are medium-confidence signals, so they are warnings. The s
 ## Severity policy
 
 A rule defaults to `error` only when it is a Security rule with high confidence or a Correctness rule that reliably indicates a bug. Every other rule (performance, reactivity, architecture, bundle size, Nuxt, server, ecosystem, dead code, and medium or low confidence security rules) defaults to `warning`. Errors weigh more than warnings in the score, so a project is not marked down hard for style or optimisation advice. Override any rule with the [`rules` config](/guide/configuration).
+
+The `accessibility` rules default to `off`: they are opt-in preview rules (since 2.5.0) that run only when you enable them, for example with `"vue-doctor/accessibility/*": "warn"` (see [Opt-in rules](/guide/configuration#opt-in-rules)).
 
 ## All rules
 

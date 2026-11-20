@@ -33,9 +33,27 @@ export default defineConfig({
 - The config is validated: unknown keys and invalid values exit with code 2 and say what is wrong.
 - `.ts`/`.js` configs are executed. Use JSON when scanning untrusted code.
 
+## Opt-in rules
+
+Preview rules ship with default severity `off` and only run when you turn them on. Since 2.5.0 these are the `vue-doctor/accessibility/*` rules (missing `alt`, unnamed buttons and links, unlabelled form controls, clickable `<div>`s, invalid ARIA). Give a rule, or a whole category with `/*`, a severity:
+
+```json
+{
+  "rules": {
+    "vue-doctor/accessibility/*": "warn",
+    "vue-doctor/accessibility/click-events-have-key-events": "off"
+  }
+}
+```
+
+- The last matching key wins, so a single rule can be turned back off after its category.
+- `ignore.rules` still excludes an opted-in rule.
+- Presets never turn on opt-in rules.
+- Opted-in findings count toward the score and the `--fail-on` gate like any other finding.
+
 ## Test files
 
-Rules about shipped code do not run on test files: Nuxt rendering rules (`nuxt-no-window-in-ssr` and the other `vue-doctor/nuxt/*` rules except `security-headers` and `no-secret-in-public-runtime-config`), every `performance` and `bundle-size` rule, `no-direct-dom-manipulation`, `no-prevent-default`, the component-structure rules (`no-async-setup-without-suspense`, `prefer-defineProps-destructure`, `require-defineprops-types`, `require-emits-declaration`, `no-giant-component`, `no-nested-component-definition`), `router-no-string-push` and `server-no-console-in-handler`. Each rule's page says whether it checks test files. Security rules always run on them.
+Rules about shipped code do not run on test files: Nuxt rendering rules (`nuxt-no-window-in-ssr` and the other `vue-doctor/nuxt/*` rules except `security-headers` and `no-secret-in-public-runtime-config`), every `performance` and `bundle-size` rule, `no-direct-dom-manipulation`, `no-prevent-default`, the component-structure rules (`no-async-setup-without-suspense`, `prefer-defineProps-destructure`, `require-defineprops-types`, `require-emits-declaration`, `no-giant-component`, `no-nested-component-definition`), `router-no-string-push`, `server-no-console-in-handler` and the `accessibility` rules. Each rule's page says whether it checks test files. Security rules always run on them.
 
 A test file is, relative to the project root: `*.spec.*`, `*.test.*`, `*.cy.*` and `*.e2e.*` scripts (and `*.spec.vue` / `*.test.vue`), anything under a `test/`, `tests/`, `__tests__/`, `__mocks__/`, `__fixtures__/`, `e2e/` or `cypress/` directory, and `vitest`, `playwright`, `cypress` and `jest` config files (including variants such as `vitest.component.config.ts`).
 
