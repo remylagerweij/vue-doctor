@@ -49,6 +49,30 @@ const cases: RuleCases = {
       filename: "pages/form.vue",
       code: `<script setup lang="ts">\nasync function submit() {\n  await save();\n  await useRouter().push("/done");\n}\n</script>\n`,
     },
+    {
+      name: "guarded: consequent of if",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (getCurrentInstance()) {\n    onMounted(fn);\n  }\n}\n`,
+    },
+    {
+      name: "guarded: ternary consequent",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  getCurrentInstance() ? onMounted(fn) : undefined;\n}\n`,
+    },
+    {
+      name: "guarded: right of &&",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  getCurrentInstance() && onMounted(fn);\n}\n`,
+    },
+    {
+      name: "guarded: else branch of a negated test",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (!getCurrentInstance()) {\n    warn();\n  } else {\n    onMounted(fn);\n  }\n}\n`,
+    },
+    {
+      name: "guarded: consequent of a null check",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (getCurrentInstance() !== null) onMounted(fn);\n}\n`,
+    },
+    {
+      name: "guarded: right of || after a negated check",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  !getCurrentInstance() || onMounted(fn);\n}\n`,
+    },
   ],
   invalid: [
     {
@@ -84,6 +108,30 @@ const cases: RuleCases = {
     {
       name: "useI18n imported from vue-i18n after await",
       code: `import { useI18n } from "vue-i18n";\nexport async function useLabels() {\n  await loadMessages();\n  const { t } = useI18n();\n  return t;\n}\n`,
+    },
+    {
+      name: "else branch of an instance check is not guarded",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (getCurrentInstance()) {\n    log();\n  } else {\n    onMounted(fn);\n  }\n}\n`,
+    },
+    {
+      name: "ternary alternate of an instance check is not guarded",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  getCurrentInstance() ? log() : onMounted(fn);\n}\n`,
+    },
+    {
+      name: "right operand of || after an instance check is not guarded",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  getCurrentInstance() || onMounted(fn);\n}\n`,
+    },
+    {
+      name: "consequent of a negated instance check is not guarded",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (!getCurrentInstance()) onMounted(fn);\n}\n`,
+    },
+    {
+      name: "consequent of an instance === null check is not guarded",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (getCurrentInstance() === null) onMounted(fn);\n}\n`,
+    },
+    {
+      name: "the guard call itself in an unrelated branch of the test",
+      code: `import { getCurrentInstance, onMounted } from "vue";\nexport async function useX() {\n  await ready();\n  if (cond || getCurrentInstance()) onMounted(fn);\n}\n`,
     },
   ],
 };

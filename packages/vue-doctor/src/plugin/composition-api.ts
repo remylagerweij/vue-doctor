@@ -401,17 +401,57 @@ export const findDeferringCall = (call: EsTreeNode, resolver: ApiResolver): stri
 
 const GUARD_CALLS = new Set(["getCurrentInstance", "hasInjectionContext", "getCurrentScope", "tryUseNuxtApp"]);
 
-/** Whether the call is guarded by an instance check (`if (getCurrentInstance()) onUnmounted(...)`). */
+const containsGuardCall = (node: EsTreeNode): boolean => {
+  let found = false;
+  walkAst(node, (child) => {
+    if (child.type === "CallExpression" && GUARD_CALLS.has(calleeName(child) ?? "")) found = true;
+  });
+  return found;
+};
+
+const isNullish = (node: EsTreeNode | null): boolean =>
+  node?.type === "Literal" ? node.value === null : node?.type === "Identifier" && node.name === "undefined";
+
+/**
+ * Whether `test` evaluating to `truthy` proves an instance exists: `getCurrentInstance()` when
+ * truthy, `!getCurrentInstance()` when falsy, `a && check` when truthy, `a || check` when falsy.
+ * Anything it cannot prove (`cond || getCurrentInstance()`, `check === null` when truthy) is false.
+ */
+const impliesInstance = (test: EsTreeNode | null, truthy: boolean): boolean => {
+  const node = peel(test);
+  if (!node) return false;
+  if (node.type === "UnaryExpression" && node.operator === "!") return impliesInstance(node.argument, !truthy);
+  if (node.type === "LogicalExpression" && (node.operator === "&&" || node.operator === "||")) {
+    const either = (node.operator === "&&") === truthy;
+    const left = impliesInstance(node.left, truthy);
+    const right = impliesInstance(node.right, truthy);
+    return either ? left || right : left && right;
+  }
+  if (node.type === "BinaryExpression" && ["==", "===", "!=", "!=="].includes(node.operator)) {
+    const operand = isNullish(peel(node.right)) ? node.left : isNullish(peel(node.left)) ? node.right : null;
+    if (!operand) return false;
+    // `check != null` is truthy exactly when the instance exists.
+    return impliesInstance(operand, node.operator.startsWith("!") === truthy);
+  }
+  // `getCurrentInstance()`, `getCurrentInstance()?.proxy`: truthy proves it, falsy proves nothing.
+  return truthy && containsGuardCall(node);
+};
+
+/**
+ * Whether the call sits in the branch an instance check lets through: the consequent of
+ * `if (getCurrentInstance())` or `check ? ... : ...`, or the right of `check && ...`. The `else`
+ * branch, the alternate of a ternary and the right of `||` are not guarded.
+ */
 export const isGuardedByInstanceCheck = (call: EsTreeNode): boolean => {
-  for (let current = call.parent; current && !isFunctionNode(current); current = current.parent) {
-    const test: EsTreeNode | undefined =
-      current.type === "IfStatement" || current.type === "ConditionalExpression" ? current.test : current.type === "LogicalExpression" ? current.left : undefined;
-    if (!test) continue;
-    let guarded = false;
-    walkAst(test, (node) => {
-      if (node.type === "CallExpression" && GUARD_CALLS.has(calleeName(node) ?? "")) guarded = true;
-    });
-    if (guarded) return true;
+  let child: EsTreeNode = call;
+  for (let current = call.parent; current && !isFunctionNode(current); child = current, current = current.parent) {
+    if (current.type === "IfStatement" || current.type === "ConditionalExpression") {
+      if (child === current.consequent && impliesInstance(current.test, true)) return true;
+      if (child === current.alternate && impliesInstance(current.test, false)) return true;
+    } else if (current.type === "LogicalExpression" && child === current.right) {
+      if (current.operator === "&&" && impliesInstance(current.left, true)) return true;
+      if (current.operator === "||" && impliesInstance(current.left, false)) return true;
+    }
   }
   return false;
 };

@@ -46,6 +46,30 @@ const cases: RuleCases = {
       name: "a hook defined but not called in the callback",
       code: `import { onMounted } from "vue";\nexport function useLazy() {\n  onMounted(() => {\n    requestAnimationFrame(draw);\n  });\n}\n`,
     },
+    {
+      name: "guarded: consequent of if",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (getCurrentInstance()) {\n    onMounted(fn);\n  }\n  });\n}\n`,
+    },
+    {
+      name: "guarded: ternary consequent",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  getCurrentInstance() ? onMounted(fn) : undefined;\n  });\n}\n`,
+    },
+    {
+      name: "guarded: right of &&",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  getCurrentInstance() && onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "guarded: else branch of a negated test",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (!getCurrentInstance()) {\n    warn();\n  } else {\n    onMounted(fn);\n  }\n  });\n}\n`,
+    },
+    {
+      name: "guarded: consequent of a null check",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (getCurrentInstance() !== null) onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "guarded: right of || after a negated check",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  !getCurrentInstance() || onMounted(fn);\n  });\n}\n`,
+    },
   ],
   invalid: [
     {
@@ -73,6 +97,30 @@ const cases: RuleCases = {
       name: "window.setTimeout member form, auto-imported hook",
       filename: "src/components/Banner.vue",
       code: `<script setup>\nwindow.setTimeout(() => onBeforeUnmount(hide), 500);\n</script>\n`,
+    },
+    {
+      name: "else branch of an instance check is not guarded",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (getCurrentInstance()) {\n    log();\n  } else {\n    onMounted(fn);\n  }\n  });\n}\n`,
+    },
+    {
+      name: "ternary alternate of an instance check is not guarded",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  getCurrentInstance() ? log() : onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "right operand of || after an instance check is not guarded",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  getCurrentInstance() || onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "consequent of a negated instance check is not guarded",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (!getCurrentInstance()) onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "consequent of an instance === null check is not guarded",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (getCurrentInstance() === null) onMounted(fn);\n  });\n}\n`,
+    },
+    {
+      name: "the guard call itself in an unrelated branch of the test",
+      code: `import { getCurrentInstance, nextTick, onMounted } from "vue";\nexport function useX() {\n  nextTick(() => {\n  if (cond || getCurrentInstance()) onMounted(fn);\n  });\n}\n`,
     },
   ],
 };
