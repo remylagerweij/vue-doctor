@@ -25,6 +25,7 @@
     "dev": "npm run dev --workspace=@remylagerweij/vue-doctor",
     "build": "npm run build --workspace=@remylagerweij/vue-doctor",
     "test": "npm run test --workspace=@remylagerweij/vue-doctor",
+    "fuzz": "npm run fuzz --workspace=@remylagerweij/vue-doctor --",
     "init": "node packages/vue-doctor/dist/cli.js init",
     "rules:generate": "npm run rules:generate --workspace=@remylagerweij/vue-doctor",
     "snapshot:update": "npm run snapshot:update --workspace=@remylagerweij/vue-doctor",

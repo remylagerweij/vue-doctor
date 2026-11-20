@@ -88,6 +88,7 @@
     "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.test.json",
     "test": "npm run build && vitest run",
     "test:coverage": "npm run build && vitest run --coverage",
+    "fuzz": "npm run build && jiti tests/fuzz/cli.ts",
     "rules:generate": "node scripts/generate-rules.mjs",
     "rules:table": "jiti scripts/generate-rules-table.ts",
     "docs:gen": "jiti scripts/generate-all-docs.ts",
