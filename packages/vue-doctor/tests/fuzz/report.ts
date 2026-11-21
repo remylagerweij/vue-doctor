@@ -77,7 +77,7 @@ export const renderMarkdown = (result: FuzzResult, triaged: TriagedFailures, opt
     "",
     "| Oracle | Engine | Rule | Variant | Inputs | Example |",
     "| --- | --- | --- | --- | --- | --- |",
-    ...groups.map((group) => `| ${group.oracle} | ${group.engine} | \`${group.rule}\` | ${group.variant} | ${group.count} | \`${group.examples[0].input.replace(/\|/g, "\\|")}\` |`),
+    ...groups.map((group) => `| ${group.oracle} | ${group.engine} | \`${group.rule}\` | ${group.variant} | ${group.count} | \`${group.examples[0].input.replace(/\\/g, "\\\\").replace(/\|/g, "\\|")}\` |`),
   ];
   const unexpected = groupFailures(triaged.unexpected);
   if (unexpected.length > 0) lines.push("", "#### New failures", ...table(unexpected));

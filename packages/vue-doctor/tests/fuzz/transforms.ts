@@ -204,7 +204,7 @@ export const TRANSFORMS: readonly Transform[] = [
     description: 'lang="ts" added to every <script> of a single-file component that has no lang',
     apply: (code, filename) => {
       if (!isSfc(filename)) return null;
-      const updated = code.replace(/<script\b([^>]*)>/g, (tag, attributes: string) =>
+      const updated = code.replace(/<script\b([^>]*)>/gi, (tag, attributes: string) =>
         /\blang\s*=/.test(attributes) ? tag : `<script${attributes} lang="ts">`,
       );
       return updated === code ? null : { code: updated, lineMap: IDENTITY };

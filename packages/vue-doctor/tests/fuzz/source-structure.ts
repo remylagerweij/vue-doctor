@@ -149,7 +149,7 @@ export interface ScriptBlock {
   content: string;
 }
 
-const SCRIPT_BLOCK_PATTERN = /(<script\b[^>]*>)([\s\S]*?)(<\/script>)/g;
+const SCRIPT_BLOCK_PATTERN = /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi;
 
 /** The `<script>` blocks of a single-file component, in source order. */
 export const findScriptBlocks = (sfc: string): ScriptBlock[] => {
@@ -162,7 +162,7 @@ export const findScriptBlocks = (sfc: string): ScriptBlock[] => {
   return blocks;
 };
 
-const TEMPLATE_OR_BLOCK_TAG = /<(\/?)(template|script|style)\b[^>]*?(\/?)>/g;
+const TEMPLATE_OR_BLOCK_TAG = /<(\/?)(template|script|style)\b[^>]*?(\/?)>/gi;
 
 /**
  * 1-based lines on which a top-level SFC block (`<script>`, `<template>`, `<style>`) opens at the
@@ -173,7 +173,8 @@ export const findTopLevelBlockLines = (sfc: string): number[] => {
   let templateDepth = 0;
   let rawBlockEnd: string | undefined;
   for (const match of sfc.matchAll(TEMPLATE_OR_BLOCK_TAG)) {
-    const [, closing, name, selfClosing] = match;
+    const [, closing, rawName, selfClosing] = match;
+    const name = rawName.toLowerCase();
     if (rawBlockEnd) {
       if (closing && name === rawBlockEnd) rawBlockEnd = undefined;
       continue;
