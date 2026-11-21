@@ -215,7 +215,10 @@ const executeOxlint = async (entries: readonly Entry[], log: (line: string) => v
     findings: result.findings.map((finding) => ({ rule: finding.rule, file: entry.input.filename, line: finding.line, message: finding.message })),
     problems: result.problems,
     timings: result.timings,
-    crashes: result.timings.filter((timing) => timing.error).map((timing) => ({ rule: timing.rule, message: timing.error ?? "" })),
+    crashes: [
+      ...result.timings.filter((timing) => timing.error).map((timing) => ({ rule: timing.rule, message: timing.error ?? "" })),
+      ...result.hostErrors.map((message) => ({ rule: "*", message: `oxlint's JS plugin host failed, so no Vue Doctor finding is reported for the file: ${message}` })),
+    ],
   });
 
   const failedOutcome = (rule: string, message: string): Outcome => ({ findings: [], problems: [], timings: [], crashes: [{ rule, message }] });
@@ -399,7 +402,9 @@ export const runFuzz = async (options: FuzzOptions): Promise<FuzzResult> => {
       const baseline = baselines.get(entry.baselineIndex);
       if (!baseline) continue;
       // Neither file may fail to parse, and a rule that threw in either has nothing to compare.
-      if (baseline.problems.length > 0 || outcome.problems.length > 0) {
+      // A host failure (rule "*") loses every finding of the file, so there is nothing to compare either.
+      const hostFailed = [...baseline.crashes, ...outcome.crashes].some((crash) => crash.rule === "*");
+      if (baseline.problems.length > 0 || outcome.problems.length > 0 || hostFailed) {
         stats.skippedUnparsable++;
         if (stats.skipped.length < 20) stats.skipped.push({ engine, input: input.id, variant });
         continue;
@@ -436,13 +441,22 @@ export const runFuzz = async (options: FuzzOptions): Promise<FuzzResult> => {
           // eslint-plugin-vue walks the template once for every rule, so find which rule the time belongs to.
           const isolation = await templateLinter.isolate(file).catch(() => undefined);
           if (!isolation) continue;
-          const slowRules = isolation.rules.filter((timing) => timing.ms > limit);
-          for (const timing of slowRules) {
-            addFailure({ oracle: "slowness", engine, rule: timing.rule, input: entry.input.id, variant: entry.variant, detail: `${slowDetail(timing.ms, entry, limit)} on top of ${isolation.parseMs.toFixed(0)} ms parsing` });
-          }
+          // The first pass only nominates: parse time on a large file varies by about as much as the
+          // budget, so a rule is reported only when a second, paired measurement is over budget too.
+          const attempts = entry.input.code.length > 50 * 1024 ? 5 : 3;
+          const candidates = isolation.rules.filter((timing) => timing.ms > limit).map((timing) => timing.rule);
           const excess = isolation.fullMs - isolation.parseMs;
-          if (slowRules.length === 0 && excess > limit) {
-            addFailure({ oracle: "slowness", engine, rule: "*", input: entry.input.id, variant: entry.variant, detail: `${slowDetail(excess, entry, limit)}, spread over many rules (parsing alone takes ${isolation.parseMs.toFixed(0)} ms)` });
+          const wantsSpread = candidates.length === 0 && excess > limit;
+          if (candidates.length === 0 && !wantsSpread) continue;
+          const second = await templateLinter.confirm(file, wantsSpread ? ["*"] : candidates, attempts).catch(() => undefined);
+          if (!second) continue;
+          for (const timing of second.rules) {
+            if (timing.ms <= limit) continue;
+            if (timing.rule === "*") {
+              addFailure({ oracle: "slowness", engine, rule: "*", input: entry.input.id, variant: entry.variant, detail: `${slowDetail(timing.ms, entry, limit)}, spread over many rules (parsing alone takes ${second.parseMs.toFixed(0)} ms)` });
+            } else {
+              addFailure({ oracle: "slowness", engine, rule: timing.rule, input: entry.input.id, variant: entry.variant, detail: `${slowDetail(timing.ms, entry, limit)} on top of ${second.parseMs.toFixed(0)} ms parsing` });
+            }
           }
         }
       }

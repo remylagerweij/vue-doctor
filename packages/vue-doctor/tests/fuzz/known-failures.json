@@ -1,6 +1,13 @@
 {
   "knownFailures": [
     {
+      "oracle": "crash",
+      "engine": "oxlint",
+      "rule": "*",
+      "input": "stress:long-binary",
+      "reason": "oxlint's own JS plugin host fails with the anonymous 'Error running JS plugin.' on a binary expression chain of about 2800 levels or more (a 3000-term string concatenation), and production then drops every Vue Doctor finding for the file without a message. Not a rule defect; a real limit of the host. Lower priority, but a generated file of this shape is silently unlinted."
+    },
+    {
       "oracle": "metamorphic",
       "engine": "fs",
       "rule": "lockfile-integrity",

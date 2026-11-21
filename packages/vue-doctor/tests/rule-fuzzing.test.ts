@@ -257,6 +257,14 @@ describe("fuzz harness: oracles detect what they claim to (instrumented oxlint)"
     expect(result.timings.find((timing) => timing.rule === "no-eval")?.ms ?? 1000).toBeLessThan(100);
   });
 
+  it("reports a failure of oxlint's plugin host as a host error, not as a syntax error", async () => {
+    // A binary chain deeper than the host can walk makes oxlint answer with the anonymous "Error running JS plugin."
+    const code = `export const value = ${Array.from({ length: 3600 }, (_unused, index) => `"s${index}"`).join(" + ")};\n`;
+    const [result] = await runOxlintInstrumented([{ filename: "src/deep.ts", code }]);
+    expect(result.hostErrors.length).toBeGreaterThan(0);
+    expect(result.problems).toEqual([]);
+  }, 60_000);
+
   it("separates syntax errors in the input from rule findings", async () => {
     const [result] = await runOxlintInstrumented([{ filename: "src/a.ts", code: "const = ;\n" }], { pluginPath: faultyPlugin });
     expect(result.problems.length).toBeGreaterThan(0);
@@ -296,6 +304,17 @@ describe("fuzz harness: template pass matches the production runner", () => {
     expect(harness.sort()).toEqual(expected.sort());
     expect(expected.length).toBeGreaterThan(Object.keys(templateCases).length / 2);
   }, 120_000);
+
+  it("measures the cost of chosen rules next to the cost of parsing, and ignores unknown rules", async () => {
+    const linter = await createTemplateLinter();
+    const slots = Array.from({ length: 300 }, (_unused, index) => `<template #s${index}>x</template>`).join("\n");
+    const file = { filename: "Slots.vue", code: `<template><Comp>\n${slots}\n</Comp></template>\n` };
+    const result = await linter.confirm(file, ["vue/valid-v-slot", "no-such-rule", "*"], 2);
+    expect(result.rules.map((timing) => timing.rule)).toEqual(["vue/valid-v-slot", "*"]);
+    expect(result.parseMs).toBeGreaterThan(0);
+    for (const timing of result.rules) expect(timing.ms).toBeGreaterThanOrEqual(0);
+    expect(result.fullMs).toBeGreaterThanOrEqual(result.parseMs);
+  }, 60_000);
 });
 
 describe("rule fuzzing smoke run (full run: npm run fuzz)", () => {

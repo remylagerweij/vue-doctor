@@ -50,6 +50,12 @@ export interface TemplateIsolation {
 export interface TemplateLinter {
   lint: (file: TemplateFile) => Promise<TemplateFileResult>;
   isolate: (file: TemplateFile) => Promise<TemplateIsolation>;
+  /**
+   * An independent second measurement of the cost of the given rules (flat ids; `*` is every rule
+   * together). Parsing and linting alternate attempt by attempt, so a noisy parse cannot be mistaken
+   * for the cost of a rule; the cost is the best linting time minus the best parsing time.
+   */
+  confirm: (file: TemplateFile, rules: readonly string[], attempts: number) => Promise<TemplateIsolation>;
 }
 
 type RuleConfig = Record<string, unknown>;
@@ -116,7 +122,43 @@ export const createTemplateLinter = async (): Promise<TemplateLinter> => {
 
   const hasFatal = (result: ESLint.LintResult): boolean => result.messages.some((message) => message.fatal);
 
+  const upstreamById = new Map(Object.entries(templateRules).map(([ruleId, severity]) => [ruleId, severity] as const));
+  const ownById = new Map(Object.entries(customRules).map(([ruleId, severity]) => [toFlatRule(ruleId), [ruleId, severity] as const] as const));
+
   return {
+    confirm: async ({ filename, code }, ruleIds, attempts) => {
+      const skipScript = (await withScript.lintText(code, { filePath: filename })).some(hasFatal);
+      const once = async (eslint: ESLint): Promise<number> => {
+        const started = performance.now();
+        await eslint.lintText(code, { filePath: filename });
+        return performance.now() - started;
+      };
+      const parser = createEslint(skipScript, {}, {});
+      let parseBest = Infinity;
+      const measure = async (eslint: ESLint): Promise<number> => {
+        let best = Infinity;
+        for (let attempt = 0; attempt < attempts; attempt++) {
+          parseBest = Math.min(parseBest, await once(parser));
+          best = Math.min(best, await once(eslint));
+        }
+        return best;
+      };
+      const rules: RuleTiming[] = [];
+      let fullMs = 0;
+      for (const rule of ruleIds) {
+        let eslint: ESLint | undefined;
+        if (rule === "*") eslint = createEslint(skipScript, templateRules, customRules);
+        else if (upstreamById.has(rule)) eslint = createEslint(skipScript, { [rule]: upstreamById.get(rule) }, {});
+        else if (ownById.has(rule)) eslint = createEslint(skipScript, {}, { [ownById.get(rule)![0]]: ownById.get(rule)![1] });
+        if (!eslint) continue;
+        const best = await measure(eslint);
+        if (rule === "*") fullMs = best;
+        rules.push({ rule, file: filename, ms: best });
+      }
+      // Every measurement above was paired with fresh parses: subtract the best of all of them.
+      return { parseMs: parseBest, fullMs, rules: rules.map((timing) => ({ ...timing, ms: Math.max(0, timing.ms - parseBest) })) };
+    },
+
     lint: async ({ filename, code }) => {
       const result: TemplateFileResult = { findings: [], problems: [], ms: 0 };
       const started = performance.now();

@@ -74,8 +74,8 @@ export const buildStressInputs = (scale: number): SourceInput[] => {
     script("deep-ternary", `export const value = ${"a ? 1 : ".repeat(depth)}2;\n`),
     script("long-member-chain", `export const value = a${Array.from({ length: sized(1000, scale) }, (_unused, index) => `.p${index}`).join("")};\n`),
     script("long-call-chain", `export const value = x${".m()".repeat(sized(800, scale))};\n`),
-    // Deep expression chains stay below what oxlint's own JS plugin host can walk (it fails near 2800 levels).
-    script("long-binary", `export const value = ${Array.from({ length: sized(2000, scale) }, (_unused, index) => `"s${index}"`).join(" + ")};\n`),
+    // 3000 terms is past what oxlint's own JS plugin host can walk (it fails near 2800 levels); kept so the crash stays visible and allowlisted.
+    script("long-binary", `export const value = ${Array.from({ length: sized(3000, scale) }, (_unused, index) => `"s${index}"`).join(" + ")};\n`),
     script(
       "many-statements",
       `import { ref, watch } from "vue";\n${repeatLines(length, (index) => `const v${index} = ref(${index});\nwatch(v${index}, () => { fetch("/api/${index}"); });`)}\n`,

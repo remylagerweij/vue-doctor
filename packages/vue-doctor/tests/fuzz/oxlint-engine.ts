@@ -26,6 +26,12 @@ export interface OxlintFileResult {
   findings: OxlintFinding[];
   /** Diagnostics that are not a Vue Doctor rule's: a syntax error in the input, typically. */
   problems: string[];
+  /**
+   * Failures of oxlint's JS plugin host itself (the anonymous "Error running JS plugin."): in
+   * production they drop every Vue Doctor finding for the file, so they count as a crash, not as
+   * an input that does not parse.
+   */
+  hostErrors: string[];
   /** Per-rule time spent in this file, and the exception a rule threw, if any. */
   timings: RuleTiming[];
 }
@@ -68,6 +74,8 @@ const spawnOxlint = (args: string[], cwd: string, env: NodeJS.ProcessEnv, timeou
     });
   });
 
+const HOST_ERROR_PATTERN = /^Error running JS plugin/;
+
 const DIRECTORY_PATTERN = /^c(\d+)[\\/]/;
 
 export interface OxlintRunOptions {
@@ -91,7 +99,7 @@ export const runOxlintInstrumented = async (
   files: readonly OxlintFile[],
   { ruleOptions, onlyRules, timeoutMs = 600_000, pluginPath = resolvePluginPath() }: OxlintRunOptions = {},
 ): Promise<OxlintFileResult[]> => {
-  const results: OxlintFileResult[] = files.map(() => ({ findings: [], problems: [], timings: [] }));
+  const results: OxlintFileResult[] = files.map(() => ({ findings: [], problems: [], hostErrors: [], timings: [] }));
   if (files.length === 0) return results;
 
   // The canonical path: oxlint reports files by their real path (macOS temp dirs are symlinks).
@@ -126,6 +134,8 @@ export const runOxlintInstrumented = async (
       const ruleMatch = /^vue-doctor\((.+)\)$/.exec(diagnostic.code ?? "");
       if (ruleMatch) {
         result.findings.push({ rule: ruleMatch[1], line: diagnostic.labels?.[0]?.span.line ?? 0, message: diagnostic.message });
+      } else if (HOST_ERROR_PATTERN.test(diagnostic.message)) {
+        result.hostErrors.push(diagnostic.message.split("\n")[0]);
       } else {
         result.problems.push(`${diagnostic.code ?? "error"}: ${diagnostic.message.split("\n")[0]}`);
       }
