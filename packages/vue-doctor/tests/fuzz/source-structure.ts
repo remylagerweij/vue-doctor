@@ -149,7 +149,7 @@ export interface ScriptBlock {
   content: string;
 }
 
-const SCRIPT_BLOCK_PATTERN = /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi;
+const SCRIPT_BLOCK_PATTERN = /(<script\b[^>]*>)([\s\S]*?)(<\/script\b[^>]*>)/gi;
 
 /** The `<script>` blocks of a single-file component, in source order. */
 export const findScriptBlocks = (sfc: string): ScriptBlock[] => {
