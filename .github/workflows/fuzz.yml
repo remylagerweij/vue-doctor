@@ -1,0 +1,58 @@
+name: Rule fuzzing
+
+# Fuzzes every rule (crash, slowness and metamorphic oracles; see CONTRIBUTING.md and
+# packages/vue-doctor/tests/fuzz). Pull requests run it with the default fixed seed, so a result
+# is reproducible and only the code under review can change it. The weekly run uses a fresh seed
+# each time to explore new mutations; the seed is printed in the log and the job summary.
+# Read-only: the report is uploaded as an artifact and summarised, nothing is committed.
+on:
+  schedule:
+    - cron: "0 4 * * 0" # Sundays 04:00 UTC
+  pull_request:
+    paths:
+      - "packages/vue-doctor/src/plugin/**"
+      - "packages/vue-doctor/tests/fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed (a number, or random). Empty: the default fixed seed"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fuzz:
+    name: Fuzz rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fuzz (builds first)
+        env:
+          # Scheduled runs explore with a new seed each week; everything else is deterministic.
+          FUZZ_SEED: ${{ github.event_name == 'schedule' && github.run_id || inputs.seed || '1' }}
+        run: npm run fuzz --workspace=@remylagerweij/vue-doctor -- --seed "$FUZZ_SEED" --report "$RUNNER_TEMP/fuzz-report.md"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-report
+          path: ${{ runner.temp }}/fuzz-report.md
+          if-no-files-found: ignore
+          retention-days: 30

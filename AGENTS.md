@@ -67,6 +67,7 @@ npm run typecheck          # Strict TypeScript checks for code & tests
 # Testing
 npm run test               # Build and run all test suites
 npm run snapshot:update    # Update fixture snapshots after rule additions
+npm run fuzz               # Full rule fuzzing run (crash, slowness, metamorphic oracles); see Rule Fuzzing below
 
 # Code & Documentation Generation
 npm run rules:generate     # Regenerate src/plugin/rules/index.ts from rule files
@@ -116,6 +117,7 @@ packages/vue-doctor/
 └── tests/
     ├── fixtures/                 # Vue and Nuxt fixture applications
     ├── fixture-snapshots.test.ts # Snapshot tests that fail when an analyzer goes silent
+    ├── fuzz/                     # Rule fuzzing harness (npm run fuzz); rule-fuzzing.test.ts runs a smoke subset
     ├── registry.test.ts          # Metadata and registry invariant tests
     └── rules/rule-cases.test.ts  # Runs every rule's .cases.ts
 ```
@@ -201,6 +203,20 @@ npm run snapshot:update   # Updates fixture snapshots
 npm run schema:update --workspace=@remylagerweij/vue-doctor # Updates the config/report JSON schemas
 npm run test              # Validates registry invariants and runs all rule cases
 ```
+
+### 4. Rule Fuzzing
+Every own rule (oxlint and `fs`) and every template rule is fuzzed from its `.cases.ts` files, the fixtures, mutations
+of both and synthetic stress inputs (plus the benchmark repositories when they are already cached; never fetched).
+Code lives in `packages/vue-doctor/tests/fuzz/`; `tests/rule-fuzzing.test.ts` runs a small deterministic smoke subset in
+`npm run test`, `npm run fuzz` runs everything (`-- --seed <n>`, `--rule <id>`, `--smoke`, `--help`).
+- Oracles: **crash** (no rule throws), **slowness** (per-rule, per-file budget, re-run to confirm), **metamorphic**
+  (blank lines or comments between statements, indentation, quote style, CRLF, BOM, `lang="ts"`, and file-level rewrites
+  for `fs` rules must not change findings beyond line numbers).
+- The oxlint pass runs the production bundle through `tests/fuzz/instrument-plugin.mjs`, which attributes a throw or a
+  slow run to the exact rule; the template pass uses a config kept identical to `runEslintVue` (a test guards the drift).
+- Known, not yet fixed failures live in `tests/fuzz/known-failures.json`, each with a written reason. A new failure
+  fails the gate: fix the rule, or add a reasoned entry. Delete entries when the rule is fixed.
+- CI: `.github/workflows/fuzz.yml` runs weekly and on pull requests touching `packages/vue-doctor/src/plugin/**`.
 
 ---
 
