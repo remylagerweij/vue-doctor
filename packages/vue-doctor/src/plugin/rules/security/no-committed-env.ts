@@ -6,18 +6,14 @@ import {
   parseEnvFile,
   type EnvEntry,
 } from "../../env-file.js";
-import {
-  hasCredentialsInUrl,
-  isPlaceholderValue,
-  looksLikeSecretName,
-  matchesSecretValueFormat,
-} from "../../secret-heuristics.js";
+import { isEnvPlaceholderValue } from "../../secrets/primitives.js";
+import { hasCredentialsInUrl, looksLikeSecretName, matchesSecretValueFormat } from "../../secret-heuristics.js";
 
 /** Names listed in a message before it says "and N more". */
 const MAX_NAMES_IN_MESSAGE = 3;
 
 const holdsSecret = (entry: EnvEntry): boolean =>
-  !isPlaceholderValue(entry.value) &&
+  !isEnvPlaceholderValue(entry.value) &&
   (looksLikeSecretName(entry.name, { context: "private" }) ||
     matchesSecretValueFormat(entry.value) ||
     hasCredentialsInUrl(entry.value));

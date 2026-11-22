@@ -4,6 +4,8 @@
  * run on a single string literal and to be a little stricter where gitleaks relies on context.
  */
 
+import { decodeJwtPayload } from "./primitives.js";
+
 export interface ProviderPattern {
   /** Stable identifier, e.g. `openai-api-key`. */
   id: string;
@@ -16,29 +18,6 @@ export interface ProviderPattern {
   /** Extra check on the matched text, for formats a regex cannot fully express (JWT claims). */
   verify?: (match: string) => boolean;
 }
-
-const decodeBase64Url = (segment: string): string | undefined => {
-  try {
-    const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
-    return atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
-  } catch {
-    return undefined;
-  }
-};
-
-/** JWT payload as an object, or `undefined` when the text is not a decodable JWT. */
-export const decodeJwtPayload = (token: string): Record<string, unknown> | undefined => {
-  const [header, payload] = token.split(".");
-  if (!header || !payload) return undefined;
-  const json = decodeBase64Url(payload);
-  if (json === undefined) return undefined;
-  try {
-    const value: unknown = JSON.parse(json);
-    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 /** Three base64url segments, the first two a JSON object (`eyJ` = `{"`). */
 export const JWT_REGEX = /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/;
