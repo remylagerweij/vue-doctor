@@ -37,6 +37,7 @@ export default defineConfig({
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Rules", link: "/rules/" },
       { text: "Reference", link: "/reference/cli" },
+      { text: "Contributing", link: "/contributing/false-positive-policy" },
     ],
     sidebar: {
       "/guide/": [
@@ -556,6 +557,15 @@ export default defineConfig({
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/config" },
             { text: "Report format", link: "/reference/report" },
+          ],
+        },
+      ],
+      "/contributing/": [
+        {
+          text: "Contributing",
+          items: [
+            { text: "False-positive policy", link: "/contributing/false-positive-policy" },
+            { text: "Rule retirements", link: "/contributing/rule-retirements" },
           ],
         },
       ],

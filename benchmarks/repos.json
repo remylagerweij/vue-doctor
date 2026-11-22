@@ -1,25 +1,29 @@
 {
   "repos": [
-    {
-      "id": "nuxt-com",
-      "description": "nuxt.com website (Nuxt 4, Nuxt UI, Nuxt Content)",
-      "url": "https://github.com/nuxt/nuxt.com.git",
-      "sha": "9d0df13aad05a9f6770322a8e2ec6e13a1c19177",
-      "license": "MIT"
-    },
-    {
-      "id": "elk",
-      "description": "Elk, a Mastodon web client (Nuxt 3, large app)",
-      "url": "https://github.com/elk-zone/elk.git",
-      "sha": "8a90074fca9f316a0c71f7249b1a31f21829a987",
-      "license": "MIT"
-    },
-    {
-      "id": "vitepress",
-      "description": "VitePress (Vite + Vue 3 client and default theme)",
-      "url": "https://github.com/vuejs/vitepress.git",
-      "sha": "56fa6c9df102de34089fec773281b18530768bd3",
-      "license": "MIT"
-    }
+    { "id": "nuxt-com", "description": "nuxt.com website (Nuxt 4, Nuxt UI, Nuxt Content)", "url": "https://github.com/nuxt/nuxt.com.git", "sha": "a5ec16e0dc744d2884008a3f8bc6a225ff8619c3", "license": "MIT" },
+    { "id": "elk", "description": "Elk, a Mastodon web client (Nuxt 3, large app)", "url": "https://github.com/elk-zone/elk.git", "sha": "6b956a6d4a89a676059d83a0b0e59d7165d5f266", "license": "MIT" },
+    { "id": "nuxt-movies", "description": "Nuxt movies app (Nuxt 4, TypeScript, small app)", "url": "https://github.com/nuxt/movies.git", "sha": "61bd0d8b9a6d9522b47ded19d50f0dfe465acbe0", "license": "MIT" },
+    { "id": "nuxt-ui", "description": "Nuxt UI component library, docs and playgrounds (Nuxt 4, Vue 3)", "url": "https://github.com/nuxt/ui.git", "sha": "0f58f482b839023ee8f61cc58451c6e371b2a177", "license": "MIT" },
+    { "id": "nocodb", "description": "NocoDB frontend (Nuxt 3 SPA, large app; packages/nc-gui)", "url": "https://github.com/nocodb/nocodb.git", "sha": "45ee08fabb3e5c494d4b9c078565554a27e87e47", "license": "Sustainable Use License (source-available; scanned, not redistributed)", "directory": "packages/nc-gui" },
+    { "id": "atidone", "description": "Atidone, a todo app on Nuxt and NuxtHub (small app)", "url": "https://github.com/atinux/atidone.git", "sha": "315fd7abcd7390ae28c9c1bcfde26b874294c9e3", "license": "MIT" },
+    { "id": "nuxt-ui-dashboard", "description": "Nuxt UI dashboard template (Nuxt 4, TypeScript)", "url": "https://github.com/nuxt-ui-templates/dashboard.git", "sha": "d92aa0fe93d186e01764d3801cd333394b272f0e", "license": "MIT" },
+    { "id": "vitesse-nuxt", "description": "Vitesse for Nuxt starter (opinionated Nuxt template)", "url": "https://github.com/antfu/vitesse-nuxt.git", "sha": "a5bb2968ff3562be8d7a01921572a2021c122852", "license": "MIT" },
+    { "id": "hoppscotch", "description": "Hoppscotch API client frontend (Vite + Vue 3; packages/hoppscotch-common)", "url": "https://github.com/hoppscotch/hoppscotch.git", "sha": "55908a76a1d0555c9bbb5d74244c14173df95b06", "license": "MIT", "directory": "packages/hoppscotch-common" },
+    { "id": "n8n-frontend", "description": "n8n editor frontend (Vite + Vue 3, very large app; packages/frontend/editor-ui)", "url": "https://github.com/n8n-io/n8n.git", "sha": "b7e837afa7a7f7a58d505e9b8350c32aa84683c3", "license": "Sustainable Use License (source-available; scanned, not redistributed)", "directory": "packages/frontend/editor-ui" },
+    { "id": "uptime-kuma", "description": "Uptime Kuma monitoring dashboard (Vite + Vue 3, plain JavaScript)", "url": "https://github.com/louislam/uptime-kuma.git", "sha": "c504a6b400fb0f82a40aee41ddfcc6e170a5b76c", "license": "MIT" },
+    { "id": "koel", "description": "Koel music streaming frontend (Vite + Vue 3 in a Laravel app)", "url": "https://github.com/koel/koel.git", "sha": "636eca8f01ec0cfc1aa0ca3652b018630cb280e4", "license": "MIT" },
+    { "id": "misskey-frontend", "description": "Misskey frontend (Vite + Vue 3, TypeScript; packages/frontend)", "url": "https://github.com/misskey-dev/misskey.git", "sha": "568cb40c77e13526b18452e5ee5cc6fa5e1469fa", "license": "AGPL-3.0", "directory": "packages/frontend" },
+    { "id": "vikunja-frontend", "description": "Vikunja task manager frontend (Vite + Vue 3, TypeScript; frontend)", "url": "https://github.com/go-vikunja/vikunja.git", "sha": "e2c5d6ec6c43522538a4d7d02a010ea217e378f3", "license": "AGPL-3.0", "directory": "frontend" },
+    { "id": "vue-vben-admin", "description": "Vue Vben Admin (Vite + Vue 3 monorepo, admin template)", "url": "https://github.com/vbenjs/vue-vben-admin.git", "sha": "7cefc0f3bec5b30443289078b1a69124ac002886", "license": "MIT" },
+    { "id": "soybean-admin", "description": "SoybeanAdmin (Vite + Vue 3 + Naive UI admin template)", "url": "https://github.com/soybeanjs/soybean-admin.git", "sha": "d2dfefd757e37d8d6077ea1cea6181fb628d6097", "license": "MIT" },
+    { "id": "slidev", "description": "Slidev (Vite + Vue 3 presentation tool, client and docs)", "url": "https://github.com/slidevjs/slidev.git", "sha": "437f139ccd4c8482a193b217922e7800a5b3baec", "license": "MIT" },
+    { "id": "element-plus", "description": "Element Plus component library (Vue 3)", "url": "https://github.com/element-plus/element-plus.git", "sha": "7c07ff389d7d39fc59ab8214689bcd90b46a5487", "license": "MIT" },
+    { "id": "primevue", "description": "PrimeVue component library (Vue 3; packages/primevue)", "url": "https://github.com/primefaces/primevue.git", "sha": "36965f13dc40597deeb16192a8568308cbeb70d9", "license": "MIT", "directory": "packages/primevue" },
+    { "id": "shadcn-vue", "description": "shadcn-vue components and docs site (Vue 3, TypeScript; apps/v4)", "url": "https://github.com/unovue/shadcn-vue.git", "sha": "d1bf1b3a2d1a824b19f32d7253a28a43797b8253", "license": "MIT", "directory": "apps/v4" },
+    { "id": "vueuse", "description": "VueUse composables library (TypeScript, Vue 3)", "url": "https://github.com/vueuse/vueuse.git", "sha": "bed1dce149ce6760fec13d4798c047f51a563180", "license": "MIT" },
+    { "id": "vuetify", "description": "Vuetify component library and docs app (Vue 3, mostly TSX components)", "url": "https://github.com/vuetifyjs/vuetify.git", "sha": "e1816d6fc3cd4c7d79222700be82278188c944a3", "license": "MIT" },
+    { "id": "vitepress", "description": "VitePress (Vite + Vue 3 client and default theme)", "url": "https://github.com/vuejs/vitepress.git", "sha": "40b2e090772ac11eac358d25ec92ee435fc2adbd", "license": "MIT" },
+    { "id": "quasar", "description": "Quasar framework (Vue 3, plain JavaScript source plus docs app)", "url": "https://github.com/quasarframework/quasar.git", "sha": "f1b42bda7c7c9bc5c2a2a3bbb285b5cde3c67433", "license": "MIT" },
+    { "id": "vue-element-admin", "description": "vue-element-admin (Vue 2, Vue CLI, plain JavaScript)", "url": "https://github.com/PanJiaChen/vue-element-admin.git", "sha": "6858a9ad67483025f6a9432a926beb9327037be3", "license": "MIT" }
   ]
 }
