@@ -34,10 +34,11 @@ afterAll(() => {
 });
 
 /** Runs the built CLI and returns the exit status plus every package specifier resolved (in any process). */
-const runRecorded = (args: string[]) => {
+const runRecorded = (args: string[], cwd?: string) => {
   const logFile = path.join(logDirectory, `${Math.random().toString(36).slice(2)}.log`);
   const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
     encoding: "utf-8",
+    cwd,
     env: {
       ...process.env,
       NO_COLOR: "1",
@@ -83,6 +84,18 @@ describe("lazy loading of heavy dependencies", () => {
     for (const name of ["knip", "zod", "jiti", "@clack/prompts"]) {
       expect(imported, `${name} was loaded`).not.toContain(name);
     }
+  });
+
+  it("loads none of the heavy packages for `agents install --hooks --pre-commit` or `agents hook`", () => {
+    const projectDirectory = fs.mkdtempSync(path.join(logDirectory, "agent-project-"));
+    const install = runRecorded(["agents", "install", projectDirectory, "--agent", "claude,cursor", "--hooks", "--pre-commit", "--yes"]);
+    // Outside any git repository, so the hook has nothing to scan.
+    const hook = runRecorded(["agents", "hook", "claude"], projectDirectory);
+
+    expect(install.result.status).toBe(0);
+    expect(hook.result.status).toBe(0);
+    expect([...install.imported].filter((name) => HEAVY_PACKAGES.includes(name))).toEqual([]);
+    expect([...hook.imported].filter((name) => HEAVY_PACKAGES.includes(name))).toEqual([]);
   });
 
   it("starts --version quickly (generous bound; the import check above is the precise one)", () => {

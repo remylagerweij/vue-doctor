@@ -154,7 +154,7 @@ npx @remylagerweij/vue-doctor@latest [directory] [options]
 | \`vue-doctor init [directory]\` | Interactive wizard to set up configuration and CI |
 | \`vue-doctor rules\` | List all registered diagnostic rules and severities |
 | \`vue-doctor explain <ruleId>\` | View full rule documentation and agent guidance |
-| \`vue-doctor agents install\` | Install AI agent instructions (Claude, Cursor, Copilot, etc.) |
+| \`vue-doctor agents install\` | Install AI agent instructions (Claude, Cursor, Copilot, etc.); \`--hooks\` adds end-of-turn hooks, \`--pre-commit\` an advisory git hook |
 | \`vue-doctor mcp\` | Launch Model Context Protocol (MCP) server over stdio |
 
 ---
