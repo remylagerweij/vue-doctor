@@ -34,3 +34,5 @@ See the [rules index](/rules/) for the rule catalogue.
 The report ends with a score from 0 to 100 and a label. Status output (banner, spinners, hints, warnings) goes to stderr; stdout carries only the report, so `vue-doctor --json > report.json` is safe.
 
 Vue Doctor never writes into the project it scans. Next, see [CLI usage](/guide/cli-usage) for the available flags and [CI](/guide/ci) to gate builds on the result.
+
+To see script findings while you type, or to check files before a commit, see [Editor integration](/guide/editor) and [Pre-commit](/guide/pre-commit).
