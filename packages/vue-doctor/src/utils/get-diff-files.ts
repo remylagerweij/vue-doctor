@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { SOURCE_FILE_PATTERN, DEFAULT_BRANCH_CANDIDATES } from "../constants.js";
 import type { DiffInfo } from "../types.js";
+import { parseUnifiedDiff, type ChangedLines } from "./changed-lines.js";
 
 const GIT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
@@ -84,6 +85,45 @@ const collectChangedFiles = (directory: string, commit: string): string[] | null
     if (isExistingFile(directory, normalized)) files.add(normalized);
   }
   return [...files].sort();
+};
+
+/**
+ * The changed lines of `files` (relative to `directory`, as `getDiffInfo` lists them) versus
+ * `commit` (its `mergeBase`): a zero-context diff of the working tree, so committed, staged and
+ * unstaged edits all count. Every file in `files` is a key: untracked and added files are `"all"`,
+ * a renamed file is compared with its old path under the new one, and a pure rename or mode change
+ * has no changed lines (its file-level findings still count). Returns `null` when git fails.
+ */
+export const getChangedLines = (directory: string, commit: string, files: string[]): ChangedLines | null => {
+  const diff = runGit(directory, [
+    // Explicit settings, so user config (quotePath, noprefix, external diff tools, colours) cannot change the output.
+    "-c",
+    "core.quotePath=false",
+    "diff",
+    "--relative",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--unified=0",
+    "--find-renames",
+    "--diff-filter=ACMR",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+    commit,
+    "--",
+  ]);
+  if (!diff.ok) return null;
+  const untracked = runGit(directory, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  if (!untracked.ok) return null;
+
+  const parsed = parseUnifiedDiff(diff.stdout);
+  const untrackedFiles = new Set(splitNullSeparated(untracked.stdout).map((entry) => entry.replace(/\\/g, "/")));
+  const changedLines: ChangedLines = {};
+  for (const file of files) {
+    // A changed file without hunks (pure rename, mode change) is still changed, with no changed lines.
+    changedLines[file] = untrackedFiles.has(file) ? "all" : (parsed[file] ?? []);
+  }
+  return changedLines;
 };
 
 export const filterSourceFiles = (files: string[]): string[] =>

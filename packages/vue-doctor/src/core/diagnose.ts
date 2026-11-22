@@ -8,6 +8,8 @@ import { getEnabledFsRules } from "../plugin/registry.js";
 import { listProjectFiles } from "../utils/list-project-files.js";
 import { computeProjectListingKey, runProjectChecks, snapshotProjectInput } from "../utils/run-project-checks.js";
 import { addFingerprints } from "./fingerprint.js";
+import { keepChangedLineFindings } from "./diff-lines.js";
+import type { ChangedLines } from "../utils/changed-lines.js";
 import { createRuleIdReporter } from "../plugin/rule-ids.js";
 import type { CategoryScore, Diagnostic, ProjectInfo, ScoreCap, ScoreImpact, VueDoctorConfig } from "../types.js";
 import { logger } from "../utils/logger.js";
@@ -58,6 +60,12 @@ export interface DiagnoseOptions {
   auditFetch?: FetchImplementation;
   /** Only analyse these files (relative to the project directory). */
   includePaths?: string[];
+  /**
+   * Only report findings on these lines (`--diff-lines`, see `getChangedLines`): findings on other
+   * lines are dropped before the baseline, the score and the gate see them. File-level findings
+   * (filesystem rules, audit, anything without a line) are kept when their file is a key. Default: report all.
+   */
+  changedLines?: ChangedLines;
   /** Scan even when no `vue` dependency is found. */
   force?: boolean;
   /**
@@ -130,6 +138,8 @@ export interface DiagnoseResult {
   offline: boolean;
   /** Present when a baseline was applied. */
   baseline?: BaselineSummary;
+  /** With `changedLines`: findings left out because they are not on a changed line. */
+  outsideChangedLines?: number;
 }
 
 export class NoVueDependencyError extends Error {
@@ -403,7 +413,16 @@ export const diagnose = async (
   );
 
   const suppression = applySuppressions(combinedDiagnostics, directory, ruleIdReporter);
+  // Fingerprints first: they number identical findings in a file, so they must see all of them.
   let diagnostics = addFingerprints(suppression.diagnostics, directory);
+
+  let outsideChangedLines: number | undefined;
+  if (options.changedLines) {
+    const kept = keepChangedLineFindings(diagnostics, options.changedLines);
+    outsideChangedLines = diagnostics.length - kept.length;
+    diagnostics = kept;
+    debug("diff", `${outsideChangedLines} findings outside the changed lines left out`);
+  }
 
   let baseline: BaselineSummary | undefined;
   if (baselineReference) {
@@ -447,5 +466,6 @@ export const diagnose = async (
     offline,
     ...(cache ? { cache: cache.stats } : {}),
     ...(baseline ? { baseline } : {}),
+    ...(outsideChangedLines === undefined ? {} : { outsideChangedLines }),
   };
 };

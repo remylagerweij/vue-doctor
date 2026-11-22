@@ -102,6 +102,16 @@ const projectSchema = z
       .object({
         mode: z.enum(["full", "changed"]).describe('"changed" when only changed files (--diff) were scanned.'),
         files: z.number().int().min(0).optional().describe("Number of scanned files in `changed` mode."),
+        changedLinesOnly: z
+          .boolean()
+          .optional()
+          .describe("`true` with --diff-lines: only findings on changed lines (and file-level findings of changed files) are reported, scored and gated."),
+        outsideChangedLines: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("With `changedLinesOnly`: findings in the changed files left out because they are not on a changed line."),
       })
       .describe("What was scanned."),
     score: scoreSchema,

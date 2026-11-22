@@ -123,6 +123,8 @@ export interface ScanOptions {
   /** See DiagnoseOptions.audit. */
   audit?: boolean;
   includePaths?: string[];
+  /** See DiagnoseOptions.changedLines (`--diff-lines`). */
+  changedLines?: import("./utils/changed-lines.js").ChangedLines;
   /** Structured output (--format json|jsonl): suppresses the text report; the caller prints it. */
   json?: boolean;
   force?: boolean;

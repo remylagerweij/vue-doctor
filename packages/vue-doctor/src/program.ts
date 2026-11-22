@@ -25,8 +25,9 @@ import { renderMarkdown } from "./report/format-markdown.js";
 import { formatReport, REPORT_FORMATS, type ReportFormat } from "./report/format-report.js";
 import { scanProjects, type ProjectScan } from "./scan.js";
 import type { ScanOptions } from "./types.js";
+import type { ChangedLines } from "./utils/changed-lines.js";
 import { relativeToSourceRoot } from "./utils/find-source-root.js";
-import { getDiffInfo, filterSourceFiles } from "./utils/get-diff-files.js";
+import { getDiffInfo, filterSourceFiles, getChangedLines } from "./utils/get-diff-files.js";
 import { handleError } from "./utils/handle-error.js";
 import { configureLogger, logger, output } from "./utils/logger.js";
 import { createPrivateTempDirectory } from "./utils/private-temp.js";
@@ -109,6 +110,7 @@ export const createProgram = (): Command => {
     .option("--report", "Deprecated: use --format html --output <file>. Writes the HTML report to a private temporary directory (never the project) and prints its path")
     .option("--github-summary", "Write results to GitHub Actions step summary")
     .option("--diff [branch]", "Only scan files changed vs. a branch or current changes")
+    .option("--diff-lines", "With --diff (implied): only report findings on changed lines, not elsewhere in changed files")
     .option("-y, --yes", "Skip interactive prompts")
     .option("--project <names>", "Workspace project(s) to scan (comma-separated)")
     .option("--audit", "Check installed dependency versions for known vulnerabilities via OSV.dev (sends package names and versions; needs the network, skipped with --offline)")
@@ -168,15 +170,24 @@ export const createProgram = (): Command => {
         }
 
         // Prepared one after another (config, diff), then scanned together so knip runs once per monorepo.
-        const prepared: Array<{ directory: string; config: VueDoctorConfig | null; includePaths: string[] }> = [];
+        const prepared: Array<{
+          directory: string;
+          config: VueDoctorConfig | null;
+          includePaths: string[];
+          changedLines?: ChangedLines;
+        }> = [];
 
         for (const projectDirectory of projectDirectories) {
           const loadedConfig = await loadConfig(projectDirectory);
           const config = loadedConfig?.config ?? null;
           logger.debug("config", loadedConfig ? `loaded ${loadedConfig.filePath}` : `no config file in ${projectDirectory}`);
           let includePaths: string[] = [];
+          let changedLines: ChangedLines | undefined;
 
-          const diff = options.diff ?? (config?.diff === false ? undefined : config?.diff);
+          // --diff-lines implies --diff; the config's diffLines only refines a diff scan.
+          const diff =
+            options.diff ?? (config?.diff === false ? undefined : config?.diff) ?? (options.diffLines ? true : undefined);
+          const diffLines = options.diffLines ?? config?.diffLines ?? false;
 
           // Handle diff mode
           if (diff !== undefined) {
@@ -199,10 +210,15 @@ export const createProgram = (): Command => {
                 continue;
               }
               includePaths = changedSourceFiles;
+              if (diffLines) {
+                const lines = getChangedLines(projectDirectory, diffInfo.mergeBase, changedSourceFiles);
+                if (lines) changedLines = lines;
+                else logger.warn(`--diff-lines is unavailable (git failed to diff ${projectDirectory}); reporting whole changed files.`);
+              }
             }
           }
 
-          prepared.push({ directory: projectDirectory, config, includePaths });
+          prepared.push({ directory: projectDirectory, config, includePaths, changedLines });
         }
 
         if (options.fix) {
@@ -225,7 +241,7 @@ export const createProgram = (): Command => {
         }
 
         const scans: Array<ProjectScan & { config: VueDoctorConfig | null }> = [];
-        for (const { directory: projectDirectory, config, includePaths } of prepared) {
+        for (const { directory: projectDirectory, config, includePaths, changedLines } of prepared) {
           const scanOptions: ScanOptions = {
             // Unset unless passed on the command line, so the project config applies.
             lint: isFromCli("lint") ? options.lint : undefined,
@@ -240,6 +256,7 @@ export const createProgram = (): Command => {
             json: format !== "text",
             force: options.force ?? false,
             includePaths,
+            changedLines,
             config,
             baseline: options.baseline === undefined ? undefined : path.resolve(options.baseline),
           };

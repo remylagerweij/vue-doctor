@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { filterSourceFiles, getDiffInfo } from "../src/utils/get-diff-files.js";
+import { filterSourceFiles, getChangedLines, getDiffInfo } from "../src/utils/get-diff-files.js";
 
 const git = (cwd: string, ...args: string[]): void => {
   execFileSync(
@@ -274,5 +274,84 @@ describe("filterSourceFiles", () => {
       "b.ts",
       "e.mjs",
     ]);
+  });
+});
+
+describe("getChangedLines", { timeout: 60_000 }, () => {
+  let repoRoot: string;
+  const numbered = (count: number, prefix = "line"): string =>
+    Array.from({ length: count }, (_, index) => `export const ${prefix}${index + 1} = ${index + 1};`).join("\n") + "\n";
+
+  beforeEach(() => {
+    repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vue-doctor-lines-"));
+    initRepo(repoRoot);
+    writeFile(repoRoot, "src/modified.ts", numbered(10));
+    writeFile(repoRoot, "src/renamed-old.ts", numbered(10, "r"));
+    writeFile(repoRoot, "src/deleted.ts", numbered(2));
+    writeFile(repoRoot, "src/with space.ts", numbered(3));
+    writeFile(repoRoot, "src/untouched.ts", numbered(3));
+    commitAll(repoRoot, "base");
+    git(repoRoot, "checkout", "--quiet", "-b", "feature");
+  });
+
+  afterEach(() => {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it("returns changed ranges vs. the merge base, following renames and including uncommitted edits", () => {
+    const modified = numbered(10).split("\n");
+    modified[2] = "export const line3 = 33;";
+    modified.splice(7, 0, "export const inserted = 0;");
+    writeFile(repoRoot, "src/modified.ts", modified.join("\n"));
+    const renamed = numbered(10, "r").split("\n");
+    renamed[4] = "export const r5 = 55;";
+    fs.rmSync(path.join(repoRoot, "src/renamed-old.ts"));
+    writeFile(repoRoot, "src/renamed-new.ts", renamed.join("\n"));
+    writeFile(repoRoot, "src/added.ts", numbered(4, "a"));
+    fs.rmSync(path.join(repoRoot, "src/deleted.ts"));
+    commitAll(repoRoot, "feature work");
+    // Uncommitted: an edit in a file with a space and a new untracked file.
+    writeFile(repoRoot, "src/with space.ts", "export const line1 = 1;\nexport const changed = 2;\nexport const line3 = 3;\n");
+    writeFile(repoRoot, "src/untracked.vue", "<template><p /></template>\n");
+
+    const info = getDiffInfo(repoRoot, "main");
+    expect(info.status).toBe("ok");
+    if (info.status !== "ok") return;
+    const changed = getChangedLines(repoRoot, info.mergeBase, info.changedFiles);
+
+    expect(changed).toEqual({
+      "src/added.ts": "all",
+      "src/modified.ts": [
+        { start: 3, end: 3 },
+        { start: 8, end: 8 },
+      ],
+      "src/renamed-new.ts": [{ start: 5, end: 5 }],
+      "src/untracked.vue": "all",
+      "src/with space.ts": [{ start: 2, end: 2 }],
+    });
+  });
+
+  it("gives a pure rename no changed lines and limits itself to the requested files", () => {
+    git(repoRoot, "mv", "src/renamed-old.ts", "src/moved.ts");
+    writeFile(repoRoot, "src/untouched.ts", "export const x = 1;\n");
+    const info = getDiffInfo(repoRoot, "main");
+    expect(info.status).toBe("ok");
+    if (info.status !== "ok") return;
+    expect(getChangedLines(repoRoot, info.mergeBase, ["src/moved.ts"])).toEqual({ "src/moved.ts": [] });
+  });
+
+  it("is relative to a sub-project directory", () => {
+    writeFile(repoRoot, "apps/web/src/a.ts", numbered(2));
+    commitAll(repoRoot, "add app");
+    git(repoRoot, "checkout", "--quiet", "main");
+    git(repoRoot, "merge", "--quiet", "--ff-only", "feature");
+    git(repoRoot, "checkout", "--quiet", "feature");
+    writeFile(repoRoot, "apps/web/src/a.ts", "export const line1 = 1;\nexport const line2 = 22;\n");
+    const directory = path.join(repoRoot, "apps/web");
+    const info = getDiffInfo(directory, "main");
+    expect(info.status).toBe("ok");
+    if (info.status !== "ok") return;
+    expect(info.changedFiles).toEqual(["src/a.ts"]);
+    expect(getChangedLines(directory, info.mergeBase, info.changedFiles)).toEqual({ "src/a.ts": [{ start: 2, end: 2 }] });
   });
 });
