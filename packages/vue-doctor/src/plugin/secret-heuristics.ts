@@ -4,18 +4,19 @@
  * deliberately conservative: a name match is a medium-confidence signal, a value in a known token
  * format is a high-confidence one.
  *
- * Pure string functions without imports, so the oxlint plugin bundle and the filesystem rules can
- * both use them.
+ * Only imports the import-free `secrets/primitives.ts`, so the oxlint plugin bundle and the
+ * filesystem rules can both use it.
  */
 
-/** Splits `stripeSecretKey`, `STRIPE_SECRET_KEY` and `stripe-secret-key` into lower-case words. */
-export const splitNameWords = (name: string): string[] =>
-  name
-    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-    .split(/[^A-Za-z\d]+/)
-    .filter(Boolean)
-    .map((word) => word.toLowerCase());
+import {
+  COMMON_DESCRIPTOR_WORDS,
+  COMMON_PUBLIC_WORDS,
+  COMMON_SECRET_WORDS,
+  PASSWORD_ABBREVIATIONS,
+  decodeJwtPayload,
+  isEnvPlaceholderValue,
+  splitNameWords,
+} from "./secrets/primitives.js";
 
 /** Prefixes that make a variable reach the browser, longest first. */
 const PUBLIC_ENV_PREFIXES = ["NUXT_PUBLIC_", "VUE_APP_", "VITE_", "PUBLIC_"] as const;
@@ -28,49 +29,13 @@ export const getPublicEnvPrefix = (name: string): string | null =>
 export const isPublicEnvName = (name: string): boolean => getPublicEnvPrefix(name) !== null;
 
 /** Words that make a name a secret on their own. */
-const SECRET_WORDS = new Set([
-  "secret",
-  "secrets",
-  "password",
-  "passwords",
-  "passwd",
-  "pwd",
-  "passphrase",
-  "credential",
-  "credentials",
-  "token",
-  "tokens",
-  "bearer",
-]);
+const SECRET_WORDS = new Set([...COMMON_SECRET_WORDS, ...PASSWORD_ABBREVIATIONS, "secrets", "passwords", "tokens"]);
 
 /** Words that mark a name as designed to be public (a publishable or anonymous key, a site key). */
-const PUBLIC_WORDS = new Set(["public", "pub", "publishable", "anon", "anonymous", "site", "csrf", "xsrf"]);
+const PUBLIC_WORDS = new Set([...COMMON_PUBLIC_WORDS, "anonymous", "csrf", "xsrf"]);
 
 /** Last words that describe something *about* a secret (its URL, name or lifetime), not the secret. */
-const DESCRIPTOR_LAST_WORDS = new Set([
-  "url",
-  "uri",
-  "endpoint",
-  "path",
-  "name",
-  "label",
-  "id",
-  "header",
-  "cookie",
-  "ttl",
-  "expiry",
-  "expires",
-  "expiration",
-  "type",
-  "length",
-  "prefix",
-  "field",
-  "param",
-  "placeholder",
-  "text",
-  "enabled",
-  "required",
-]);
+const DESCRIPTOR_LAST_WORDS = new Set([...COMMON_DESCRIPTOR_WORDS, "expiration"]);
 
 /**
  * Vendors whose API keys are never meant for a browser. A bare `API_KEY` in a public variable is
@@ -168,17 +133,6 @@ const SECRET_VALUE_PATTERNS: readonly RegExp[] = [
   /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/,
 ];
 
-const decodeJwtPayload = (value: string): unknown => {
-  const [header, payload] = value.split(".");
-  if (!header || !payload || !header.startsWith("eyJ")) return null;
-  try {
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-};
-
 /**
  * Whether a string is in the format of a credential that must never be public: provider keys
  * (Stripe `sk_live_`, GitHub, GitLab, Slack, Anthropic, OpenAI, AWS, SendGrid, npm), PEM private
@@ -188,24 +142,11 @@ const decodeJwtPayload = (value: string): unknown => {
 export const matchesSecretValueFormat = (value: string): boolean => {
   const trimmed = value.trim();
   if (SECRET_VALUE_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
-  const payload = decodeJwtPayload(trimmed);
-  return typeof payload === "object" && payload !== null && (payload as { role?: unknown }).role === "service_role";
-};
-
-const PLACEHOLDER_VALUE_PATTERN =
-  /^(?:<.*>|\$\{.*\}|\$[A-Z_]+|\{\{.*\}\}|x{3,}|\*{3,}|\.{3}|(?:your|my|put|insert|replace|example|dummy|fake|sample|todo|change[-_ ]?me)(?:[-_ ].*)?|secret|password|token|test|tbd|changeme)$/i;
-
-/**
- * Whether a value is an empty or obvious placeholder (`changeme`, `<your-key>`, `${OTHER}`,
- * `xxxx`), which declares a variable without containing a real secret.
- */
-export const isPlaceholderValue = (value: string): boolean => {
-  const trimmed = value.trim();
-  return trimmed === "" || PLACEHOLDER_VALUE_PATTERN.test(trimmed);
+  return trimmed.startsWith("eyJ") && decodeJwtPayload(trimmed)?.role === "service_role";
 };
 
 /** Whether a URL embeds `user:password@` credentials (`postgres://app:hunter2@db/prod`). */
 export const hasCredentialsInUrl = (value: string): boolean => {
   const match = /^[a-z][a-z\d+.-]*:\/\/([^/\s:@]+):([^/\s@]+)@/i.exec(value.trim());
-  return match !== null && !isPlaceholderValue(match[2]);
+  return match !== null && !isEnvPlaceholderValue(match[2]);
 };

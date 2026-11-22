@@ -3,12 +3,15 @@ import type { RuleMeta } from "./define-rule.js";
 /**
  * Metadata for the eslint-plugin-vue template rules Vue Doctor runs. They have no `create`: the
  * implementations live in eslint-plugin-vue, and the registry only needs their metadata to build
- * the ESLint config and to give template findings a category and help text.
+ * the ESLint config and to give template findings a category and help text. `fixable` marks the
+ * rules that have a Vue Doctor `--fix` codemod (src/fix/codemods.ts), not eslint-plugin-vue fixers.
  */
-const templateRule = (meta: Omit<RuleMeta, "engine" | "fixable" | "since" | "frameworks">): RuleMeta => ({
+const templateRule = (
+  meta: Omit<RuleMeta, "engine" | "fixable" | "since" | "frameworks"> & { fixable?: boolean },
+): RuleMeta => ({
   ...meta,
   frameworks: ["vue", "nuxt"],
-  fixable: false,
+  fixable: meta.fixable ?? false,
   since: "1.0.0",
   engine: "eslint-template",
 });
@@ -164,6 +167,7 @@ export const TEMPLATE_RULES: readonly RuleMeta[] = [
     defaultSeverity: "warning",
     confidence: "high",
     cwe: ["CWE-1022"],
+    fixable: true,
     help: "Add `rel=\"noopener noreferrer\"` to links that use `target=\"_blank\"`",
     agentGuidance: "Add `rel=\"noopener noreferrer\"` to every link with `target=\"_blank\"`.",
   }),

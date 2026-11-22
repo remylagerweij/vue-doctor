@@ -54,7 +54,7 @@
 - Category: Bundle Size
 - Default Severity: warning
 - Confidence: high
-- Fixable: No
+- Fixable: Yes
 - Help: Import the specific function: `import debounce from 'lodash/debounce'` — saves ~70kb
 - Agent Guidance: Import the single function (`import debounce from 'lodash/debounce'`) or switch to `lodash-es`/native code instead of importing the full library.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/bundle-size/no-full-lodash-import
@@ -954,7 +954,7 @@
 - Category: Security
 - Default Severity: warning
 - Confidence: high
-- Fixable: No
+- Fixable: Yes
 - Help: Add `rel="noopener noreferrer"` to links that use `target="_blank"`
 - Agent Guidance: Add `rel="noopener noreferrer"` to every link with `target="_blank"`.
 - Docs: https://remylagerweij.github.io/vue-doctor/rules/security/vue-no-template-target-blank

@@ -128,8 +128,8 @@ export const createProgram = (): Command => {
     .option("--min-score <score>", "Exit with code 1 when the score is below this value (0-100)", parseScore)
     .option("--strict", "Exit with code 3 when an analyzer could not run")
     .option("--baseline <file>", "Treat findings in this baseline file as known (status: baseline); see `vue-doctor baseline`")
-    .option("--fix", "Automatically apply deterministic codemods to source files", false)
-    .option("--dry-run", "Show diff of fixes without writing changes to disk", false)
+    .option("--fix", "Fix the reported findings of fixable rules with deterministic codemods, then scan the fixed code", false)
+    .option("--dry-run", "With --fix: print the fixes as a unified diff instead of writing them (no scan)", false)
     .action(async (directoryArg: string, options: Record<string, any>) => {
       try {
         if (options.quiet && options.debug) {
@@ -164,54 +164,18 @@ export const createProgram = (): Command => {
           );
         }
 
-        if (options.fix) {
-          const { runFixes } = await import("./fix/runner.js");
-          for (const projectDirectory of projectDirectories) {
-            const fixReport = runFixes(projectDirectory, { dryRun: options.dryRun });
-            if (options.dryRun) {
-              if (fixReport.diffs.length > 0) {
-                console.log(fixReport.diffs.join("\n\n"));
-              } else {
-                logger.log("No fixable issues found.");
-              }
-            } else if (fixReport.filesFixed > 0) {
-              const ruleCount = Object.values(fixReport.rulesFixed).reduce((a, b) => a + b, 0);
-              logger.success(
-                `Applied fixes to ${fixReport.filesFixed} file${fixReport.filesFixed === 1 ? "" : "s"} (${ruleCount} rules repaired).`,
-              );
-            }
-          }
-          if (options.dryRun) {
-            process.exitCode = EXIT_CODES.ok;
-            return;
-          }
+        if (options.fix && isFromCli("lint") && options.lint === false) {
+          throw new InvalidArgumentError("--fix cannot be combined with --no-lint: fixes are applied to lint findings.");
         }
 
         // Prepared one after another (config, diff), then scanned together so knip runs once per monorepo.
-        const scans: Array<ProjectScan & { config: VueDoctorConfig | null }> = [];
+        const prepared: Array<{ directory: string; config: VueDoctorConfig | null; includePaths: string[] }> = [];
 
         for (const projectDirectory of projectDirectories) {
           const loadedConfig = await loadConfig(projectDirectory);
           const config = loadedConfig?.config ?? null;
           logger.debug("config", loadedConfig ? `loaded ${loadedConfig.filePath}` : `no config file in ${projectDirectory}`);
-          const scanOptions: ScanOptions = {
-            // Unset unless passed on the command line, so the project config applies.
-            lint: isFromCli("lint") ? options.lint : undefined,
-            deadCode: isFromCli("deadCode") ? options.deadCode : undefined,
-            cache: isFromCli("cache") ? options.cache : undefined,
-            verbose: options.verbose ?? config?.verbose ?? false,
-            timings: options.timings ?? false,
-            scoreOnly: options.score ?? false,
-            offline: options.offline,
-            inlineDisables: isFromCli("inlineDisables") ? options.inlineDisables : undefined,
-            // Unset unless passed, so the config's audit.enabled applies.
-            audit: isFromCli("audit") ? options.audit : undefined,
-            json: format !== "text",
-            force: options.force ?? false,
-            includePaths: [],
-            config,
-            baseline: options.baseline === undefined ? undefined : path.resolve(options.baseline),
-          };
+          let includePaths: string[] = [];
 
           const diff = options.diff ?? (config?.diff === false ? undefined : config?.diff);
 
@@ -235,9 +199,52 @@ export const createProgram = (): Command => {
                 logger.dim(`No changed source files in ${scope} for ${projectDirectory}; nothing to scan.`);
                 continue;
               }
-              scanOptions.includePaths = changedSourceFiles;
+              includePaths = changedSourceFiles;
             }
           }
+
+          prepared.push({ directory: projectDirectory, config, includePaths });
+        }
+
+        if (options.fix) {
+          // Fixes follow the findings of this run (config, suppressions, --diff), then the scan
+          // below reports on the fixed code. With --dry-run, the diffs are the whole output.
+          const { runFixPass } = await import("./fix/runner.js");
+          await runFixPass(prepared, {
+            dryRun: options.dryRun === true,
+            displayRoot: resolvedDirectory,
+            lint: isFromCli("lint") ? options.lint : undefined,
+            cache: isFromCli("cache") ? options.cache : undefined,
+            force: options.force ?? false,
+            offline: options.offline,
+            onDebug: logger.debug,
+          });
+          if (options.dryRun) {
+            process.exitCode = EXIT_CODES.ok;
+            return;
+          }
+        }
+
+        const scans: Array<ProjectScan & { config: VueDoctorConfig | null }> = [];
+        for (const { directory: projectDirectory, config, includePaths } of prepared) {
+          const scanOptions: ScanOptions = {
+            // Unset unless passed on the command line, so the project config applies.
+            lint: isFromCli("lint") ? options.lint : undefined,
+            deadCode: isFromCli("deadCode") ? options.deadCode : undefined,
+            cache: isFromCli("cache") ? options.cache : undefined,
+            verbose: options.verbose ?? config?.verbose ?? false,
+            timings: options.timings ?? false,
+            scoreOnly: options.score ?? false,
+            offline: options.offline,
+            inlineDisables: isFromCli("inlineDisables") ? options.inlineDisables : undefined,
+            // Unset unless passed, so the config's audit.enabled applies.
+            audit: isFromCli("audit") ? options.audit : undefined,
+            json: format !== "text",
+            force: options.force ?? false,
+            includePaths,
+            config,
+            baseline: options.baseline === undefined ? undefined : path.resolve(options.baseline),
+          };
 
           scans.push({ directory: projectDirectory, options: scanOptions, config });
         }

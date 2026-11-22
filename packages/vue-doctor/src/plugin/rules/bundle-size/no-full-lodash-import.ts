@@ -9,7 +9,7 @@ export default defineRule({
     defaultSeverity: "warning",
     confidence: "high",
     frameworks: ["vue", "nuxt"],
-    fixable: false,
+    fixable: true,
     skipTestFiles: true,
     since: "1.0.0",
     help: "Import the specific function: `import debounce from 'lodash/debounce'` — saves ~70kb",
