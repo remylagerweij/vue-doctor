@@ -16,8 +16,8 @@ Vue Doctor is a high-performance diagnostic tool for Vue.js and Nuxt application
   2. **ESLint Vue Pass** (`run-eslint-vue.ts`): Deep template validation via `eslint-plugin-vue` and `vue-eslint-parser` for template-specific anti-patterns. `<script lang="ts">` is parsed by `@typescript-eslint/parser` on Vue Doctor's own pinned `typescript` (6.0, the last line with a JS API; see `load-typescript-parser.ts`), so rules that read the script (emits, props, computed) see TypeScript SFCs. A script that still fails to parse is re-linted without it, with those script-dependent rules off (`SCRIPT_DEPENDENT_TEMPLATE_RULES`).
   3. **Knip Pass** (`run-knip.ts`): Unused exports, dead files, and unreferenced dependencies.
   4. **Project Checks Pass** (`engine: "fs"` via `run-project-checks.ts`): Filesystem inspection for committed secrets, lockfile integrity, and sensitive files in `public/`.
-- **104 Registered Rules** (`RULE_REGISTRY` in `src/plugin/registry.ts`):
-  - 85 own rules (`vue-doctor/<category>/<rule>`) on the oxlint, `fs` and `audit` engines.
+- **115 Registered Rules** (`RULE_REGISTRY` in `src/plugin/registry.ts`):
+  - 96 own rules (`vue-doctor/<category>/<rule>`) on the oxlint, `fs` and `audit` engines; the 11 `accessibility` rules are opt-in (`defaultSeverity: "off"`, enabled through `rules` in the config, resolved by `src/config/opt-in-rules.ts`).
   - 19 `eslint-plugin-vue` template rules (`vue/<rule>`).
   - Dead-code findings come from Knip as `knip/<type>`.
 - **Build System**: `tsdown` (Rolldown-based bundler producing dual ESM/DTS output).
@@ -36,7 +36,7 @@ Vue Doctor is a high-performance diagnostic tool for Vue.js and Nuxt application
 `tests/registry.test.ts` enforces that every rule:
 - Has valid metadata: unique canonical ID (`vue-doctor/<category>/<rule-id>`), category, default severity, description, help, and agent remediation guidance.
 - Has security classifications (CWE / OWASP) when in security categories.
-- Follows the severity policy: `error` only for Security and Correctness rules with high confidence.
+- Follows the severity policy: `error` only for Security and Correctness rules with high confidence; `off` only for opt-in preview rules added in 2.5.0.
 - Has a companion `.cases.ts` file with at least 3 valid near-misses and 3 invalid violations.
 - Is registered in the generated barrel `src/plugin/rules/index.ts`.
 
@@ -98,7 +98,7 @@ packages/vue-doctor/
 │   │   ├── baseline.ts           # Baselines (finding identity in fingerprint.ts)
 │   │   └── cache.ts              # Analysis cache (keys in cache-keys.ts)
 │   ├── plugin/
-│   │   ├── registry.ts           # RULE_REGISTRY (all 104 rules)
+│   │   ├── registry.ts           # RULE_REGISTRY (all 115 rules)
 │   │   ├── rule-ids.ts           # Canonical IDs, 1.x aliases, removed-rule aliases
 │   │   ├── define-rule.ts        # Oxlint rule helper and RULE_CATEGORIES
 │   │   ├── define-fs-rule.ts     # Filesystem rule helper
@@ -106,7 +106,7 @@ packages/vue-doctor/
 │   │   ├── custom-template-rules.ts # Template halves of own rules
 │   │   ├── helpers.ts            # AST walking and pattern matching
 │   │   └── rules/                # One folder per category, generated barrel index.ts:
-│   │                             # architecture, bundle-size, correctness, ecosystem, nuxt,
+│   │                             # accessibility, architecture, bundle-size, correctness, ecosystem, nuxt,
 │   │                             # performance, reactivity, security, server, supply-chain
 │   ├── report/                   # text, json, jsonl, sarif, github, markdown, html formatters
 │   ├── ci/                       # GitHub REST client, PR feedback, score cache, workflow generator

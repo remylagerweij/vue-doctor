@@ -27,6 +27,7 @@ import { applySuppressions, type SuppressedSummary } from "../utils/suppressions
 import { readProjectLinterConfig, resolveEffectiveLinterConfig } from "../utils/project-linter-config.js";
 import { inferServerRuleOptions } from "../utils/server-project-facts.js";
 import { mergeRuleOptions, resolveConfiguredRuleOptions } from "../config/rule-options.js";
+import { resolveOptInRules } from "../config/opt-in-rules.js";
 
 export type AnalyzerName = "lint" | "template" | "dead-code" | "project" | "audit";
 
@@ -260,6 +261,9 @@ export const diagnose = async (
       )
     : {};
   if (Object.keys(ruleOptions).length > 0) debug("lint", `rule options ${JSON.stringify(ruleOptions)}`);
+  // Rules that ship off by default (opt-in previews) run only when the config's `rules` turns them on.
+  const optInRules = resolveOptInRules(config);
+  if (optInRules.size > 0) debug("config", `opt-in rules enabled: ${[...optInRules].join(", ")}`);
 
   const cacheContexts =
     (options.cache ?? config?.cache) === false
@@ -270,6 +274,7 @@ export const diagnose = async (
           ruleOptions,
           linterConfig.disabledOwnRules,
           linterConfig.templateRules,
+          optInRules,
         );
   const cache = cacheContexts
     ? openAnalysisCache(directory, cacheContexts, (message) => debug("cache", message))
@@ -309,6 +314,7 @@ export const diagnose = async (
             logCommand("lint"),
             ruleOptions,
             linterConfig.disabledOwnRules,
+            optInRules,
           );
         if (!cache) return lint(isDiffMode ? vueIncludePaths : hasNestedWorkspaces ? getCacheTargets() : undefined);
         return cache.analyzeFiles("lint", getCacheTargets(), lint);
@@ -318,7 +324,7 @@ export const diagnose = async (
   const templatePromise = shouldTemplateLint
     ? runAnalyzer("template", () => {
         const lintTemplates = (paths: string[] | undefined) =>
-          runEslintVue(directory, paths, project.framework, linterConfig.templateRules);
+          runEslintVue(directory, paths, project.framework, linterConfig.templateRules, optInRules);
         if (!cache && !hasNestedWorkspaces) return lintTemplates(isDiffMode ? vueIncludePaths : undefined);
         const vueFiles = getCacheTargets().filter((filePath) => filePath.endsWith(".vue"));
         if (!cache) return lintTemplates(vueFiles);
@@ -347,7 +353,7 @@ export const diagnose = async (
       })
     : Promise.resolve([]);
 
-  const fsRules = getEnabledFsRules(project.framework);
+  const fsRules = getEnabledFsRules(project.framework, optInRules);
   const projectPromise =
     options.projectChecks !== false && fsRules.length > 0
       ? runAnalyzer("project", async () => {

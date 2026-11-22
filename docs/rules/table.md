@@ -84,6 +84,17 @@
 | `vue/valid-v-model` | Correctness | error | high | vue, nuxt | eslint-template |
 | `vue/valid-v-on` | Correctness | error | high | vue, nuxt | eslint-template |
 | `vue/valid-v-slot` | Correctness | error | high | vue, nuxt | eslint-template |
+| `vue-doctor/accessibility/click-events-have-key-events` | Accessibility | off | medium | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/no-aria-hidden-on-focusable` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/no-invalid-aria-attribute` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/no-invalid-role` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/no-positive-tabindex` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/require-button-name` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/require-form-control-label` | Accessibility | off | medium | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/require-iframe-title` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/require-img-alt` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/require-link-name` | Accessibility | off | high | vue, nuxt | oxlint |
+| `vue-doctor/accessibility/role-has-required-aria-props` | Accessibility | off | high | vue, nuxt | oxlint |
 | `vue-doctor/ecosystem/pinia-no-destructure` | Ecosystem | warning | medium | vue, nuxt | oxlint |
 | `vue-doctor/ecosystem/pinia-no-watch-store` | Ecosystem | warning | low | vue, nuxt | oxlint |
 | `vue-doctor/ecosystem/router-no-async-guard-without-next` | Ecosystem | warning | low | vue, nuxt | oxlint |

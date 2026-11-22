@@ -65,7 +65,7 @@ Then add a script to your `package.json`:
 ## 🚀 Key Features
 
 - ⚡ **Sub-Second Performance:** Blazing-fast scans powered by Oxlint and native caching (`node_modules/.cache/vue-doctor`).
-- 🛡️ **Comprehensive Quality Gates:** 85 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 104 registered rules.
+- 🛡️ **Comprehensive Quality Gates:** 96 custom rules (85 on by default) + 19 eslint-plugin-vue rules = 115 registered rules.
 - 🔒 **Deep Security Guardrails:** Detects hardcoded secrets, unsafe HTML sinks (`v-html`), SSRF, command & SQL injection, prototype pollution, and LLM prompt injection risks.
 - 🧹 **Dead Code & Unused Exports:** Finds unused components, unreferenced exports, orphan types, and dead dependencies using Knip.
 - 🔧 **Automated Codemods:** Deterministic `--fix` repairs the scan's findings of the two fixable rules: named lodash imports become per-method imports, and `target="_blank"` links get `rel="noopener noreferrer"`. Only reported findings are rewritten; suppressed, disabled and unreported code is never touched.
@@ -80,7 +80,7 @@ Then add a script to your `package.json`:
 
 Vue Doctor executes **four parallel analysis passes**:
 
-### 1. Oxlint AST Plugin (85 rules)
+### 1. Oxlint AST Plugin (96 rules)
 Custom, sub-second JavaScript/TypeScript and `.vue` script AST analysis:
 
 | Category | Focus | Example Anti-Patterns Detected |
@@ -93,6 +93,7 @@ Custom, sub-second JavaScript/TypeScript and `.vue` script AST analysis:
 | **Ecosystem** | Pinia & Vue Router | `pinia-no-destructure`, `router-no-string-push` |
 | **Architecture** | Maintainability & design | `no-giant-component`, `no-nested-component-definition` |
 | **Correctness** | Logic bugs & runtime errors | `no-array-index-as-key`, `no-prevent-default`, `no-direct-dom-manipulation` |
+| **Accessibility** (opt-in) | Template a11y, off by default | `require-img-alt`, `require-button-name`, `click-events-have-key-events` |
 | **Server** | Nitro / server handlers | `server-no-console-in-handler` |
 | **Supply Chain** | Dependencies & lockfiles | `lockfile-integrity`, `no-remote-dependency-spec`, `no-dependency-install-scripts` |
 

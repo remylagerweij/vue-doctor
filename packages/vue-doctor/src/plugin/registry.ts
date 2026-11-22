@@ -64,13 +64,19 @@ export const getRuleMeta = (plugin: string, rule: string): RuleMeta | undefined 
   return undefined;
 };
 
-export const isEnabled = (meta: RuleMeta, framework: Framework): boolean => {
-  if (meta.defaultSeverity === "off") return false;
+/**
+ * Own rules that ship off by default (opt-in preview rules) run only when the project config turns
+ * them on; `optInRules` holds their flat names (see `resolveOptInRules` in config/opt-in-rules.ts).
+ */
+export type OptInRules = ReadonlySet<string>;
+
+export const isEnabled = (meta: RuleMeta, framework: Framework, optInRules?: OptInRules): boolean => {
+  if (meta.defaultSeverity === "off" && !optInRules?.has(meta.id)) return false;
   // `vue` rules run everywhere; Nuxt-only rules run only on Nuxt projects.
   return meta.frameworks.includes("vue") || (framework === "nuxt" && meta.frameworks.includes("nuxt"));
 };
 
-const toOxlintSeverity = (severity: "error" | "warning"): "error" | "warn" =>
+const toOxlintSeverity = (severity: RuleMeta["defaultSeverity"]): "error" | "warn" =>
   severity === "error" ? "error" : "warn";
 
 /** Options per own rule, keyed by the rule's flat name (`require-input-validation`). */
@@ -96,6 +102,8 @@ interface OxlintConfigOptions {
   ruleOptions?: RuleOptionsById;
   /** Non-Security/non-Server own rules disabled in the project's ESLint/oxlint config. */
   disabledRules?: ReadonlySet<string>;
+  /** Off-by-default rules the project config enables; they run at `warn` (config `rules` sets the final severity). */
+  optInRules?: OptInRules;
 }
 
 type OxlintRuleEntry = "error" | "warn" | ["error" | "warn", Readonly<Record<string, unknown>>];
@@ -117,17 +125,18 @@ export const createOxlintConfig = ({
   capabilities,
   ruleOptions = {},
   disabledRules,
+  optInRules,
 }: OxlintConfigOptions) => {
   const rules: Record<string, OxlintRuleEntry> = {};
   for (const { ruleMeta: meta } of OXLINT_RULES) {
     if (
-      !isEnabled(meta, framework) ||
+      !isEnabled(meta, framework, optInRules) ||
       !hasRequiredCapabilities(meta, capabilities) ||
       isDisabledByProjectLinter(meta, disabledRules)
     ) {
       continue;
     }
-    const severity = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    const severity = toOxlintSeverity(meta.defaultSeverity);
     const options = meta.options ? ruleOptions[meta.id] : undefined;
     rules[`${PLUGIN_NAME}/${meta.id}`] = options && Object.keys(options).length > 0 ? [severity, options] : severity;
   }
@@ -152,8 +161,8 @@ export const createOxlintConfig = ({
 };
 
 /** The project-file rules that run by default on a project of this framework. */
-export const getEnabledFsRules = (framework: Framework): DefinedFsRule[] =>
-  FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework));
+export const getEnabledFsRules = (framework: Framework, optInRules?: OptInRules): DefinedFsRule[] =>
+  FS_RULES.filter((rule) => isEnabled(rule.ruleMeta, framework, optInRules));
 
 /**
  * ESLint `rules` record for the template rules (`vue/<rule>` to `error` or `warn`, or
@@ -187,12 +196,15 @@ export const createTemplateRuleConfig = (
  * These share their registry entry with the oxlint rule of the same name, so the severity and the
  * framework gating come from that entry.
  */
-export const createCustomTemplateRuleConfig = (framework: Framework = "vite"): Record<string, "error" | "warn"> => {
+export const createCustomTemplateRuleConfig = (
+  framework: Framework = "vite",
+  optInRules?: OptInRules,
+): Record<string, "error" | "warn"> => {
   const rules: Record<string, "error" | "warn"> = {};
   for (const name of Object.keys(CUSTOM_TEMPLATE_RULES)) {
     const meta = oxlintMetaById.get(name);
-    if (!meta || !isEnabled(meta, framework)) continue;
-    rules[`${CUSTOM_TEMPLATE_PLUGIN_NAME}/${name}`] = toOxlintSeverity(meta.defaultSeverity as "error" | "warning");
+    if (!meta || !isEnabled(meta, framework, optInRules)) continue;
+    rules[`${CUSTOM_TEMPLATE_PLUGIN_NAME}/${name}`] = toOxlintSeverity(meta.defaultSeverity);
   }
   return rules;
 };

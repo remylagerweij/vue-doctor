@@ -59,10 +59,19 @@ ${Object.entries(meta.options.properties)
 `
     : "";
 
+  const optInNote =
+    meta.defaultSeverity === "off"
+      ? `
+::: tip Opt-in rule
+This rule is off by default. Turn it on in \`vue-doctor.config.*\` with \`"rules": { "${canonicalId}": "warn" }\`, or the whole category with \`"${canonicalId.slice(0, canonicalId.lastIndexOf("/"))}/*": "warn"\` ([opt-in rules](/guide/configuration#opt-in-rules)).
+:::
+`
+      : "";
+
   const content = `# \`${canonicalId}\`
 
 > ${meta.help}
-
+${optInNote}
 | Property | Value |
 |---|---|
 | **Category** | ${meta.category} |

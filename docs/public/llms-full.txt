@@ -21,7 +21,106 @@
 
 ---
 
-# All Rules (104 registered, 104 on by default)
+# All Rules (115 registered, 104 on by default)
+
+## vue-doctor/accessibility/click-events-have-key-events
+- Category: Accessibility
+- Default Severity: off
+- Confidence: medium
+- Fixable: No
+- Help: Use a `<button>` (or a link) for clickable elements; a `<div @click>` cannot be reached or used with the keyboard
+- Agent Guidance: Replace the clickable `<div>`/`<span>`/`<li>`/`<img>` with a native `<button type="button">` (for actions) or an `<a href>` / `<RouterLink>` (for navigation), and reset its styles with CSS if needed — native controls are focusable and react to Enter and Space by themselves. If the element must stay, add `role="button"`, `tabindex="0"` and a `@keydown.enter` / `@keydown.space` handler that calls the same function. Not reported: elements with a `role` or a key handler, `@click.self` and backdrop/overlay elements (dismissed with Escape), handlers that only stop the event, elements inside a link, button or label, elements that wrap a control, a `<slot>` or `v-html` content (the click is delegated), list items highlighted by a keyboard cursor (`:class="{ active: i === selectedIndex }"`), components, and elements with `v-bind="obj"` / `v-on="obj"`. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/click-events-have-key-events
+
+## vue-doctor/accessibility/no-aria-hidden-on-focusable
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Do not put `aria-hidden="true"` on an element that can receive keyboard focus
+- Agent Guidance: An element with `aria-hidden="true"` is removed from the accessibility tree, but keyboard users can still tab to it — screen readers then announce nothing. Either remove `aria-hidden` (when the control is meant to be used), or also take it out of the focus order with `tabindex="-1"` (or `disabled`, or `inert` on a hidden container) when it is a decorative or duplicated control. Only native focusable elements (links with `href`, buttons, form controls, `summary`, elements with `tabindex` 0 or higher) with a literal `aria-hidden="true"` are reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/no-aria-hidden-on-focusable
+
+## vue-doctor/accessibility/no-invalid-aria-attribute
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Use only `aria-*` attributes defined by WAI-ARIA; fix the spelling (`aria-labelledby`, not `aria-labeledby`)
+- Agent Guidance: Rename the attribute to the WAI-ARIA state or property that was meant — the finding suggests the closest one (common slips: `aria-labeledby` → `aria-labelledby`, `aria-describeby` → `aria-describedby`, `aria-role` → `role`). Browsers ignore unknown `aria-*` attributes, so the element currently has no label, description or state. If the attribute is not ARIA at all, use a `data-*` attribute instead. Native HTML and SVG elements are checked, static and bound (`:aria-x`).
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/no-invalid-aria-attribute
+
+## vue-doctor/accessibility/no-invalid-role
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Use a concrete WAI-ARIA role (`button`, `dialog`, `navigation`…); unknown and abstract roles are ignored
+- Agent Guidance: Replace the value of `role` with a concrete WAI-ARIA role that describes the element (for example `button`, `link`, `dialog`, `tab`, `navigation`), or remove `role` when the native element already has the right semantics (prefer `<button>` over `<div role="button">`). Abstract roles such as `widget`, `section`, `input` or `landmark` are not allowed in content, and misspelled roles fall back to no role at all. Every token of a space-separated fallback list must be valid. Only literal values on native HTML and SVG elements are checked; bound `:role` values are not.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/no-invalid-role
+
+## vue-doctor/accessibility/no-positive-tabindex
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Use `tabindex="0"` (or none) instead of a positive `tabindex`, and order focus through the DOM order
+- Agent Guidance: Replace the positive `tabindex` with `tabindex="0"` (focusable in document order), or remove it from elements that are focusable already (links, buttons, form controls). If the focus order is wrong, reorder the elements in the template and position them with CSS instead. A positive value moves the element ahead of everything else on the page. Only literal values (`tabindex="2"`, `:tabindex="2"`) on native elements are reported.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/no-positive-tabindex
+
+## vue-doctor/accessibility/require-button-name
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Give the button text, or an `aria-label` when it only shows an icon
+- Agent Guidance: Screen readers announce a button by its text. For an icon-only button add an `aria-label` that says what it does (`aria-label="Close dialog"`, `:aria-label="t('menu.open')"`) or visually hidden text (`<span class="sr-only">Close</span>`), and mark the icon `aria-hidden="true"`. A `title` alone also gives a name. Reported only for native `<button>` elements whose content has no text: text, `{{ }}`, components, slots, `v-html`/`v-text`, an `<img>` with `alt` and an `<svg>` with a `<title>` all count as a name. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/require-button-name
+
+## vue-doctor/accessibility/require-form-control-label
+- Category: Accessibility
+- Default Severity: off
+- Confidence: medium
+- Fixable: No
+- Help: Associate a `<label>` with the form control, or give it an `aria-label`
+- Agent Guidance: Give the control a visible label: wrap it (`<label>Email <input v-model="email"></label>`) or point a label at its id (`<label for="email">Email</label><input id="email">`). Text next to the control is not a label, and neither is a `<label for>` whose id does not exist. When there is no room for visible text, add `aria-label` (or `aria-labelledby` pointing at existing text). Without a label, screen readers announce only "edit text" or "combo box". Not reported: controls with an `id` (a `<label for>` may point at it, also from another component), a `placeholder` or `title`, controls inside a `<label>` or a field component (`<el-form-item>`, `<UFormField>`, any component with a `label`), controls at the root of their component or in a component that shows no text of its own (the caller labels it), hidden controls (`hidden`, `v-show="false"`, `display: none`), file inputs with a `ref` (opened by an upload button), a bound `:type`, and `v-bind="obj"`.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/require-form-control-label
+
+## vue-doctor/accessibility/require-iframe-title
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Give the `<iframe>` a `title` that describes its content
+- Agent Guidance: Add a short, unique `title` to the `<iframe>` that says what it contains (`title="Store location map"`, `:title="video.title"`). Screen reader users find and enter frames by this title. An `aria-label` or `aria-labelledby` also works. For an iframe without user-facing content (a tracking or messaging frame), hide it with `aria-hidden="true"` and `tabindex="-1"` instead. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/require-iframe-title
+
+## vue-doctor/accessibility/require-img-alt
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Give the image an `alt` text, or `alt=""` when it is purely decorative
+- Agent Guidance: Add an `alt` attribute that says what the image shows or does (`alt="Company logo"`, or `:alt="product.name"`). For a purely decorative image use an empty `alt=""` so screen readers skip it. For `<input type="image">` the `alt` names the button; for `<area href>` it names the link. Do not start with words like "image of". Only native `<img>`, `<area href>` and `<input type="image">` elements without `v-bind="obj"` are reported; a bound `:alt`, an `aria-label`, `aria-labelledby`, `title`, `role="presentation"` or `aria-hidden="true"` counts as handled. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/require-img-alt
+
+## vue-doctor/accessibility/require-link-name
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Give the link text, or an `aria-label` when it only shows an icon or image
+- Agent Guidance: Screen readers announce a link by its text. For an icon-only or image-only link add an `aria-label` that says where it goes (`aria-label="Open settings"`), give the image a meaningful `alt`, or add visually hidden text (`<span class="sr-only">Settings</span>`). Mark the icon itself `aria-hidden="true"`. Reported for `<a href>`, `<RouterLink>` and `<NuxtLink>` (without `custom`) whose content has no text: text, `{{ }}`, components, slots, `v-html`/`v-text`, an `<img>` with `alt` and an `<svg>` with a `<title>` all count as a name. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/require-link-name
+
+## vue-doctor/accessibility/role-has-required-aria-props
+- Category: Accessibility
+- Default Severity: off
+- Confidence: high
+- Fixable: No
+- Help: Add the state the role requires: `aria-checked` for checkbox/radio/switch, `aria-valuenow` for slider, `aria-expanded` for combobox
+- Agent Guidance: A custom widget must expose its state, or assistive technology cannot tell whether it is checked, expanded or at what value. Bind the required attribute to the component state: `role="checkbox" :aria-checked="checked"`, `role="switch" :aria-checked="enabled"`, `role="slider" :aria-valuenow="value"` (with `aria-valuemin` / `aria-valuemax`), `role="combobox" :aria-expanded="open"`. Better still, use the native control (`<input type="checkbox">`, `<input type="range">`), which has the state built in. Only literal roles on native elements without `v-bind="obj"` are checked. The root element of a component is not reported: attributes and listeners the parent passes fall through to it.
+- Docs: https://remylagerweij.github.io/vue-doctor/rules/accessibility/role-has-required-aria-props
 
 ## vue-doctor/architecture/no-giant-component
 - Category: Architecture
