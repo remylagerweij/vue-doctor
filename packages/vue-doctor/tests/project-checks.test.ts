@@ -8,10 +8,10 @@ import { parseEnvFile } from "../src/plugin/env-file.js";
 import { ruleIdOf } from "../src/plugin/rule-ids.js";
 import {
   hasCredentialsInUrl,
-  isPlaceholderValue,
   looksLikeSecretName,
   matchesSecretValueFormat,
 } from "../src/plugin/secret-heuristics.js";
+import { isEnvPlaceholderValue } from "../src/plugin/secrets/primitives.js";
 import { listProjectFiles } from "../src/utils/list-project-files.js";
 
 const SECRET_VALUE = "sk_live_4eC39HqLyjWDarjtT1zdp7dc";
@@ -73,9 +73,9 @@ describe("secret value heuristics", () => {
 
   it("recognises placeholders and URL credentials", () => {
     for (const value of ["", "changeme", "<your-key>", "${OTHER}", "xxxxxx", "your-api-key-here"]) {
-      expect(isPlaceholderValue(value), value).toBe(true);
+      expect(isEnvPlaceholderValue(value), value).toBe(true);
     }
-    expect(isPlaceholderValue("abc123def456")).toBe(false);
+    expect(isEnvPlaceholderValue("abc123def456")).toBe(false);
     expect(hasCredentialsInUrl("postgres://app:hunter2@db/prod")).toBe(true);
     expect(hasCredentialsInUrl("postgres://db/prod")).toBe(false);
     expect(hasCredentialsInUrl("postgres://app:${PASSWORD}@db/prod")).toBe(false);

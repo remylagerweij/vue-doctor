@@ -1,3 +1,4 @@
+import { COMMON_SECRET_WORDS, splitNameWords } from "./secrets/primitives.js";
 import type { EsTreeNode } from "./types.js";
 
 /**
@@ -7,24 +8,16 @@ import type { EsTreeNode } from "./types.js";
  */
 
 const SENSITIVE_WORDS: ReadonlySet<string> = new Set([
-  "token", "jwt", "bearer", "session", "auth", "oauth", "authorization", "credential", "credentials",
-  "secret", "password", "passwd", "cookie", "apikey", "otp",
+  ...COMMON_SECRET_WORDS,
+  ...["jwt", "session", "auth", "oauth", "authorization", "cookie", "apikey", "otp"],
 ]);
 
 /** Words that turn "token" into something harmless: CSRF tokens are meant to be readable by scripts, design tokens are styling. */
 const BENIGN_WORDS: ReadonlySet<string> = new Set(["csrf", "xsrf", "design", "theme", "css", "style", "color", "spacing", "font"]);
 
-export const nameWords = (name: string): string[] =>
-  name
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean)
-    .map((word) => word.toLowerCase());
-
 /** Whether a variable, property or storage key name looks like it holds a credential. */
 export const isSensitiveName = (name: string): boolean => {
-  const words = nameWords(name);
+  const words = splitNameWords(name);
   if (words.some((word) => BENIGN_WORDS.has(word))) return false;
   if (words.some((word) => SENSITIVE_WORDS.has(word))) return true;
   const compact = words.join("");

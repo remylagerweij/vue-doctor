@@ -49,7 +49,7 @@ In the JSON output:
 
 Resolve findings in priority order:
 1. **Errors & Security Findings:** Fix security risks (XSS, prototype pollution, secret exposure, SSRF) and correctness errors first.
-2. **Deterministic Fixes:** Run `npx @remylagerweij/vue-doctor@latest . --fix` to automatically repair fixable rules (e.g., lodash imports, `v-for` keys, `toSorted`).
+2. **Deterministic Fixes:** Run `npx @remylagerweij/vue-doctor@latest . --fix` to repair the reported findings of fixable rules (named lodash imports, `rel="noopener noreferrer"` on `target="_blank"` links). Everything else, including `v-for` keys and `[...items].sort()` to `toSorted`, needs a manual fix.
 3. **Performance & Reactivity:** Resolve reactive loss, heavy dependencies, and unneeded watchers.
 4. **Architecture & Dead Code:** Remove unused exports or files reported by Knip.
 

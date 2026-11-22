@@ -10,7 +10,7 @@ import {
   urlExpressionKey,
   validatedUrlKeys,
 } from "../src/plugin/url-sinks.js";
-import { collectNames, isSensitiveName, nameWords } from "../src/plugin/sensitive-names.js";
+import { collectNames, isSensitiveName } from "../src/plugin/sensitive-names.js";
 import type { EsTreeNode } from "../src/plugin/types.js";
 
 const parse = (code: string): EsTreeNode[] =>
@@ -180,13 +180,6 @@ describe("validatedUrlKeys", () => {
 });
 
 describe("sensitive names", () => {
-  it("splits names into lowercase words", () => {
-    expect(nameWords("accessToken")).toEqual(["access", "token"]);
-    expect(nameWords("ACCESS_TOKEN")).toEqual(["access", "token"]);
-    expect(nameWords("auth-token")).toEqual(["auth", "token"]);
-    expect(nameWords("JWTToken")).toEqual(["jwt", "token"]);
-  });
-
   it.each(["token", "accessToken", "REFRESH_TOKEN", "jwt", "session-id", "authorization", "oauth", "password", "apiKey", "privateKey", "Bearer"])(
     "flags %s",
     (name) => expect(isSensitiveName(name)).toBe(true),
