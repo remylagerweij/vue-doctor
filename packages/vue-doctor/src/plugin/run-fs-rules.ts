@@ -16,8 +16,9 @@ const normalizeFile = (file: string): string => file.replace(/\\/g, "/").replace
 export const runFsRules = (rules: readonly DefinedFsRule[], environment: FsEnvironment): Diagnostic[] => {
   const diagnostics: Diagnostic[] = [];
   for (const { ruleMeta, check } of rules) {
-    const severity = ruleMeta.defaultSeverity;
-    if (severity === "off") continue;
+    // Callers pass the enabled rules (see `getEnabledFsRules`); an off-by-default rule among them was
+    // opted into by the project config, which also sets the final severity of its findings.
+    const severity = ruleMeta.defaultSeverity === "off" ? "warning" : ruleMeta.defaultSeverity;
     check({
       ...environment,
       report: (finding) => {
