@@ -1,0 +1,74 @@
+{
+  "knownFailures": [
+    {
+      "oracle": "crash",
+      "engine": "oxlint",
+      "rule": "*",
+      "input": "stress:long-binary",
+      "reason": "oxlint's own JS plugin host fails with the anonymous 'Error running JS plugin.' on a binary expression chain of about 2800 levels or more (a 3000-term string concatenation), and production then drops every Vue Doctor finding for the file without a message. Not a rule defect; a real limit of the host. Lower priority, but a generated file of this shape is silently unlinted."
+    },
+    {
+      "oracle": "metamorphic",
+      "engine": "fs",
+      "rule": "lockfile-integrity",
+      "variant": "bom",
+      "reason": "readManifest (src/plugin/supply-chain/project.ts) runs JSON.parse on the raw file text. readFile keeps a leading U+FEFF, JSON.parse throws on it, and the rule silently reports nothing for a package.json that starts with a byte order mark (which Node's own require() of package.json accepts). Fix: strip a leading BOM in the shared manifest and lockfile readers."
+    },
+    {
+      "oracle": "metamorphic",
+      "engine": "fs",
+      "rule": "no-dependency-install-scripts",
+      "variant": "bom",
+      "reason": "Same cause as lockfile-integrity: install-scripts.ts and readManifest call JSON.parse on text that still starts with a byte order mark, throw, and the finding is lost without any warning. Fix: strip a leading BOM when reading JSON through the shared readers."
+    },
+    {
+      "oracle": "metamorphic",
+      "engine": "fs",
+      "rule": "no-remote-dependency-spec",
+      "variant": "bom",
+      "reason": "Same cause as lockfile-integrity: readManifest returns null for a package.json with a leading byte order mark, so git, tarball and http dependencies go unreported. Fix: strip a leading BOM in readManifest."
+    },
+    {
+      "oracle": "metamorphic",
+      "engine": "oxlint",
+      "rule": "no-giant-component",
+      "variant": "*blank-lines*",
+      "reason": "By design, not a defect: the rule measures size in source lines, so inserting blank lines changes the number in its message (351+ becomes 702+) and can move a component over its threshold. Blank lines are not semantics-preserving for a line-count rule; the oracle cannot tell. Revisit if the rule should count only lines of code."
+    },
+    {
+      "oracle": "metamorphic",
+      "engine": "oxlint",
+      "rule": "no-giant-component",
+      "variant": "*comments*",
+      "reason": "By design, not a defect: same as the blank-lines entry, comment lines count towards the rule's line total and appear in its message."
+    },
+    {
+      "oracle": "slowness",
+      "engine": "fs",
+      "rule": "no-remote-dependency-spec",
+      "input": "stress-tree:package-remote-specs",
+      "reason": "Quadratic in the number of dependencies: findKeyLine (src/plugin/supply-chain/project.ts) splits the whole package.json into lines and tries a RegExp on each line, once per flagged dependency. 5000 flagged dependencies take about 2.2 s. Fix: build one key-to-line index per file and reuse it."
+    },
+    {
+      "oracle": "slowness",
+      "engine": "oxlint",
+      "rule": "no-secret-named-literal",
+      "input": "stress:redos:tags",
+      "reason": "Quadratic in the length of the literal: a secret-named variable (apiKey, password, Authorization) assigned a string of repeated '<' takes about 180 ms at 20000 characters and 730 ms at 40000 (measured per statement; the same string in other positions is instant). Unlikely in real code, but it is a regex backtracking cost in the secret heuristics (src/plugin/secrets, src/plugin/secret-heuristics.ts); cap the length the heuristics inspect."
+    },
+    {
+      "oracle": "slowness",
+      "engine": "template",
+      "rule": "vue/no-mutating-props",
+      "input": "stress:vue-long-expression",
+      "reason": "Upstream eslint-plugin-vue rule, quadratic in the size of one template expression: a 3000-term sum (11.8 KiB) takes about 1.6 s with only this rule enabled, against 9 ms of parsing (found by re-linting with one rule at a time). Not Vue Doctor code; report upstream or disable the rule for generated templates."
+    },
+    {
+      "oracle": "slowness",
+      "engine": "template",
+      "rule": "vue/valid-v-slot",
+      "input": "stress:vue-many-slots",
+      "reason": "Upstream eslint-plugin-vue rule that scales badly with the number of slot templates in one component: 1500 slots (125 KiB) take about 0.5 s on top of 0.1 s of parsing. Not Vue Doctor code; report upstream."
+    }
+  ]
+}

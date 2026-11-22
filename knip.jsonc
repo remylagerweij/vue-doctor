@@ -9,6 +9,8 @@
       "entry": [
         "tests/**/*.test.ts",
         "tests/support/*.mjs",
+        // The rule fuzzing harness loads this oxlint plugin wrapper by path (`npm run fuzz` runs tests/fuzz/cli.ts).
+        "tests/fuzz/instrument-plugin.mjs",
         "src/plugin/rules/**/*.cases.ts",
         "src/plugin/*.cases.ts",
         "scripts/**/*.{mjs,ts}"

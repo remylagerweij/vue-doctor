@@ -89,6 +89,10 @@ Every rule is one file that carries its own metadata (category, severity, help t
 
 5.  **Verify**: run `npm run test` to ensure your new rule works as expected and doesn't break anything else.
 
+6.  **Fuzz it**: every rule is fuzzed automatically from its `<rule-id>.cases.ts` (your valid and invalid cases are the seed inputs), so good cases also make the fuzzing better. `npm run test` runs a small deterministic smoke subset. The full run is `npm run fuzz` (add `-- --seed 7` to reproduce a run, `-- --rule <rule-id>` to focus on one rule; see `-- --help`). It checks that no rule throws, that no rule is slow (a per-rule, per-file time budget), and that semantics-preserving rewrites (blank lines or comments between statements, indentation, quote style, CRLF, a byte order mark, `lang="ts"` on a `.vue` script) do not change what the rule reports beyond line numbers. It runs weekly and on pull requests that touch `packages/vue-doctor/src/plugin/**`.
+
+    If the fuzzer reports a failure in your rule, fix the rule. If the behaviour is intentional (for example a rule that counts lines is allowed to react to blank lines), or the fix has to wait, add an entry with a written reason to `packages/vue-doctor/tests/fuzz/known-failures.json`: that file is the visible list of known debt, and it should only shrink.
+
 ## Pull Request Process
 
 1.  Fork the repository and create your branch from `main`.
