@@ -7,7 +7,7 @@
 | **Category** | Security |
 | **Default Severity** | `warning` |
 | **Confidence** | high |
-| **Fixable** | No |
+| **Fixable** | Yes (`--fix`) |
 | **Engine** | `eslint-template` |
 | **Since** | v1.0.0 |
 | **Frameworks** | vue, nuxt |
@@ -19,7 +19,7 @@ Add `rel="noopener noreferrer"` to links that use `target="_blank"`
 
 ## How to fix
 
-Review the finding and update the code according to best practices below.
+This rule is automatically fixable. Run `npx @remylagerweij/vue-doctor@latest . --fix` to apply the codemod.
 
 ## Agent Guidance
 
