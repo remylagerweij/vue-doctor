@@ -113,6 +113,7 @@ export const createProgram = (): Command => {
     .option("--project <names>", "Workspace project(s) to scan (comma-separated)")
     .option("--audit", "Check installed dependency versions for known vulnerabilities via OSV.dev (sends package names and versions; needs the network, skipped with --offline)")
     .option("--offline", "Guarantee zero network access (also: VUE_DOCTOR_OFFLINE=1)")
+    .option("--no-inline-disables", "Audit mode: ignore vue-doctor-disable comments so every finding is reported")
     .option("-f, --force", "Bypass Vue dependency check")
     .addOption(
       new Option("--fail-on <severity>", "Exit with code 1 when findings of this severity (or worse) exist")
@@ -235,6 +236,7 @@ export const createProgram = (): Command => {
             timings: options.timings ?? false,
             scoreOnly: options.score ?? false,
             offline: options.offline,
+            inlineDisables: isFromCli("inlineDisables") ? options.inlineDisables : undefined,
             // Unset unless passed, so the config's audit.enabled applies.
             audit: isFromCli("audit") ? options.audit : undefined,
             json: format !== "text",

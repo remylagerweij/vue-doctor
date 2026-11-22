@@ -27,6 +27,16 @@ interface SuppressionResult {
   suppressed: SuppressedSummary;
   /** `eslint-disable` / `oxlint-disable` comments seen in files that have findings. */
   foreignDirectives: number;
+  /**
+   * Only with `ignoreInlineDisables`: the findings that `vue-doctor-disable*` comments would have
+   * hidden. They are part of `diagnostics`; `suppressed` is empty in that mode.
+   */
+  unsuppressed?: SuppressedSummary;
+  /**
+   * Only with `ignoreInlineDisables`: the very objects in `diagnostics` that a comment would have
+   * hidden, so fingerprinting can number them after the findings a normal run reports.
+   */
+  wouldBeSuppressed?: Set<Diagnostic>;
 }
 
 type DirectiveKind = "disable-next-line" | "disable-line" | "disable-file" | "disable" | "enable";
@@ -177,13 +187,16 @@ const readFileScan = (absolutePath: string, reporter?: RuleIdReporter): FileScan
 };
 
 /**
- * Removes findings hidden by `vue-doctor-disable*` comments. Read-only: each file that has
- * findings is read at most once; nothing is ever written.
+ * Removes findings hidden by `vue-doctor-disable*` comments (or, with `ignoreInlineDisables`,
+ * keeps them and only counts them in `unsuppressed`). Read-only: each file that has findings is
+ * read at most once; nothing is ever written.
  */
 export const applySuppressions = (
   diagnostics: Diagnostic[],
   rootDirectory: string,
   reporter?: RuleIdReporter,
+  /** Audit mode: keep every finding although a `vue-doctor-disable*` comment covers it. */
+  ignoreInlineDisables = false,
 ): SuppressionResult => {
   const scans = new Map<string, FileScan | null>();
   const getScan = (filePath: string): FileScan | null => {
@@ -193,6 +206,7 @@ export const applySuppressions = (
   };
 
   const kept: Diagnostic[] = [];
+  const wouldBeSuppressed = new Set<Diagnostic>();
   const byRule: Record<string, number> = {};
   let suppressedCount = 0;
 
@@ -202,6 +216,10 @@ export const applySuppressions = (
     if (scan && isSuppressed(scan.suppressions, diagnostic, ruleId)) {
       suppressedCount++;
       byRule[ruleId] = (byRule[ruleId] ?? 0) + 1;
+      if (ignoreInlineDisables) {
+        kept.push(diagnostic);
+        wouldBeSuppressed.add(diagnostic);
+      }
     } else {
       kept.push(diagnostic);
     }
@@ -210,9 +228,11 @@ export const applySuppressions = (
   let foreignDirectives = 0;
   for (const scan of scans.values()) foreignDirectives += scan?.foreignDirectives ?? 0;
 
+  const found = { count: suppressedCount, byRule };
   return {
     diagnostics: kept,
-    suppressed: { count: suppressedCount, byRule },
+    suppressed: ignoreInlineDisables ? { count: 0, byRule: {} } : found,
     foreignDirectives,
+    ...(ignoreInlineDisables ? { unsuppressed: found, wouldBeSuppressed } : {}),
   };
 };

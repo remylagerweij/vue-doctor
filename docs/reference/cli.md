@@ -39,6 +39,7 @@ npx @remylagerweij/vue-doctor@latest [directory] [options]
 - `--baseline <file>`: Path to baseline file to suppress known issues.
 - `--audit`: Enable OSV.dev dependency vulnerability checks.
 - `--offline`: Guarantee zero network calls.
+- `--no-inline-disables`: Audit mode: ignore `vue-doctor-disable` comments so every finding is reported.
 - `--no-lint`: Skip AST and template lint checks.
 - `--no-dead-code`: Skip Knip dead code analysis.
 - `--no-cache`: Disable content-hash cache in `node_modules/.cache/vue-doctor`.

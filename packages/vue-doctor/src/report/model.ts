@@ -128,6 +128,18 @@ const projectSchema = z
       count: z.number().int().min(0),
       byRule: z.record(z.string(), z.number().int().min(0)),
     }),
+    inlineDisables: z
+      .object({
+        ignored: z.literal(true),
+        unsuppressed: z.object({
+          count: z.number().int().min(0),
+          byRule: z.record(z.string(), z.number().int().min(0)),
+        }),
+      })
+      .optional()
+      .describe(
+        "Present only with --no-inline-disables: vue-doctor-disable comments were ignored. `unsuppressed` counts the findings they would have hidden; those findings are in `findings` and in the score.",
+      ),
     baseline: z
       .object({
         path: z.string().describe("Baseline file, relative to the project root when inside it."),

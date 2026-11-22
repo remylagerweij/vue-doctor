@@ -25,6 +25,9 @@ vue-doctor --verbose
 vue-doctor --no-dead-code
 vue-doctor --no-lint
 
+# Audit: ignore vue-doctor-disable comments, report everything
+vue-doctor --no-inline-disables
+
 # Only scan files changed against a branch (includes untracked files)
 vue-doctor --diff main
 

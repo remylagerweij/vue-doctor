@@ -209,6 +209,7 @@ const analyzeProject = async (
     config: options.config,
     baseline: options.baseline,
     offline: options.offline,
+    inlineDisables: options.inlineDisables,
     audit: options.audit,
     cache: options.cache,
     ...hooks,
@@ -257,6 +258,14 @@ const renderOutcome = async (outcome: ScanOutcome, options: ScanOptions): Promis
     const noun = result.suppressed.count === 1 ? "finding" : "findings";
     logger.log(
       `  ${pc.dim(`${result.suppressed.count} ${noun} suppressed by vue-doctor-disable comments`)}`,
+    );
+    logger.break();
+  }
+
+  if (result.unsuppressed) {
+    const { count } = result.unsuppressed;
+    logger.log(
+      `  ${pc.dim(`Audit mode: vue-doctor-disable comments ignored, ${count} ${count === 1 ? "finding" : "findings"} reported that they would have hidden`)}`,
     );
     logger.break();
   }

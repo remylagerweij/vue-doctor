@@ -22,8 +22,17 @@ const ruleKey = ruleIdOf;
  * it) keeps the fingerprint stable. Identical findings on identical lines in one file are told
  * apart by their order of appearance. Findings without a source line (e.g. an unused file) use
  * their message as the snippet.
+ *
+ * `deferred` (audit mode, `--no-inline-disables`) holds findings that a normal run would not
+ * report. They are numbered after all other findings, so the fingerprints of the findings a normal
+ * run reports are the same with and without audit mode, and a baseline written in either mode
+ * matches the other.
  */
-export const addFingerprints = (diagnostics: Diagnostic[], rootDirectory: string): Diagnostic[] => {
+export const addFingerprints = (
+  diagnostics: Diagnostic[],
+  rootDirectory: string,
+  deferred?: ReadonlySet<Diagnostic>,
+): Diagnostic[] => {
   const linesByFile = new Map<string, string[] | null>();
   const readLines = (filePath: string): string[] | null => {
     if (!linesByFile.has(filePath)) {
@@ -52,6 +61,12 @@ export const addFingerprints = (diagnostics: Diagnostic[], rootDirectory: string
         left.diagnostic.column - right.diagnostic.column ||
         left.index - right.index,
     );
+  if (deferred?.size) {
+    // Stable partition: the relative source order inside each group is kept.
+    const normal = order.filter((entry) => !deferred.has(entry.diagnostic));
+    const audited = order.filter((entry) => deferred.has(entry.diagnostic));
+    order.splice(0, order.length, ...normal, ...audited);
+  }
 
   const occurrences = new Map<string, number>();
   const fingerprints: string[] = Array.from({ length: diagnostics.length }, () => "");
